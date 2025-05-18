@@ -23,6 +23,13 @@ const AdminWorkforce = () => {
     if (!user) {
       navigate('/auth');
     }
+    
+    // Set page to full height
+    document.body.classList.add('min-h-screen', 'h-full');
+    
+    return () => {
+      document.body.classList.remove('min-h-screen', 'h-full');
+    };
   }, [user, navigate]);
 
   const handleLogout = async () => {
@@ -39,14 +46,15 @@ const AdminWorkforce = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 dark:bg-gray-900 dark:text-gray-100">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 dark:text-gray-100">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Workforce Management</h1>
           <div className="flex gap-4 items-center">
             <span className="font-medium">
               {user.employee ? `${user.employee.name} (${user.employee.e_number})` : user.username}
             </span>
+            <ThemeToggle />
             <Button variant="outline" onClick={handleLogout}>Logout</Button>
           </div>
         </div>
@@ -58,11 +66,17 @@ const AdminWorkforce = () => {
         <UniversalSearch />
 
         {/* Schedule Calendar */}
-        <ScheduleCalendar onScroll={handleCalendarScroll} />
+        <div className="mb-1 mt-6">
+          <h2 className="text-xl font-semibold mb-2">Employee Schedule Calendar</h2>
+          <ScheduleCalendar onScroll={handleCalendarScroll} />
+        </div>
         
         {/* Aircraft Gantt Chart - synchronized with calendar */}
-        <AircraftGanttChart scrollLeft={calendarScrollLeft} />
-
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-2">Aircraft Schedule</h2>
+          <AircraftGanttChart scrollLeft={calendarScrollLeft} />
+        </div>
+        
         {/* Management Features - Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6">
           <ManagementShortcuts />
@@ -71,9 +85,6 @@ const AdminWorkforce = () => {
         
         {/* Floating Action Menu */}
         <FloatingActionMenu />
-        
-        {/* Theme Toggle */}
-        <ThemeToggle />
         
         <div className="mt-6 text-right">
           <Button 

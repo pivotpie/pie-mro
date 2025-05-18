@@ -6,15 +6,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Filter, ChevronDown } from "lucide-react";
 
-// Mock data for demonstration
-const employees = [
-  { id: "EMP001", name: "James Wilson", alias: "JW", mobile: "+971 52 123 4567", team: "Team Alpha", core: "A320", support: "Available", title: "TECH", night_shift: "Yes", fte: "Valid", ttl: "07:30 AM" },
-  { id: "EMP002", name: "Sarah Johnson", alias: "SJ", mobile: "+971 52 234 5678", team: "Team Beta", core: "B777", support: "B777-D0601", title: "TECH", night_shift: "No", fte: "Valid", ttl: "07:30 AM" },
-  { id: "EMP003", name: "Michael Brown", alias: "MB", mobile: "+971 55 345 6789", team: "Team Charlie", core: "B787", support: "Training", title: "TECH", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM" },
-  { id: "EMP004", name: "Emily Davis", alias: "ED", mobile: "+971 54 456 7890", team: "Team Alpha", core: "A350", support: "Leave", title: "TECH", night_shift: "No", fte: "Valid", ttl: "07:30 AM" },
-  { id: "EMP005", name: "Robert Miller", alias: "RM", mobile: "+971 50 567 8901", team: "Team Beta", core: "B777", support: "A320-C0522", title: "TECH", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM" },
-];
-
 // Helper function to determine if a date is a weekend
 const isWeekend = (dayOfMonth: number, month: number) => {
   const date = new Date(2025, month, dayOfMonth);
@@ -36,46 +27,67 @@ const generateDays = () => {
   return days;
 };
 
-// Mock schedule data - just for demonstration
-const generateScheduleData = () => {
-  const scheduleData: Record<string, Record<string, string>> = {};
-  
-  employees.forEach(emp => {
-    scheduleData[emp.id] = {};
-    generateDays().forEach(day => {
-      const randomValue = Math.random();
-      if (randomValue < 0.1) {
-        scheduleData[emp.id][`${day.month+1}-${day.day}`] = "L"; // Leave
-      } else if (randomValue < 0.2) {
-        scheduleData[emp.id][`${day.month+1}-${day.day}`] = "T"; // Training
-      } else if (randomValue < 0.8) {
-        scheduleData[emp.id][`${day.month+1}-${day.day}`] = "D"; // Duty
-      } else {
-        scheduleData[emp.id][`${day.month+1}-${day.day}`] = "O"; // Off
-      }
-    });
-  });
-  
-  return scheduleData;
-};
-
-// Status color mapping
-const statusColors: Record<string, string> = {
-  "D": "bg-green-100 text-green-800",
-  "L": "bg-red-100 text-red-800",
-  "T": "bg-purple-100 text-purple-800",
-  "O": "bg-gray-100 text-gray-800",
-};
-
 interface ScheduleCalendarProps {
   onScroll: (scrollLeft: number) => void;
 }
 
 export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
-  const [scheduleData] = useState(generateScheduleData());
+  const [columns, setColumns] = useState<{
+    id: string;
+    name: string;
+    mobile: string;
+    team: string;
+    core: string;
+    support: string;
+    title: string;
+    night_shift: string;
+    fte: string;
+    ttl: string;
+    alias: string;
+    schedule: Record<string, string>;
+  }[]>([]);
+
   const days = generateDays();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    // In a real app, fetch this data from the database
+    // For now, we'll use sample data
+    const sampleEmployees = [
+      { id: "EMP001", name: "James Wilson", alias: "JW", mobile: "+971 52 123 4567", team: "Team Alpha", core: "A320", support: "Available", title: "TECH", night_shift: "Yes", fte: "Valid", ttl: "07:30 AM" },
+      { id: "EMP002", name: "Sarah Johnson", alias: "SJ", mobile: "+971 52 234 5678", team: "Team Beta", core: "B777", support: "B777-D0601", title: "TECH", night_shift: "No", fte: "Valid", ttl: "07:30 AM" },
+      { id: "EMP003", name: "Michael Brown", alias: "MB", mobile: "+971 55 345 6789", team: "Team Charlie", core: "B787", support: "Training", title: "TECH", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM" },
+      { id: "EMP004", name: "Emily Davis", alias: "ED", mobile: "+971 54 456 7890", team: "Team Alpha", core: "A350", support: "Leave", title: "TECH", night_shift: "No", fte: "Valid", ttl: "07:30 AM" },
+      { id: "EMP005", name: "Robert Miller", alias: "RM", mobile: "+971 50 567 8901", team: "Team Beta", core: "B777", support: "A320-C0522", title: "TECH", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM" },
+    ];
+
+    const employeesWithSchedule = sampleEmployees.map(emp => {
+      const schedule: Record<string, string> = {};
+      
+      days.forEach(day => {
+        const randomValue = Math.random();
+        const dateKey = `${day.month+1}-${day.day}`;
+        
+        if (randomValue < 0.1) {
+          schedule[dateKey] = "L"; // Leave
+        } else if (randomValue < 0.2) {
+          schedule[dateKey] = "T"; // Training
+        } else if (randomValue < 0.8) {
+          schedule[dateKey] = "D"; // Duty
+        } else {
+          schedule[dateKey] = "O"; // Off
+        }
+      });
+      
+      return {
+        ...emp,
+        schedule
+      };
+    });
+    
+    setColumns(employeesWithSchedule);
+  }, []);
 
   // Handle scroll events
   const handleScroll = () => {
@@ -118,23 +130,31 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     // This would open the right-side details pane
   };
 
+  // Status color mapping
+  const statusColors: Record<string, string> = {
+    "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+    "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+    "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+    "O": "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+  };
+
   return (
-    <div className="border rounded-lg mb-6">
+    <div className="border rounded-lg dark:border-gray-700">
       <ScrollArea 
-        className="relative overflow-auto h-[400px] rounded-lg" 
+        className="relative overflow-auto h-[400px] rounded-lg"
         ref={scrollRef}
-        onScroll={handleScroll}
+        onScrollCapture={handleScroll}
       >
         <div className="min-w-[2000px]">
           <table className="w-full border-collapse">
-            <thead className="bg-gray-100 sticky top-0 z-10">
+            <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
               <tr>
                 {/* Fixed columns */}
-                <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100">ID</th>
-                <th className="p-2 text-left border-r sticky left-[80px] z-20 bg-gray-100">Name</th>
-                <th className="p-2 text-left border-r sticky left-[280px] z-20 bg-gray-100">Alias</th>
-                <th className="p-2 text-left border-r sticky left-[350px] z-20 bg-gray-100">Mobile</th>
-                <th className="p-2 text-left border-r sticky left-[480px] z-20 bg-gray-100">
+                <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">ID</th>
+                <th className="p-2 text-left border-r sticky left-[80px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Name</th>
+                <th className="p-2 text-left border-r sticky left-[280px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Alias</th>
+                <th className="p-2 text-left border-r sticky left-[350px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Mobile</th>
+                <th className="p-2 text-left border-r sticky left-[480px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
                   <div className="flex items-center justify-between">
                     Team
                     <Popover>
@@ -169,7 +189,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                     </Popover>
                   </div>
                 </th>
-                <th className="p-2 text-left border-r sticky left-[580px] z-20 bg-gray-100">
+                <th className="p-2 text-left border-r sticky left-[580px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
                   <div className="flex items-center justify-between">
                     Core
                     <Popover>
@@ -204,17 +224,18 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                     </Popover>
                   </div>
                 </th>
-                <th className="p-2 text-left border-r sticky left-[680px] z-20 bg-gray-100">Support</th>
-                <th className="p-2 text-left border-r sticky left-[780px] z-20 bg-gray-100">Title</th>
-                <th className="p-2 text-left border-r sticky left-[860px] z-20 bg-gray-100">N/S</th>
-                <th className="p-2 text-left border-r sticky left-[920px] z-20 bg-gray-100">FTE</th>
-                <th className="p-2 text-left border-r sticky left-[980px] z-20 bg-gray-100">TTL</th>
+                <th className="p-2 text-left border-r sticky left-[680px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Support</th>
+                <th className="p-2 text-left border-r sticky left-[780px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Title</th>
+                <th className="p-2 text-left border-r sticky left-[860px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">N/S</th>
+                <th className="p-2 text-left border-r sticky left-[920px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">FTE</th>
+                <th className="p-2 text-left border-r sticky left-[980px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">TTL</th>
                 
                 {/* Calendar days */}
                 {days.map((day) => (
                   <th 
                     key={`${day.month+1}-${day.day}`} 
-                    className={`p-2 text-center border-r min-w-[40px] ${day.isWeekend ? 'bg-gray-200' : ''}`}
+                    className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200 
+                      ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                   >
                     <div className="text-sm">{day.day}</div>
                     <div className="text-xs">{day.month === 4 ? 'May' : 'Jun'}</div>
@@ -223,42 +244,44 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
               </tr>
             </thead>
             <tbody>
-              {employees.map((employee) => (
-                <tr key={employee.id} className="border-b hover:bg-gray-50">
+              {columns.map((employee) => (
+                <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                   {/* Fixed columns */}
                   <td 
-                    className="p-2 border-r sticky left-0 bg-white z-10 cursor-pointer"
+                    className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
                     onClick={() => console.log(`Clicked employee ID ${employee.id}`)}
                   >
                     {employee.id}
                   </td>
                   <td 
-                    className="p-2 border-r sticky left-[80px] bg-white z-10 cursor-pointer"
+                    className="p-2 border-r sticky left-[80px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
                     onClick={() => console.log(`Clicked employee ${employee.name}`)}
                   >
                     {employee.name}
                   </td>
-                  <td className="p-2 border-r sticky left-[280px] bg-white z-10">{employee.alias}</td>
-                  <td className="p-2 border-r sticky left-[350px] bg-white z-10">{employee.mobile}</td>
-                  <td className="p-2 border-r sticky left-[480px] bg-white z-10">{employee.team}</td>
-                  <td className="p-2 border-r sticky left-[580px] bg-white z-10">{employee.core}</td>
-                  <td className="p-2 border-r sticky left-[680px] bg-white z-10">{employee.support}</td>
-                  <td className="p-2 border-r sticky left-[780px] bg-white z-10">{employee.title}</td>
-                  <td className="p-2 border-r sticky left-[860px] bg-white z-10">{employee.night_shift}</td>
-                  <td className="p-2 border-r sticky left-[920px] bg-white z-10">{employee.fte}</td>
-                  <td className="p-2 border-r sticky left-[980px] bg-white z-10">{employee.ttl}</td>
+                  <td className="p-2 border-r sticky left-[280px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.alias}</td>
+                  <td className="p-2 border-r sticky left-[350px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.mobile}</td>
+                  <td className="p-2 border-r sticky left-[480px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.team}</td>
+                  <td className="p-2 border-r sticky left-[580px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.core}</td>
+                  <td className="p-2 border-r sticky left-[680px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.support}</td>
+                  <td className="p-2 border-r sticky left-[780px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.title}</td>
+                  <td className="p-2 border-r sticky left-[860px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.night_shift}</td>
+                  <td className="p-2 border-r sticky left-[920px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.fte}</td>
+                  <td className="p-2 border-r sticky left-[980px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.ttl}</td>
                   
                   {/* Calendar days */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}`;
-                    const status = scheduleData[employee.id]?.[dateKey];
+                    const status = employee.schedule[dateKey];
                     
                     return (
                       <TooltipProvider key={dateKey}>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <td 
-                              className={`p-2 text-center border-r cursor-pointer text-sm ${day.isWeekend ? 'bg-gray-50' : ''} ${status ? statusColors[status] : ''}`}
+                              className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
+                                ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''} 
+                                ${status ? statusColors[status] : ''}`}
                               onClick={() => handleCellClick(employee.id, dateKey)}
                             >
                               {status}
