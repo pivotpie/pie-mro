@@ -52,14 +52,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      // Query the user table to check credentials - Fixed to handle no rows found
+      console.log(`Attempting login with username: ${username}`);
+      
+      // Query the user table to check credentials
       const { data, error } = await supabase
         .from('user')
-        .select('id, user_name')
+        .select('*')
         .eq('user_name', username)
         .eq('password', password);
       
+      console.log('Query result:', data, error);
+      
       if (error) {
+        console.error('Supabase error:', error);
         throw error;
       }
       
@@ -67,6 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (data && data.length > 0) {
         // Get the first matching user
         const userData = data[0];
+        console.log('User found:', userData);
         
         // Get the employee information based on the username
         const { data: employeeData, error: employeeError } = await supabase
@@ -75,7 +81,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq('user', username)
           .maybeSingle();
         
+        console.log('Employee data:', employeeData, employeeError);
+        
         if (employeeError && employeeError.code !== 'PGRST116') {
+          console.error('Employee fetch error:', employeeError);
           throw employeeError;
         }
         
@@ -88,7 +97,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Store user session in localStorage
         localStorage.setItem('mro_user', JSON.stringify(userSessionData));
         setUser(userSessionData);
+        console.log('Login successful, user data stored:', userSessionData);
       } else {
+        console.error('No matching user found');
         throw new Error('Invalid username or password');
       }
     } catch (error) {

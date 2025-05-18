@@ -6,16 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const Auth = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (!username || !password) {
       toast.error('Username and password are required');
@@ -25,11 +29,13 @@ const Auth = () => {
     setIsLoading(true);
     
     try {
+      console.log(`Login attempt: ${username}`);
       await login(username, password);
       toast.success(`Welcome back, ${username}!`);
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Login error:', error);
+      setError(error.message || 'An error occurred during login');
       toast.error(error.message || 'An error occurred during login');
     } finally {
       setIsLoading(false);
@@ -45,6 +51,12 @@ const Auth = () => {
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <label htmlFor="username" className="text-sm font-medium">Username</label>
               <Input
