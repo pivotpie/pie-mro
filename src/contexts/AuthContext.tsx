@@ -52,39 +52,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      // Query the user table to check credentials
+      // Query the user table to check credentials - Fixed to handle no rows found
       const { data, error } = await supabase
         .from('user')
         .select('id, user_name')
         .eq('user_name', username)
-        .eq('password', password)
-        .single();
+        .eq('password', password);
       
       if (error) {
         throw error;
       }
       
-      if (data) {
+      // Check if any user was found
+      if (data && data.length > 0) {
+        // Get the first matching user
+        const userData = data[0];
+        
         // Get the employee information based on the username
         const { data: employeeData, error: employeeError } = await supabase
           .from('employees')
           .select('*')
           .eq('user', username)
-          .single();
+          .maybeSingle();
         
         if (employeeError && employeeError.code !== 'PGRST116') {
           throw employeeError;
         }
         
-        const userData = {
-          id: data.id,
-          username: data.user_name,
+        const userSessionData = {
+          id: userData.id,
+          username: userData.user_name,
           employee: employeeData || null
         };
         
         // Store user session in localStorage
-        localStorage.setItem('mro_user', JSON.stringify(userData));
-        setUser(userData);
+        localStorage.setItem('mro_user', JSON.stringify(userSessionData));
+        setUser(userSessionData);
       } else {
         throw new Error('Invalid username or password');
       }

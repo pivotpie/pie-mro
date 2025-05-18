@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,42 +25,9 @@ const Auth = () => {
     setIsLoading(true);
     
     try {
-      // Query the user table to check credentials
-      const { data, error } = await supabase
-        .from('user')
-        .select('id, user_name')
-        .eq('user_name', username)
-        .eq('password', password)
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (data) {
-        // Get the employee information based on the username
-        const { data: employeeData, error: employeeError } = await supabase
-          .from('employees')
-          .select('*')
-          .eq('user', username)
-          .single();
-        
-        if (employeeError && employeeError.code !== 'PGRST116') {
-          throw employeeError;
-        }
-        
-        // Store user session in localStorage
-        localStorage.setItem('mro_user', JSON.stringify({
-          id: data.id,
-          username: data.user_name,
-          employee: employeeData || null
-        }));
-        
-        toast.success(`Welcome back, ${employeeData?.name || username}!`);
-        navigate('/dashboard');
-      } else {
-        toast.error('Invalid username or password');
-      }
+      await login(username, password);
+      toast.success(`Welcome back, ${username}!`);
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'An error occurred during login');
