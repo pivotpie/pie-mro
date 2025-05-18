@@ -9,7 +9,8 @@ import { ThemeToggle } from "@/components/workforce/ThemeToggle";
 import { WorkforceHeader } from "@/components/workforce/WorkforceHeader";
 import { WorkforceMetrics } from "@/components/workforce/WorkforceMetrics";
 import { UniversalSearch } from '@/components/workforce/UniversalSearch';
-import { AircraftScheduleView } from '@/components/workforce/tabs/AircraftScheduleView';
+import { WorkforceTabs } from '@/components/workforce/WorkforceTabs';
+import { ManagementShortcuts } from '@/components/workforce/ManagementShortcuts';
 
 const AdminWorkforce = () => {
   const { user, logout } = useAuth();
@@ -56,16 +57,22 @@ const AdminWorkforce = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden flex flex-col">
-        <div className="p-4 md:p-6 overflow-y-auto space-y-6">
+      <main className="flex-1 overflow-hidden flex">
+        {/* Sidebar with management shortcuts */}
+        <aside className="hidden md:block w-64 lg:w-72 border-r bg-white dark:bg-gray-800 dark:border-gray-700 overflow-y-auto">
+          <ManagementShortcuts />
+        </aside>
+        
+        {/* Main content area */}
+        <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-6">
           {/* Universal Search */}
           <UniversalSearch />
           
           {/* Metrics Dashboard */}
           <WorkforceMetrics />
           
-          {/* Aircraft Schedule View */}
-          <AircraftScheduleView />
+          {/* Tabbed View for Employee, Team, Aircraft, and Certification data */}
+          <WorkforceTabs />
         </div>
       </main>
       
