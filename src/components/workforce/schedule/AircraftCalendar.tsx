@@ -1,0 +1,387 @@
+
+import { useState, useRef, useEffect } from 'react';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from "sonner";
+
+// Helper function to check if a date is a weekend
+const isWeekend = (dayOfMonth: number, month: number) => {
+  const date = new Date(2025, month, dayOfMonth);
+  const day = date.getDay();
+  return day === 0 || day === 6;
+};
+
+// Generate days for May 2025
+const generateDays = () => {
+  const days = [];
+  // May 2025 has 31 days
+  for (let i = 1; i <= 31; i++) {
+    days.push({ day: i, month: 4, isWeekend: isWeekend(i, 4) }); // Month is 0-indexed, so May is 4
+  }
+  return days;
+};
+
+export const AircraftCalendar = () => {
+  const [hangars, setHangars] = useState<any[]>([]);
+  const [aircraftSchedules, setAircraftSchedules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const days = generateDays();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [selectedAircraft, setSelectedAircraft] = useState<any>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch hangars
+        const { data: hangarData, error: hangarError } = await supabase
+          .from('hangars')
+          .select('*')
+          .order('id');
+        
+        if (hangarError) throw hangarError;
+
+        // Fetch aircraft
+        const { data: aircraftData, error: aircraftError } = await supabase
+          .from('aircraft')
+          .select('*')
+          .limit(10);
+        
+        if (aircraftError) throw aircraftError;
+
+        // Fetch maintenance visits for scheduling
+        const { data: visitData, error: visitError } = await supabase
+          .from('maintenance_visits')
+          .select('*')
+          .limit(20);
+        
+        if (visitError) throw visitError;
+
+        setHangars(hangarData || []);
+
+        // Process schedule data
+        const schedules = [];
+
+        for (const hangar of hangarData || []) {
+          // Find aircraft assigned to this hangar
+          const hangarVisits = visitData?.filter(visit => visit.hangar_id === hangar.id) || [];
+          
+          const scheduleItems = [];
+
+          for (const visit of hangarVisits) {
+            const aircraft = aircraftData?.find(a => a.id === visit.aircraft_id);
+            if (!aircraft) continue;
+
+            // Use real date_in and date_out if available, or generate random dates
+            let startDay, endDay;
+
+            if (visit.date_in && visit.date_out) {
+              // Convert real dates to our May 2025 calendar for demo purposes
+              const date_in = new Date(visit.date_in);
+              const date_out = new Date(visit.date_out);
+              
+              // Map to May 2025 by using the day of month
+              startDay = Math.min(date_in.getDate(), 28);
+              endDay = Math.min(date_out.getDate(), 30);
+              
+              if (startDay > endDay) {
+                [startDay, endDay] = [endDay, startDay]; // Swap if out of order
+              }
+            } else {
+              // Generate random dates within May
+              startDay = 1 + Math.floor(Math.random() * 20);
+              endDay = startDay + 3 + Math.floor(Math.random() * 8);
+              endDay = Math.min(endDay, 31); // Ensure we don't go beyond May
+            }
+
+            // Get a random team
+            const teamNames = ["Team Alpha", "Team Beta", "Team Charlie", null];
+            const teamName = teamNames[Math.floor(Math.random() * teamNames.length)];
+
+            const colorClasses = [
+              "bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700",
+              "bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700",
+              "bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700",
+              "bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700",
+              "bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700",
+              "bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700"
+            ];
+
+            scheduleItems.push({
+              id: visit.id,
+              visit_id: visit.id,
+              aircraft_id: aircraft.id,
+              aircraft: aircraft.aircraft_name || aircraft.aircraft_code,
+              registration: aircraft.registration || 'No Reg',
+              start: { month: 4, day: startDay },
+              end: { month: 4, day: endDay },
+              team: teamName,
+              color: colorClasses[Math.floor(Math.random() * colorClasses.length)],
+              visit_type: visit.check_type || 'Maintenance'
+            });
+          }
+
+          schedules.push({
+            hangarId: hangar.id,
+            hangarName: hangar.hangar_name,
+            hangarCode: hangar.hangar_code,
+            schedules: scheduleItems
+          });
+        }
+
+        setAircraftSchedules(schedules);
+      } catch (error: any) {
+        toast.error(`Error loading data: ${error.message}`);
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const calculatePosition = (schedule: any) => {
+    const startIdx = days.findIndex(d => d.month === schedule.start.month && d.day === schedule.start.day);
+    const endIdx = days.findIndex(d => d.month === schedule.end.month && d.day === schedule.end.day);
+    
+    if (startIdx === -1 || endIdx === -1) return null;
+    
+    const startPosition = startIdx * 41 + 220; // 40px for column width + 1px for border, starting after fixed columns
+    const width = (endIdx - startIdx + 1) * 41 - 1; // Subtract 1px to account for border
+    
+    return { startPosition, width };
+  };
+
+  const handleAircraftClick = (schedule: any) => {
+    setSelectedAircraft(schedule);
+    setIsDetailOpen(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[300px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border rounded-lg dark:border-gray-700">
+      <ScrollArea 
+        className="h-[400px] rounded-lg"
+        ref={scrollAreaRef}
+      >
+        <div className="min-w-[2000px]">
+          <table className="w-full border-collapse">
+            <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
+              <tr>
+                <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
+                <th className="p-2 text-left border-r sticky left-[120px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[100px]">Bay</th>
+                
+                {/* Calendar days - same as EmployeeCalendar */}
+                {days.map((day, index) => (
+                  <th 
+                    key={`${day.month+1}-${day.day}`} 
+                    className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200
+                      ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                  >
+                    <div className="text-xs font-medium">{index + 1}</div>
+                    <div className="text-xs">May</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {aircraftSchedules.map((hangarSchedule) => (
+                <tr key={hangarSchedule.hangarId} className="border-b h-[40px] dark:border-gray-700">
+                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">
+                    {hangarSchedule.hangarName.split(" ")[0] || 'Hangar'}
+                  </td>
+                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">
+                    {hangarSchedule.hangarName.split(" ")[1] || hangarSchedule.hangarCode || 'Bay'}
+                  </td>
+                  
+                  {/* Gantt chart container cell */}
+                  <td colSpan={days.length} className="relative p-0 h-[40px]">
+                    {/* Render weekend backgrounds */}
+                    {days.map((day, index) => (
+                      <div 
+                        key={`bg-${day.month}-${day.day}`}
+                        className={`absolute top-0 bottom-0 border-r dark:border-gray-700 ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
+                        style={{
+                          left: `${index * 41}px`,
+                          width: '40px'
+                        }}
+                      />
+                    ))}
+                    
+                    {/* Render aircraft schedules */}
+                    {hangarSchedule.schedules.map(schedule => {
+                      const position = calculatePosition(schedule);
+                      if (!position) return null;
+                      
+                      return (
+                        <TooltipProvider key={schedule.id}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div 
+                                className={`absolute top-1 h-[32px] ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
+                                style={{
+                                  left: `${position.startPosition}px`,
+                                  width: `${position.width}px`,
+                                }}
+                                onClick={() => handleAircraftClick(schedule)}
+                              >
+                                <span className="truncate px-1">{schedule.aircraft}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="text-sm font-medium">{schedule.aircraft}</div>
+                              <div className="text-xs">
+                                May {schedule.start.day} - May {schedule.end.day}, 2025
+                              </div>
+                              {schedule.team ? (
+                                <div className="text-green-600">Assigned to {schedule.team}</div>
+                              ) : (
+                                <div className="text-amber-600">Not assigned to a team</div>
+                              )}
+                              <div className="text-xs mt-1">{schedule.visit_type}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </ScrollArea>
+
+      {/* Aircraft Details Modal */}
+      <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <SheetContent className="w-full sm:w-[640px] md:w-[700px] lg:w-[800px]">
+          <SheetHeader>
+            <SheetTitle>Aircraft Maintenance Details</SheetTitle>
+          </SheetHeader>
+          
+          {selectedAircraft && (
+            <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-120px)] mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Aircraft Information</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <div className="grid gap-3">
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Aircraft</p>
+                        <p className="font-medium dark:text-gray-200">{selectedAircraft.aircraft}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Registration</p>
+                        <p className="font-medium dark:text-gray-200">{selectedAircraft.registration}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Schedule</p>
+                        <p className="font-medium dark:text-gray-200">
+                          May {selectedAircraft.start.day} - May {selectedAircraft.end.day}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Duration</p>
+                        <p className="font-medium dark:text-gray-200">
+                          {selectedAircraft.end.day - selectedAircraft.start.day + 1} days
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Visit Type</p>
+                        <p className="font-medium dark:text-gray-200">{selectedAircraft.visit_type}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Assignment Status</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    {selectedAircraft.team ? (
+                      <>
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Assigned Team</p>
+                          <p className="font-medium dark:text-gray-200">{selectedAircraft.team}</p>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Assigned Personnel</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                              MJ
+                            </div>
+                            <span className="dark:text-gray-300">Michael Johnson (Lead)</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                              SW
+                            </div>
+                            <span className="dark:text-gray-300">Sarah Williams</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-amber-600 dark:text-amber-500 font-medium">No team assigned</div>
+                    )}
+                    
+                    <div className="mt-4">
+                      <Button className="bg-blue-600 hover:bg-blue-700">
+                        {selectedAircraft.team ? "Edit Assignment" : "Assign Team"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-2">Maintenance Tasks</h3>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <table className="w-full">
+                    <thead className="border-b dark:border-gray-700">
+                      <tr>
+                        <th className="text-left py-2 font-medium">Task</th>
+                        <th className="text-left py-2 font-medium">Status</th>
+                        <th className="text-left py-2 font-medium">Estimated Hours</th>
+                        <th className="text-left py-2 font-medium">Assignee</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: 3 }).map((_, idx) => (
+                        <tr key={idx} className="border-b dark:border-gray-700">
+                          <td className="py-2">Task #{idx + 1}: {["Inspect engines", "Check avionics", "Test landing gear"][idx]}</td>
+                          <td className="py-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              idx === 0 ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : 
+                              idx === 1 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" :
+                              "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                            }`}>
+                              {idx === 0 ? "Completed" : idx === 1 ? "In Progress" : "Scheduled"}
+                            </span>
+                          </td>
+                          <td className="py-2">{[4, 8, 6][idx]} hours</td>
+                          <td className="py-2">{["Michael J.", "Sarah W.", "Unassigned"][idx]}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+};

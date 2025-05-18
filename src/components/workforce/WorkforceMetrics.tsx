@@ -1,6 +1,21 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, CalendarCheck, GraduationCap, PlaneTakeoff, Plane, FileCheck, Activity } from "lucide-react";
+import { useState } from "react";
+import { 
+  Users, 
+  CalendarCheck, 
+  GraduationCap, 
+  PlaneTakeoff, 
+  Plane, 
+  FileCheck, 
+  Activity 
+} from "lucide-react";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetHeader, 
+  SheetTitle 
+} from "@/components/ui/sheet";
 
 interface MetricCardProps {
   label: string;
@@ -36,69 +51,153 @@ const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick }: Me
 );
 
 export const WorkforceMetrics = () => {
-  const handleMetricClick = (metric: string) => {
-    console.log(`Clicked on ${metric} metric`);
-    // This would open a modal with filtered data
+  const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  
+  const metrics = [
+    { 
+      id: 'available', 
+      label: 'Available Employees', 
+      value: 21, 
+      icon: Users, 
+      color: 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800',
+      percentage: '+3%'
+    },
+    { 
+      id: 'leave', 
+      label: 'On Leave', 
+      value: 3, 
+      icon: CalendarCheck, 
+      color: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
+      percentage: '-2%'
+    },
+    { 
+      id: 'training', 
+      label: 'In Training', 
+      value: 6, 
+      icon: GraduationCap, 
+      color: 'bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800',
+      percentage: '+1%'
+    },
+    { 
+      id: 'grounded', 
+      label: 'Grounded Aircraft', 
+      value: 18, 
+      icon: Plane, 
+      color: 'bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800',
+      percentage: '0%'
+    },
+    { 
+      id: 'assigned', 
+      label: 'Aircraft w/ Teams', 
+      value: 12, 
+      icon: PlaneTakeoff, 
+      color: 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800',
+      percentage: '+1%'
+    },
+    { 
+      id: 'pending', 
+      label: 'Pending Assignment', 
+      value: 6, 
+      icon: FileCheck, 
+      color: 'bg-orange-50 border-orange-200 dark:bg-orange-900/30 dark:border-orange-800',
+      percentage: '+3%'
+    },
+    { 
+      id: 'productivity', 
+      label: 'Productivity', 
+      value: 94, 
+      icon: Activity, 
+      color: 'bg-cyan-50 border-cyan-200 dark:bg-cyan-900/30 dark:border-cyan-800',
+      percentage: '+2%'
+    }
+  ];
+
+  const handleMetricClick = (metricId: string) => {
+    setSelectedMetric(metricId);
+    setIsSheetOpen(true);
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-      <MetricCard 
-        label="Available Employees" 
-        value={21} 
-        icon={Users}
-        color="bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800" 
-        percentage="+3%"
-        onClick={() => handleMetricClick('available')}
-      />
-      <MetricCard 
-        label="On Leave" 
-        value={3} 
-        icon={CalendarCheck}
-        color="bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800" 
-        percentage="-2%"
-        onClick={() => handleMetricClick('leave')}
-      />
-      <MetricCard 
-        label="In Training" 
-        value={6} 
-        icon={GraduationCap}
-        color="bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800" 
-        percentage="+1%"
-        onClick={() => handleMetricClick('training')}
-      />
-      <MetricCard 
-        label="Grounded Aircraft" 
-        value={18} 
-        icon={Plane}
-        color="bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800" 
-        percentage="0%"
-        onClick={() => handleMetricClick('grounded')}
-      />
-      <MetricCard 
-        label="Aircraft w/ Teams" 
-        value={12} 
-        icon={PlaneTakeoff}
-        color="bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800" 
-        percentage="+1%"
-        onClick={() => handleMetricClick('assigned')}
-      />
-      <MetricCard 
-        label="Pending Assignment" 
-        value={6} 
-        icon={FileCheck}
-        color="bg-orange-50 border-orange-200 dark:bg-orange-900/30 dark:border-orange-800" 
-        percentage="+3%"
-        onClick={() => handleMetricClick('pending')}
-      />
-      <MetricCard 
-        label="Productivity" 
-        value={94} 
-        icon={Activity}
-        color="bg-cyan-50 border-cyan-200 dark:bg-cyan-900/30 dark:border-cyan-800" 
-        percentage="+2%"
-        onClick={() => handleMetricClick('productivity')}
-      />
-    </div>
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        {metrics.map((metric) => (
+          <MetricCard 
+            key={metric.id}
+            label={metric.label}
+            value={metric.value}
+            icon={metric.icon}
+            color={metric.color}
+            percentage={metric.percentage}
+            onClick={() => handleMetricClick(metric.id)}
+          />
+        ))}
+      </div>
+
+      {/* Metric Detail Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="w-full md:max-w-[600px]">
+          <SheetHeader>
+            <SheetTitle>
+              {metrics.find(m => m.id === selectedMetric)?.label} Details
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-6">
+            {selectedMetric === 'available' && (
+              <div className="space-y-4">
+                <p>Detailed information about available employees would appear here.</p>
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium mb-2">Available Employee List</h3>
+                  <ul className="space-y-2">
+                    <li className="flex justify-between">
+                      <span>Michael Johnson</span>
+                      <span className="text-blue-600">Available</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Sarah Williams</span>
+                      <span className="text-blue-600">Available</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>David Brown</span>
+                      <span className="text-blue-600">Available</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {selectedMetric === 'leave' && (
+              <div className="space-y-4">
+                <p>Detailed information about employees on leave would appear here.</p>
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium mb-2">Employees on Leave</h3>
+                  <ul className="space-y-2">
+                    <li className="flex justify-between">
+                      <span>Emily Taylor</span>
+                      <span className="text-red-600">Vacation (Until Jun 25)</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>James Wilson</span>
+                      <span className="text-red-600">Sick Leave (Until Jun 22)</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>Robert Miller</span>
+                      <span className="text-red-600">Personal (Until Jun 30)</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Placeholder for other metrics */}
+            {!['available', 'leave'].includes(selectedMetric || '') && (
+              <div className="h-[300px] flex items-center justify-center border rounded-md">
+                <p className="text-gray-500">Detailed information for this metric would appear here.</p>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };
