@@ -22,6 +22,7 @@ interface AuthContextType {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  isAuthenticated: boolean;
 }
 
 interface AuthResponse {
@@ -41,6 +42,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     // Check for existing user session in localStorage
@@ -48,11 +50,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const storedUser = localStorage.getItem('mro_user');
       if (storedUser) {
         try {
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+          console.log("User session restored from localStorage:", parsedUser);
         } catch (e) {
           console.error('Error parsing stored user:', e);
           localStorage.removeItem('mro_user');
+          setIsAuthenticated(false);
         }
+      } else {
+        setIsAuthenticated(false);
       }
       setLoading(false);
     };
@@ -131,6 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Store user session in localStorage
         localStorage.setItem('mro_user', JSON.stringify(userSessionData));
         setUser(userSessionData);
+        setIsAuthenticated(true);
         console.log('Login successful via direct query:', userSessionData);
         
       } else {
@@ -155,10 +164,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Store user session in localStorage
         localStorage.setItem('mro_user', JSON.stringify(userSessionData));
         setUser(userSessionData);
+        setIsAuthenticated(true);
         console.log('Login successful via RPC:', userSessionData);
       }
     } catch (error) {
       console.error('Login error:', error);
+      setIsAuthenticated(false);
       throw error;
     } finally {
       setLoading(false);
@@ -168,10 +179,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     localStorage.removeItem('mro_user');
     setUser(null);
+    setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );
