@@ -52,34 +52,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      console.log(`Attempting login with username: ${username}, password length: ${password.length}`);
+      console.log(`Attempting login for user: ${username}`);
       
-      // First, let's check what users are actually in the database (for debugging)
-      const { data: allUsers, error: usersError } = await supabase
-        .from('user')
-        .select('id, user_name, password');
+      // Direct SQL query with RPC call for authentication
+      const { data: userData, error } = await supabase
+        .rpc('authenticate_user', { 
+          p_username: username, 
+          p_password: password 
+        });
       
-      console.log('All users in database:', allUsers, usersError);
-      
-      // Now, perform the actual login query
-      const { data, error } = await supabase
-        .from('user')
-        .select('*')
-        .eq('user_name', username)
-        .eq('password', password);
-      
-      console.log('Login query result:', data, error);
+      console.log('Authentication result:', userData, error);
       
       if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+        console.error('Supabase RPC error:', error);
+        throw new Error('Authentication failed. Please try again.');
       }
       
-      // Check if any user was found
-      if (data && data.length > 0) {
-        // Get the first matching user
-        const userData = data[0];
-        console.log('User found:', userData);
+      if (!userData || userData.length === 0) {
+        // Fallback to direct table query as a backup approach
+        const { data: directData, error: directError } = await supabase
+          .from('user')
+          .select('*')
+          .eq('user_name', username)
+          .eq('password', password);
+          
+        console.log('Direct query result:', directData, directError);
+        
+        if (directError) {
+          console.error('Direct query error:', directError);
+          throw new Error('Authentication failed. Please try again.');
+        }
+        
+        if (!directData || directData.length === 0) {
+          console.error('No matching user found in direct query');
+          throw new Error('Invalid username or password');
+        }
+        
+        // Use the direct query result
+        const user = directData[0];
         
         // Get the employee information based on the username
         const { data: employeeData, error: employeeError } = await supabase
@@ -90,10 +100,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         console.log('Employee data:', employeeData, employeeError);
         
-        if (employeeError && employeeError.code !== 'PGRST116') {
-          console.error('Employee fetch error:', employeeError);
-          throw employeeError;
-        }
+        const userSessionData = {
+          id: user.id,
+          username: user.user_name,
+          employee: employeeData || null
+        };
+        
+        // Store user session in localStorage
+        localStorage.setItem('mro_user', JSON.stringify(userSessionData));
+        setUser(userSessionData);
+        console.log('Login successful via direct query:', userSessionData);
+        
+      } else {
+        // Use the RPC result
+        const { data: employeeData, error: employeeError } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('user', username)
+          .maybeSingle();
+        
+        console.log('Employee data:', employeeData, employeeError);
         
         const userSessionData = {
           id: userData.id,
@@ -104,10 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Store user session in localStorage
         localStorage.setItem('mro_user', JSON.stringify(userSessionData));
         setUser(userSessionData);
-        console.log('Login successful, user data stored:', userSessionData);
-      } else {
-        console.error('No matching user found');
-        throw new Error('Invalid username or password');
+        console.log('Login successful via RPC:', userSessionData);
       }
     } catch (error) {
       console.error('Login error:', error);

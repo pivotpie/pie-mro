@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, AlertTriangle } from "lucide-react";
 
 const Auth = () => {
   const [username, setUsername] = useState('');
@@ -15,12 +15,14 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showLoginAttempt, setShowLoginAttempt] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setShowLoginAttempt(false);
     
     if (!username || !password) {
       toast.error('Username and password are required');
@@ -31,6 +33,7 @@ const Auth = () => {
     
     try {
       console.log(`Login attempt: ${username}`);
+      setShowLoginAttempt(true);
       await login(username, password);
       toast.success(`Welcome back, ${username}!`);
       navigate('/dashboard');
@@ -62,6 +65,16 @@ const Auth = () => {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            
+            {showLoginAttempt && (
+              <Alert className="bg-yellow-50 border-yellow-300">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-yellow-700">
+                  Attempting to log in with username: {username}
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <label htmlFor="username" className="text-sm font-medium">Username</label>
               <Input
@@ -95,6 +108,14 @@ const Auth = () => {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+            </div>
+
+            <div className="text-sm text-gray-500">
+              <p>For testing, use these credentials:</p>
+              <ul className="list-disc pl-5 mt-1">
+                <li>Username: manager, Password: manager123</li>
+                <li>Username: admin, Password: admin123</li>
+              </ul>
             </div>
           </CardContent>
           <CardFooter>
