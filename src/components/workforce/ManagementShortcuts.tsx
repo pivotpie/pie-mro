@@ -65,7 +65,7 @@ export const ManagementShortcuts = () => {
                   Import
                 </Button>
                 <Button variant="outline" size="sm" className="flex items-center">
-                  <Export className="h-4 w-4 mr-1" />
+                  <ArrowUpRight className="h-4 w-4 mr-1" />
                   Export
                 </Button>
                 <Button size="sm" className="flex items-center bg-blue-600 hover:bg-blue-700">
