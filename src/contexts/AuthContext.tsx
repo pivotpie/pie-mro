@@ -30,6 +30,12 @@ interface AuthResponse {
   authenticated: boolean;
 }
 
+// Define the RPC parameters type for authenticate_user
+interface AuthParams {
+  p_username: string;
+  p_password: string;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -60,9 +66,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log(`Attempting login for user: ${username}`);
       
-      // Use the new authenticate_user function through RPC
+      // Use the authenticate_user function through RPC with correct generic typing
       const { data, error } = await supabase
-        .rpc<AuthResponse>('authenticate_user', { 
+        .rpc<AuthResponse[], AuthParams>('authenticate_user', { 
           p_username: username, 
           p_password: password 
         });
