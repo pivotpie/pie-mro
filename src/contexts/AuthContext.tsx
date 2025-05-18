@@ -52,16 +52,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      console.log(`Attempting login with username: ${username}`);
+      console.log(`Attempting login with username: ${username}, password length: ${password.length}`);
       
-      // Query the user table to check credentials
+      // First, let's check what users are actually in the database (for debugging)
+      const { data: allUsers, error: usersError } = await supabase
+        .from('user')
+        .select('id, user_name, password');
+      
+      console.log('All users in database:', allUsers, usersError);
+      
+      // Now, perform the actual login query
       const { data, error } = await supabase
         .from('user')
         .select('*')
         .eq('user_name', username)
         .eq('password', password);
       
-      console.log('Query result:', data, error);
+      console.log('Login query result:', data, error);
       
       if (error) {
         console.error('Supabase error:', error);
