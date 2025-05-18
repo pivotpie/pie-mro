@@ -11,13 +11,14 @@ import {
   Activity 
 } from "lucide-react";
 import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
-  SheetTitle 
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 
 interface MetricCardProps {
   label: string;
@@ -61,7 +62,7 @@ const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick, isLo
 
 export const WorkforceMetrics = () => {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailData, setDetailData] = useState<any[]>([]);
   
   // Fetch employee metrics
@@ -162,7 +163,7 @@ export const WorkforceMetrics = () => {
           case 'leave':
             const { data: onLeave } = await supabase
               .from('attendance')
-              .select('*, employees(name, e_number, job_titles(job_description))')
+              .select('*, employees(name, e_number, job_titles(job_description), mobile_number)')
               .eq('status', 'Annual Leave')
               .gt('date', new Date().toISOString().split('T')[0]);
             data = onLeave || [];
@@ -171,7 +172,7 @@ export const WorkforceMetrics = () => {
           case 'training':
             const { data: inTraining } = await supabase
               .from('employee_training_schedules')
-              .select('*, employees(name, e_number, job_titles(job_description)), training_types(name)')
+              .select('*, employees(name, e_number, job_titles(job_description), mobile_number), training_types(name)')
               .gt('required_date', new Date().toISOString().split('T')[0])
               .lt('required_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             data = inTraining || [];
@@ -233,14 +234,14 @@ export const WorkforceMetrics = () => {
       return employeeIds.join(',') || '0';
     };
     
-    if (selectedMetric && isSheetOpen) {
+    if (selectedMetric && isDialogOpen) {
       fetchDetailData();
     }
-  }, [selectedMetric, isSheetOpen]);
+  }, [selectedMetric, isDialogOpen]);
 
   const handleMetricClick = (metricId: string) => {
     setSelectedMetric(metricId);
-    setIsSheetOpen(true);
+    setIsDialogOpen(true);
   };
 
   const getDetailTitle = () => {
@@ -267,56 +268,58 @@ export const WorkforceMetrics = () => {
       case 'training':
         return (
           <div className="space-y-4">
-            <div className="border rounded-md overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Position</th>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Position</TableHead>
+                  <TableHead>Mobile Number</TableHead>
+                  {selectedMetric === 'training' && <TableHead>Training</TableHead>}
+                  {selectedMetric === 'leave' && <TableHead>Until</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detailData.map((item, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">
+                      {selectedMetric === 'available' ? item.name : 
+                       selectedMetric === 'leave' ? item.employees?.name :
+                       item.employees?.name}
+                    </TableCell>
+                    <TableCell>
+                      {selectedMetric === 'available' ? `E${item.e_number}` : 
+                       selectedMetric === 'leave' ? `E${item.employees?.e_number}` : 
+                       `E${item.employees?.e_number}`}
+                    </TableCell>
+                    <TableCell>
+                      {selectedMetric === 'available' ? 
+                        (item.job_titles?.job_description || 'N/A') : 
+                       selectedMetric === 'leave' ? 
+                        (item.employees?.job_titles?.job_description || 'N/A') : 
+                        (item.employees?.job_titles?.job_description || 'N/A')}
+                    </TableCell>
+                    <TableCell>
+                      {selectedMetric === 'available' ? 
+                        (item.mobile_number || 'N/A') : 
+                       selectedMetric === 'leave' ? 
+                        (item.employees?.mobile_number || 'N/A') : 
+                        (item.employees?.mobile_number || 'N/A')}
+                    </TableCell>
                     {selectedMetric === 'training' && (
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Training</th>
+                      <TableCell>
+                        {item.training_types?.name || 'N/A'}
+                      </TableCell>
                     )}
                     {selectedMetric === 'leave' && (
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Until</th>
+                      <TableCell>
+                        {new Date(item.date).toLocaleDateString()}
+                      </TableCell>
                     )}
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                  {detailData.map((item, i) => (
-                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {selectedMetric === 'available' ? item.name : 
-                         selectedMetric === 'leave' ? item.employees?.name :
-                         item.employees?.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {selectedMetric === 'available' ? `E${item.e_number}` : 
-                         selectedMetric === 'leave' ? `E${item.employees?.e_number}` : 
-                         `E${item.employees?.e_number}`}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {selectedMetric === 'available' ? 
-                          (item.job_titles?.job_description || 'N/A') : 
-                         selectedMetric === 'leave' ? 
-                          (item.employees?.job_titles?.job_description || 'N/A') : 
-                          (item.employees?.job_titles?.job_description || 'N/A')}
-                      </td>
-                      {selectedMetric === 'training' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {item.training_types?.name || 'N/A'}
-                        </td>
-                      )}
-                      {selectedMetric === 'leave' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(item.date).toLocaleDateString()}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         );
         
@@ -325,36 +328,34 @@ export const WorkforceMetrics = () => {
       case 'pending':
         return (
           <div className="space-y-4">
-            <div className="border rounded-md overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aircraft</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Registration</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Check Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date Range</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                  {detailData.map((item, i) => (
-                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {item.aircraft?.aircraft_name || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {item.aircraft?.registration || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {item.check_type || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(item.date_in).toLocaleDateString()} - {new Date(item.date_out).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Aircraft</TableHead>
+                  <TableHead>Registration</TableHead>
+                  <TableHead>Check Type</TableHead>
+                  <TableHead>Date Range</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detailData.map((item, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">
+                      {item.aircraft?.aircraft_name || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {item.aircraft?.registration || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {item.check_type || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(item.date_in).toLocaleDateString()} - {new Date(item.date_out).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         );
         
@@ -431,17 +432,17 @@ export const WorkforceMetrics = () => {
         ))}
       </div>
 
-      {/* Metric Detail Sheet */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="w-full md:max-w-[700px]">
-          <SheetHeader>
-            <SheetTitle>{getDetailTitle()}</SheetTitle>
-          </SheetHeader>
+      {/* Metric Detail Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>{getDetailTitle()}</DialogTitle>
+          </DialogHeader>
           <div className="mt-6 overflow-x-auto">
             {renderDetailContent()}
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
