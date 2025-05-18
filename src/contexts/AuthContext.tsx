@@ -66,9 +66,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log(`Attempting login for user: ${username}`);
       
-      // Use the authenticate_user function through RPC with correct generic typing
+      // Use the authenticate_user function through RPC with proper type handling
       const { data, error } = await supabase
-        .rpc<AuthResponse[], AuthParams>('authenticate_user', { 
+        .rpc('authenticate_user', { 
           p_username: username, 
           p_password: password 
         });
@@ -80,7 +80,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Authentication failed. Please try again.');
       }
       
-      if (!data || data.length === 0) {
+      // Properly handle the response with type safety
+      const authData = data as AuthResponse[];
+      
+      if (!authData || authData.length === 0) {
         // Log all users to help diagnose issues (for development only)
         const { data: allUsers, error: allUsersError } = await supabase
           .from('user')
@@ -132,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
       } else {
         // Use the RPC result - we need the first item from the array
-        const userData = data[0];
+        const userData = authData[0];
         
         // Get the employee information based on the username
         const { data: employeeData, error: employeeError } = await supabase
