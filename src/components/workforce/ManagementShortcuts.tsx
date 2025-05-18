@@ -2,15 +2,18 @@
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   Users, UserCog, UsersRound, CalendarClock, 
-  ClipboardCheck, FileText, Import, ArrowUpRight, UserPlus
+  ClipboardCheck, FileText, ArrowUpRight, UserPlus, Calendar, AlertCircle, 
+  Briefcase, FileSpreadsheet
 } from "lucide-react";
 
 interface ShortcutItem {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  color: string;
 }
 
 export const ManagementShortcuts = () => {
@@ -18,12 +21,14 @@ export const ManagementShortcuts = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const shortcuts: ShortcutItem[] = [
-    { id: "employee-shifts", label: "Employee Shifts", icon: CalendarClock },
-    { id: "employee-management", label: "Employee Management", icon: UserCog },
-    { id: "team-management", label: "Team Management", icon: UsersRound },
-    { id: "leave-management", label: "Leave Management", icon: ClipboardCheck },
-    { id: "weekly-off", label: "Weekly Off", icon: CalendarClock },
-    { id: "certifications", label: "Certifications", icon: FileText }
+    { id: "employee-shifts", label: "Employee Shifts", icon: CalendarClock, color: "bg-blue-100 text-blue-600" },
+    { id: "employee-management", label: "Employee Management", icon: UserCog, color: "bg-green-100 text-green-600" },
+    { id: "team-management", label: "Team Management", icon: UsersRound, color: "bg-indigo-100 text-indigo-600" },
+    { id: "leave-management", label: "Leave Management", icon: AlertCircle, color: "bg-red-100 text-red-600" },
+    { id: "weekly-off", label: "Weekly Offs", icon: Calendar, color: "bg-yellow-100 text-yellow-600" },
+    { id: "training-management", label: "Training Management", icon: FileSpreadsheet, color: "bg-purple-100 text-purple-600" },
+    { id: "aircraft-management", label: "Aircraft Management", icon: Briefcase, color: "bg-cyan-100 text-cyan-600" },
+    { id: "certification-portal", label: "Certification Portal", icon: FileText, color: "bg-emerald-100 text-emerald-600" },
   ];
 
   const handleShortcutClick = (shortcut: ShortcutItem) => {
@@ -32,23 +37,30 @@ export const ManagementShortcuts = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
-        <h3 className="text-lg font-medium mb-4 dark:text-gray-100">Quick Access</h3>
-        <div className="grid grid-cols-2 gap-3">
+    <Card className="shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium">Quick Access</h3>
+          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+            Refresh
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 gap-2">
           {shortcuts.map((shortcut) => (
             <Button
               key={shortcut.id}
-              variant="outline"
-              className="flex justify-start items-center h-12 px-4 hover:bg-gray-50 hover:text-blue-600 dark:hover:bg-gray-700 dark:hover:text-blue-400 transition-colors"
+              variant="ghost"
+              className="flex justify-start items-center h-12 px-4 w-full hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               onClick={() => handleShortcutClick(shortcut)}
             >
-              <shortcut.icon className="mr-2 h-5 w-5" />
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${shortcut.color}`}>
+                <shortcut.icon className="h-4 w-4" />
+              </div>
               <span className="text-sm">{shortcut.label}</span>
             </Button>
           ))}
         </div>
-      </div>
+      </CardContent>
 
       {/* Management Side Panel */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -60,10 +72,6 @@ export const ManagementShortcuts = () => {
             <div className="mb-4 flex justify-between items-center">
               <div className="text-sm text-gray-500 dark:text-gray-400">Showing records from database</div>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm" className="flex items-center">
-                  <Import className="h-4 w-4 mr-1" />
-                  Import
-                </Button>
                 <Button variant="outline" size="sm" className="flex items-center">
                   <ArrowUpRight className="h-4 w-4 mr-1" />
                   Export
@@ -128,6 +136,6 @@ export const ManagementShortcuts = () => {
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </Card>
   );
 };

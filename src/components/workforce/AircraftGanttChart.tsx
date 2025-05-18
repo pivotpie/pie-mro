@@ -12,16 +12,12 @@ const isWeekend = (dayOfMonth: number, month: number) => {
   return day === 0 || day === 6;
 };
 
-// Generate days for May and June 2025
+// Generate days for May 2025
 const generateDays = () => {
   const days = [];
   // May 2025 has 31 days
   for (let i = 1; i <= 31; i++) {
     days.push({ day: i, month: 4, isWeekend: isWeekend(i, 4) }); // Month is 0-indexed, so May is 4
-  }
-  // June 2025 has 30 days
-  for (let i = 1; i <= 30; i++) {
-    days.push({ day: i, month: 5, isWeekend: isWeekend(i, 5) }); // Month is 0-indexed, so June is 5
   }
   return days;
 };
@@ -34,8 +30,6 @@ const hangars = [
   { id: "H4", name: "Hangar 2B" },
   { id: "H5", name: "Hangar 3A" },
   { id: "H6", name: "Hangar 3B" },
-  { id: "H7", name: "Hangar 4A" },
-  { id: "H8", name: "Hangar 4B" },
 ];
 
 interface AircraftGanttChartProps {
@@ -45,7 +39,7 @@ interface AircraftGanttChartProps {
 export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
   const [aircraftSchedules, setAircraftSchedules] = useState<any[]>([]);
   const days = generateDays();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [selectedAircraft, setSelectedAircraft] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -58,7 +52,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
         schedules: [
           {
             id: "A1",
-            aircraft: "AIRBUS 320 UK CAA",
+            aircraft: "AIRBUS 320 GCAA",
             start: { month: 4, day: 1 },
             end: { month: 4, day: 9 },
             team: "Team Alpha",
@@ -71,7 +65,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
         schedules: [
           {
             id: "A2",
-            aircraft: "BOEING 777 EASA",
+            aircraft: "AIRBUS 320 FAA",
             start: { month: 4, day: 10 },
             end: { month: 4, day: 20 },
             team: "Team Beta",
@@ -84,75 +78,62 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
         schedules: [
           {
             id: "A3",
-            aircraft: "AIRBUS 350 FAA",
+            aircraft: "AIRBUS 350 EASA",
             start: { month: 4, day: 15 },
-            end: { month: 5, day: 5 },
+            end: { month: 4, day: 25 },
             team: null,
             color: "bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700"
           }
         ]
+      },
+      {
+        hangarId: "H4",
+        schedules: [
+          {
+            id: "A4",
+            aircraft: "BOEING 787 GCAA",
+            start: { month: 4, day: 5 },
+            end: { month: 4, day: 15 },
+            team: "Team Charlie",
+            color: "bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700"
+          }
+        ]
+      },
+      {
+        hangarId: "H5",
+        schedules: [
+          {
+            id: "A5",
+            aircraft: "BOEING 737 FAA",
+            start: { month: 4, day: 20 },
+            end: { month: 4, day: 30 },
+            team: null,
+            color: "bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700"
+          }
+        ]
+      },
+      {
+        hangarId: "H6",
+        schedules: [
+          {
+            id: "A6",
+            aircraft: "AIRBUS 380 EASA",
+            start: { month: 4, day: 8 },
+            end: { month: 4, day: 18 },
+            team: "Team Alpha",
+            color: "bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700"
+          }
+        ]
       }
     ];
-    
-    // Add random schedules for other hangars
-    for (let i = 4; i <= 8; i++) {
-      const hangarId = `H${i}`;
-      
-      const randomScheduleCount = Math.floor(Math.random() * 2) + 1;
-      const randomSchedules = [];
-      
-      for (let j = 0; j < randomScheduleCount; j++) {
-        const startMonth = Math.random() < 0.7 ? 4 : 5;
-        const startDay = startMonth === 4 ? Math.floor(Math.random() * 25) + 1 : Math.floor(Math.random() * 15) + 1;
-        const duration = Math.floor(Math.random() * 10) + 3;
-        
-        let endMonth = startMonth;
-        let endDay = startDay + duration;
-        
-        if (startMonth === 4 && endDay > 31) {
-          endMonth = 5;
-          endDay = endDay - 31;
-        }
-        
-        const aircraftTypes = [
-          "BOEING 737 GCAA", "AIRBUS 320 GCAA", "BOEING 777 UK CAA", 
-          "AIRBUS 350 UK CAA", "BOEING 787 FAA", "AIRBUS 380 EASA"
-        ];
-        const aircraftType = aircraftTypes[Math.floor(Math.random() * aircraftTypes.length)];
-        
-        const hasTeam = Math.random() < 0.6;
-        const teams = ["Team Alpha", "Team Beta", "Team Charlie", "Team Delta"];
-        const colors = [
-          "bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700", 
-          "bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700", 
-          "bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700",
-          "bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700", 
-          "bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700"
-        ];
-        
-        randomSchedules.push({
-          id: `A${i * 10 + j}`,
-          aircraft: aircraftType,
-          start: { month: startMonth, day: startDay },
-          end: { month: endMonth, day: endDay },
-          team: hasTeam ? teams[Math.floor(Math.random() * teams.length)] : null,
-          color: colors[Math.floor(Math.random() * colors.length)]
-        });
-      }
-      
-      sampleSchedules.push({
-        hangarId,
-        schedules: randomSchedules
-      });
-    }
     
     setAircraftSchedules(sampleSchedules);
   }, []);
 
   // Update scroll position to sync with schedule calendar
   useEffect(() => {
-    if (scrollRef.current && scrollRef.current.scrollLeft !== scrollLeft) {
-      scrollRef.current.scrollLeft = scrollLeft;
+    if (scrollAreaRef.current && scrollAreaRef.current.scrollLeft !== scrollLeft) {
+      scrollAreaRef.current.scrollLeft = scrollLeft;
     }
   }, [scrollLeft]);
 
@@ -173,34 +154,41 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
     setModalOpen(true);
   };
 
+  // Handle scroll events from the scrollArea
+  const handleScroll = () => {
+    if (scrollAreaRef.current) {
+      onScroll(scrollAreaRef.current.scrollLeft);
+    }
+  };
+
+  // Dummy function to satisfy TypeScript even though we don't need to propagate upward
+  const onScroll = (_scrollLeft: number) => {
+    // This would normally send the scroll position back up to the parent
+  };
+
   return (
     <div className="border rounded-lg dark:border-gray-700">
       <ScrollArea 
-        ref={scrollRef}
         className="h-[300px] rounded-lg"
-        onScrollCapture={() => {
-          if (scrollRef.current) {
-            // Propagate scroll event back up if needed
-            // onScroll(scrollRef.current.scrollLeft);
-          }
-        }}
+        ref={scrollAreaRef}
+        onScroll={handleScroll}
       >
         <div className="min-w-[2000px]">
           <table className="w-full border-collapse">
             <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
               <tr>
-                <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[100px]">Hangar</th>
-                <th className="p-2 text-left border-r sticky left-[100px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[120px]">Bay</th>
+                <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
+                <th className="p-2 text-left border-r sticky left-[120px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[100px]">Bay</th>
                 
                 {/* Calendar days - same as ScheduleCalendar */}
-                {days.map((day) => (
+                {days.map((day, index) => (
                   <th 
                     key={`${day.month+1}-${day.day}`} 
                     className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200
                       ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                   >
-                    <div className="text-sm">{day.day}</div>
-                    <div className="text-xs">{day.month === 4 ? 'May' : 'Jun'}</div>
+                    <div className="text-xs font-medium">{index + 1}</div>
+                    <div className="text-xs">May</div>
                   </th>
                 ))}
               </tr>
@@ -209,7 +197,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
               {hangars.map((hangar) => (
                 <tr key={hangar.id} className="border-b h-[40px] dark:border-gray-700">
                   <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[0]}</td>
-                  <td className="p-2 border-r sticky left-[100px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[1]}</td>
+                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[1]}</td>
                   
                   {/* Gantt chart container cell */}
                   <td colSpan={days.length} className="relative p-0 h-[40px]">
@@ -250,7 +238,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                               <TooltipContent>
                                 <div className="text-sm font-medium">{schedule.aircraft}</div>
                                 <div className="text-xs">
-                                  {schedule.start.month === 4 ? 'May' : 'Jun'} {schedule.start.day} - {schedule.end.month === 4 ? 'May' : 'Jun'} {schedule.end.day}, 2025
+                                  May {schedule.start.day} - May {schedule.end.day}, 2025
                                 </div>
                                 {schedule.team ? (
                                   <div className="text-green-600">Assigned to {schedule.team}</div>
@@ -291,19 +279,13 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Schedule</p>
                         <p className="font-medium dark:text-gray-200">
-                          {selectedAircraft.start.month === 4 ? 'May' : 'Jun'} {selectedAircraft.start.day} - {selectedAircraft.end.month === 4 ? 'May' : 'Jun'} {selectedAircraft.end.day}
+                          May {selectedAircraft.start.day} - May {selectedAircraft.end.day}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Duration</p>
                         <p className="font-medium dark:text-gray-200">
-                          {(() => {
-                            const startDate = new Date(2025, selectedAircraft.start.month, selectedAircraft.start.day);
-                            const endDate = new Date(2025, selectedAircraft.end.month, selectedAircraft.end.day);
-                            const diffTime = endDate.getTime() - startDate.getTime();
-                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                            return `${diffDays} days`;
-                          })()}
+                          {selectedAircraft.end.day - selectedAircraft.start.day + 1} days
                         </p>
                       </div>
                       <div>
@@ -327,21 +309,21 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                              JW
+                              MJ
                             </div>
-                            <span className="dark:text-gray-300">James Wilson (Lead)</span>
+                            <span className="dark:text-gray-300">Michael Johnson (Lead)</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                              SJ
+                              SW
                             </div>
-                            <span className="dark:text-gray-300">Sarah Johnson</span>
+                            <span className="dark:text-gray-300">Sarah Williams</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                              MB
+                              DB
                             </div>
-                            <span className="dark:text-gray-300">Michael Brown</span>
+                            <span className="dark:text-gray-300">David Brown</span>
                           </div>
                         </div>
                       </>
@@ -390,7 +372,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                           <tr key={idx} className="border-b hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800">
                             <td className="p-2"><input type="checkbox" className="rounded dark:bg-gray-700" /></td>
                             <td className="p-2 dark:text-gray-300">EMP00{idx}</td>
-                            <td className="p-2 dark:text-gray-300">{["James Wilson", "Sarah Johnson", "Michael Brown"][idx-1]}</td>
+                            <td className="p-2 dark:text-gray-300">{["Michael Johnson", "Sarah Williams", "David Brown"][idx-1]}</td>
                             <td className="p-2 dark:text-gray-300">{["Avionics", "Airframe", "Engines"][idx-1]}</td>
                             <td className="p-2 dark:text-gray-300">{["A320, B777", "B777, B787", "A350, B787"][idx-1]}</td>
                             <td className="p-2 dark:text-gray-300">{["Available", "Available", "Training until May 20"][idx-1]}</td>

@@ -1,281 +1,216 @@
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from "@/components/ui/drawer";
-
-interface Certification {
-  id: string;
-  type: string;
-  employeeName: string;
-  employeeId: string;
-  validUntil: string;
-  isExpiring: boolean;
-  isExpired: boolean;
-}
-
-// Mock certification data
-const mockCertifications: Certification[] = [
-  {
-    id: "cert1",
-    type: "B1 License",
-    employeeName: "James Wilson",
-    employeeId: "EMP001",
-    validUntil: "December 9, 2025",
-    isExpiring: false,
-    isExpired: false
-  },
-  {
-    id: "cert2",
-    type: "A330 Type Rating",
-    employeeName: "James Wilson",
-    employeeId: "EMP001",
-    validUntil: "August 30, 2025",
-    isExpiring: false,
-    isExpired: false
-  },
-  {
-    id: "cert3",
-    type: "B1 License",
-    employeeName: "Sarah Johnson",
-    employeeId: "EMP002",
-    validUntil: "October 9, 2025",
-    isExpiring: false,
-    isExpired: false
-  },
-  {
-    id: "cert4",
-    type: "A350 Type Rating",
-    employeeName: "Sarah Johnson",
-    employeeId: "EMP002",
-    validUntil: "June 18, 2025",
-    isExpiring: true,
-    isExpired: false
-  },
-  {
-    id: "cert5",
-    type: "B2 License",
-    employeeName: "Michael Brown",
-    employeeId: "EMP003",
-    validUntil: "September 5, 2025",
-    isExpiring: false,
-    isExpired: false
-  },
-  {
-    id: "cert6",
-    type: "Trent XWB Certification",
-    employeeName: "Michael Brown",
-    employeeId: "EMP003",
-    validUntil: "May 20, 2025",
-    isExpiring: true,
-    isExpired: false
-  },
-  {
-    id: "cert7",
-    type: "B1 License",
-    employeeName: "Emily Davis",
-    employeeId: "EMP004",
-    validUntil: "November 12, 2025",
-    isExpiring: false,
-    isExpired: false
-  },
-  {
-    id: "cert8",
-    type: "B2 License",
-    employeeName: "Robert Miller",
-    employeeId: "EMP005",
-    validUntil: "April 30, 2025",
-    isExpiring: true,
-    isExpired: false
-  },
-  {
-    id: "cert9",
-    type: "LEAP-1A Certification",
-    employeeName: "Jennifer Clark",
-    employeeId: "EMP006",
-    validUntil: "July 16, 2025",
-    isExpiring: false,
-    isExpired: false
-  },
-  {
-    id: "cert10",
-    type: "A380 Type Rating",
-    employeeName: "David Martinez",
-    employeeId: "EMP007",
-    validUntil: "May 25, 2025",
-    isExpiring: true,
-    isExpired: false
-  }
-];
+import { RefreshCw, Filter } from "lucide-react";
 
 export const CertificationList = () => {
-  const [selectedEmployee, setSelectedEmployee] = useState<{
-    id: string;
-    name: string;
-    certifications: Certification[];
-  } | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const handleCertificationClick = (cert: Certification) => {
-    const employeeCerts = mockCertifications.filter(c => c.employeeId === cert.employeeId);
-    setSelectedEmployee({
-      id: cert.employeeId,
-      name: cert.employeeName,
-      certifications: employeeCerts
-    });
-    setDrawerOpen(true);
-  };
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Certification Status</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y max-h-[500px] overflow-y-auto">
-          {mockCertifications.map((cert) => (
-            <div 
-              key={cert.id}
-              className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-              onClick={() => handleCertificationClick(cert)}
-            >
-              <div className="flex justify-between mb-1">
-                <div className="font-medium">{cert.type}</div>
-                <div className={`text-sm ${cert.isExpiring ? 'text-amber-600' : 'text-green-600'}`}>
-                  {cert.isExpiring ? 'Expiring Soon' : 'Valid'}
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="text-sm text-gray-500">
-                  {cert.employeeName} ({cert.employeeId})
-                </div>
-                <div className="flex items-center">
-                  <div className="text-sm mr-2">Valid until: {cert.validUntil}</div>
-                  {cert.isExpiring && (
-                    <Button 
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100"
-                    >
-                      Send for Training
-                    </Button>
-                  )}
-                </div>
+    <Card className="shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium">Certification Status</h3>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm">
+              <Filter className="h-4 w-4 mr-1" />
+              Filter
+            </Button>
+            <Button variant="ghost" size="sm">
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Refresh
+            </Button>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <div className="relative w-full h-40 flex items-center justify-center">
+            <div className="relative w-40 h-40">
+              <svg viewBox="0 0 100 100" className="w-full h-full">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="#f3f4f6"
+                  strokeWidth="12"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth="12"
+                  strokeDasharray="75.4"
+                  strokeDashoffset="0"
+                  transform="rotate(-90 50 50)"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="#f97316"
+                  strokeWidth="12"
+                  strokeDasharray="75.4"
+                  strokeDashoffset="25.1"
+                  transform="rotate(-90 50 50)"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="#22c55e"
+                  strokeWidth="12"
+                  strokeDasharray="75.4"
+                  strokeDashoffset="50.2"
+                  transform="rotate(-90 50 50)"
+                />
+              </svg>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                <div className="text-3xl font-bold">48</div>
+                <div className="text-xs text-gray-500">Total</div>
               </div>
             </div>
-          ))}
+            <div className="absolute bottom-0 left-0 right-0 flex justify-center space-x-6">
+              <div className="flex items-center">
+                <span className="h-3 w-3 rounded-full bg-green-500 mr-2"></span>
+                <span className="text-xs">Valid</span>
+              </div>
+              <div className="flex items-center">
+                <span className="h-3 w-3 rounded-full bg-orange-500 mr-2"></span>
+                <span className="text-xs">Expiring soon</span>
+              </div>
+              <div className="flex items-center">
+                <span className="h-3 w-3 rounded-full bg-red-500 mr-2"></span>
+                <span className="text-xs">Expired</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="border rounded-md overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Certification</th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Employee</th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Valid until</th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Action</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+              <tr>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <div className="text-sm font-medium">Composite Structures Specialist</div>
+                  <div className="text-xs text-gray-500">Specialist Certification</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div className="font-medium">Thomas Clark</div>
+                  <div className="text-xs text-gray-500">EMP001</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div>5/15/2023</div>
+                  <div className="text-xs text-gray-500">over 2 years ago</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
+                </td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <div className="text-sm font-medium">Aircraft Systems Specialist</div>
+                  <div className="text-xs text-gray-500">Standard Certification</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div className="font-medium">Ryan Cooper</div>
+                  <div className="text-xs text-gray-500">EMP003</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div>7/10/2023</div>
+                  <div className="text-xs text-gray-500">about 2 years ago</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
+                </td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <div className="text-sm font-medium">Airbus A320 Specialist</div>
+                  <div className="text-xs text-gray-500">Type Specialist</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div className="font-medium">Sarah Williams</div>
+                  <div className="text-xs text-gray-500">EMP002</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div>9/15/2023</div>
+                  <div className="text-xs text-gray-500">over 1 year ago</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
+                </td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <div className="text-sm font-medium">Engine Overhaul Specialist</div>
+                  <div className="text-xs text-gray-500">Standard Certification</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div className="font-medium">Robert Martinez</div>
+                  <div className="text-xs text-gray-500">EMP007</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div>9/15/2023</div>
+                  <div className="text-xs text-gray-500">over 1 year ago</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
+                </td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <div className="text-sm font-medium">Airframe and Powerplant Mechanic</div>
+                  <div className="text-xs text-gray-500">A&P License</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div className="font-medium">James Davis</div>
+                  <div className="text-xs text-gray-500">EMP005</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <div>12/20/2023</div>
+                  <div className="text-xs text-gray-500">over 1 year ago</div>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div className="mt-3 text-right">
+          <Button variant="link" size="sm" className="text-blue-600 hover:text-blue-800">
+            View All (48)
+          </Button>
         </div>
       </CardContent>
-
-      {/* Employee Details Drawer */}
-      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <DrawerContent className="h-[90vh]">
-          <div className="mx-auto w-full max-w-3xl">
-            <DrawerHeader>
-              <DrawerTitle>Employee Details</DrawerTitle>
-            </DrawerHeader>
-            <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-              {selectedEmployee && (
-                <div className="space-y-6">
-                  {/* Employee Info */}
-                  <div className="flex items-center space-x-4">
-                    <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center font-medium text-blue-700 text-xl">
-                      {selectedEmployee.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-medium">{selectedEmployee.name}</h3>
-                      <p className="text-gray-500">{selectedEmployee.id}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Certifications */}
-                  <div>
-                    <h4 className="text-lg font-medium mb-3">Certifications</h4>
-                    <div className="bg-gray-50 rounded-lg divide-y">
-                      {selectedEmployee.certifications.map(cert => (
-                        <div key={cert.id} className="p-4">
-                          <div className="flex justify-between mb-1">
-                            <div className="font-medium">{cert.type}</div>
-                            <div className={`text-sm ${cert.isExpiring ? 'text-amber-600' : 'text-green-600'}`}>
-                              {cert.isExpiring ? 'Expiring Soon' : 'Valid'}
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div className="text-sm text-gray-500">
-                              Valid until: {cert.validUntil}
-                            </div>
-                            {cert.isExpiring && (
-                              <Button 
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100"
-                              >
-                                Send for Training
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Schedule */}
-                  <div>
-                    <h4 className="text-lg font-medium mb-3">Current Schedule</h4>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="mb-3">
-                        <div className="text-sm text-gray-500">Current Assignment</div>
-                        <div className="font-medium">A32-C0522 (Airbus A320 Check)</div>
-                      </div>
-                      <div className="mb-3">
-                        <div className="text-sm text-gray-500">Schedule</div>
-                        <div className="font-medium">May 20 - May 25, 2025</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-500">Team</div>
-                        <div className="font-medium">Team Alpha</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Leave Status */}
-                  <div>
-                    <h4 className="text-lg font-medium mb-3">Leave Status</h4>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="mb-3">
-                        <div className="text-sm text-gray-500">Remaining Annual Leave</div>
-                        <div className="font-medium">14 days</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-500">Upcoming Leave</div>
-                        <div className="font-medium">No upcoming leave requests</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Training History */}
-                  <div>
-                    <h4 className="text-lg font-medium mb-3">Recent Training</h4>
-                    <div className="bg-gray-50 rounded-lg divide-y">
-                      <div className="p-4">
-                        <div className="font-medium">Safety Management System</div>
-                        <div className="text-sm text-gray-500">Completed on: April 15, 2025</div>
-                      </div>
-                      <div className="p-4">
-                        <div className="font-medium">A320 Recurrent Training</div>
-                        <div className="text-sm text-gray-500">Completed on: March 10, 2025</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <DrawerFooter>
-              <Button variant="outline" onClick={() => setDrawerOpen(false)}>Close</Button>
-            </DrawerFooter>
-          </div>
-        </DrawerContent>
-      </Drawer>
     </Card>
   );
 };
