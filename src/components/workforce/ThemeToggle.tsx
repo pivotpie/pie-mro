@@ -1,48 +1,24 @@
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
 
-export const ThemeToggle = () => {
-  const [darkMode, setDarkMode] = useState(false);
-
-  // Check for system preference or saved preference when component mounts
-  useEffect(() => {
-    const isDark = localStorage.getItem('darkMode') === 'true' || 
-      (!('darkMode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    
-    setDarkMode(isDark);
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    localStorage.setItem('darkMode', String(newMode));
-    
-    if (newMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
+export function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
 
   return (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      className="h-9 w-9 rounded-full fixed top-4 right-20 z-30 bg-gray-100 dark:bg-gray-800 hover:scale-110 transition-transform"
-      onClick={toggleDarkMode}
-    >
-      {darkMode ? (
-        <Sun className="h-4 w-4 text-yellow-500" />
-      ) : (
-        <Moon className="h-4 w-4 text-blue-500" />
-      )}
-    </Button>
+    <div className="fixed bottom-5 right-5 z-10">
+      <Button 
+        variant="outline" 
+        size="icon" 
+        className="rounded-full h-10 w-10 bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700"
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        aria-label="Toggle theme"
+      >
+        <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:rotate-90 dark:scale-0" />
+        <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        <span className="sr-only">Toggle theme</span>
+      </Button>
+    </div>
   );
-};
+}

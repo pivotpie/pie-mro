@@ -1,8 +1,6 @@
 
-import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Search, Menu, Bell, Settings } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -14,7 +12,11 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface WorkforceHeaderProps {
-  user: User;
+  user: {
+    id: number;
+    username: string;
+    employee: any;
+  };
   onToggleSidebar: () => void;
   onLogout: () => void;
 }
@@ -28,7 +30,8 @@ export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHe
       .toUpperCase();
   };
 
-  const displayName = user.user_metadata?.full_name || user.email || 'User';
+  // Use username from our custom user object
+  const displayName = user.username || 'User';
   const initials = getInitials(displayName);
 
   return (
@@ -56,16 +59,9 @@ export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHe
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative max-w-md w-[300px] hidden md:block">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-            <Input 
-              placeholder="Search employees, aircraft..." 
-              className="pl-8 h-9 focus-visible:ring-blue-500" 
-            />
-          </div>
-          
-          <Button variant="ghost" size="icon" className="text-gray-500">
+          <Button variant="ghost" size="icon" className="text-gray-500 relative">
             <Bell className="h-5 w-5" />
+            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
           </Button>
           
           <Button variant="ghost" size="icon" className="text-gray-500">
@@ -87,7 +83,7 @@ export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHe
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{displayName}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
+                    {user.employee?.name || user.username}
                   </p>
                 </div>
               </DropdownMenuLabel>
