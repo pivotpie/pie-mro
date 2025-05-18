@@ -1122,6 +1122,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      authenticate_user: {
+        Args: { p_username: string; p_password: string }
+        Returns: {
+          id: number
+          user_name: string
+          authenticated: boolean
+        }[]
+      }
       generate_all_personnel_requirements: {
         Args: Record<PropertyKey, never>
         Returns: undefined

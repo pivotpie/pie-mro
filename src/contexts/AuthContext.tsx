@@ -24,6 +24,12 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+interface AuthResponse {
+  id: number;
+  user_name: string;
+  authenticated: boolean;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -54,21 +60,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log(`Attempting login for user: ${username}`);
       
-      // Direct SQL query with RPC call for authentication
-      const { data: userData, error } = await supabase
-        .rpc('authenticate_user', { 
+      // Use the new authenticate_user function through RPC
+      const { data, error } = await supabase
+        .rpc<AuthResponse>('authenticate_user', { 
           p_username: username, 
           p_password: password 
         });
       
-      console.log('Authentication result:', userData, error);
+      console.log('Authentication result:', data, error);
       
       if (error) {
         console.error('Supabase RPC error:', error);
         throw new Error('Authentication failed. Please try again.');
       }
       
-      if (!userData || userData.length === 0) {
+      if (!data || data.length === 0) {
+        // Log all users to help diagnose issues (for development only)
+        const { data: allUsers, error: allUsersError } = await supabase
+          .from('user')
+          .select('*');
+          
+        console.log('All users in database:', allUsers, allUsersError);
+        
         // Fallback to direct table query as a backup approach
         const { data: directData, error: directError } = await supabase
           .from('user')
@@ -84,12 +97,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (!directData || directData.length === 0) {
-          console.error('No matching user found in direct query');
+          console.error('No matching user found');
           throw new Error('Invalid username or password');
         }
         
         // Use the direct query result
-        const user = directData[0];
+        const userData = directData[0];
         
         // Get the employee information based on the username
         const { data: employeeData, error: employeeError } = await supabase
@@ -101,8 +114,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Employee data:', employeeData, employeeError);
         
         const userSessionData = {
-          id: user.id,
-          username: user.user_name,
+          id: userData.id,
+          username: userData.user_name,
           employee: employeeData || null
         };
         
@@ -112,7 +125,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Login successful via direct query:', userSessionData);
         
       } else {
-        // Use the RPC result
+        // Use the RPC result - we need the first item from the array
+        const userData = data[0];
+        
+        // Get the employee information based on the username
         const { data: employeeData, error: employeeError } = await supabase
           .from('employees')
           .select('*')
