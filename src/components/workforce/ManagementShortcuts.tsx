@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { 
   Users, UserCog, UsersRound, CalendarClock, 
-  ClipboardCheck, FileText, Import, Export, UserPlus
+  ClipboardCheck, FileText, Import, ArrowUpRight, UserPlus
 } from "lucide-react";
 
 interface ShortcutItem {

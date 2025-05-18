@@ -120,7 +120,11 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
 
   return (
     <div className="border rounded-lg mb-6">
-      <ScrollArea className="relative overflow-auto h-[400px] rounded-lg" viewportRef={scrollRef} onScroll={handleScroll}>
+      <ScrollArea 
+        className="relative overflow-auto h-[400px] rounded-lg" 
+        ref={scrollRef}
+        onScroll={handleScroll}
+      >
         <div className="min-w-[2000px]">
           <table className="w-full border-collapse">
             <thead className="bg-gray-100 sticky top-0 z-10">

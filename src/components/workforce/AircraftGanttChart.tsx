@@ -1,5 +1,4 @@
-
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -149,9 +148,11 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
   const [modalOpen, setModalOpen] = useState(false);
 
   // Update scroll position to sync with schedule calendar
-  if (scrollRef.current && scrollRef.current.scrollLeft !== scrollLeft) {
-    scrollRef.current.scrollLeft = scrollLeft;
-  }
+  useEffect(() => {
+    if (scrollRef.current && scrollRef.current.scrollLeft !== scrollLeft) {
+      scrollRef.current.scrollLeft = scrollLeft;
+    }
+  }, [scrollLeft]);
 
   const calculatePosition = (schedule: any) => {
     const startIdx = days.findIndex(d => d.month === schedule.start.month && d.day === schedule.start.day);
@@ -172,7 +173,10 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
 
   return (
     <div className="border rounded-lg">
-      <ScrollArea viewportRef={scrollRef} className="h-[300px] rounded-lg">
+      <ScrollArea 
+        ref={scrollRef} 
+        className="h-[300px] rounded-lg"
+      >
         <div className="min-w-[2000px]">
           <table className="w-full border-collapse">
             <thead className="bg-gray-100 sticky top-0 z-10">
