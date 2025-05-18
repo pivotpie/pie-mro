@@ -8,17 +8,25 @@ import {
   PlaneTakeoff, 
   Plane, 
   FileCheck, 
-  Activity 
+  Activity,
+  Download,
+  Filter,
+  X
 } from "lucide-react";
 import { 
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  DialogClose
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface MetricCardProps {
   label: string;
@@ -64,6 +72,8 @@ export const WorkforceMetrics = () => {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailData, setDetailData] = useState<any[]>([]);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const [filterCriteria, setFilterCriteria] = useState({});
   
   // Fetch employee metrics
   const { data: employeeMetrics, isLoading: loadingEmployees } = useQuery({
@@ -154,7 +164,14 @@ export const WorkforceMetrics = () => {
           case 'available':
             const { data: availableEmployees } = await supabase
               .from('employees')
-              .select('*, job_titles(job_description)')
+              .select(`
+                *, 
+                job_titles(job_description),
+                team:teams(team_name),
+                certifications(*),
+                employee_authorizations(*),
+                attendance(*)
+              `)
               .eq('is_active', true)
               .not('id', 'in', `(${await getEmployeesOnLeaveOrTraining()})`);
             data = availableEmployees || [];
@@ -163,7 +180,16 @@ export const WorkforceMetrics = () => {
           case 'leave':
             const { data: onLeave } = await supabase
               .from('attendance')
-              .select('*, employees(name, e_number, job_titles(job_description), mobile_number)')
+              .select(`
+                *, 
+                employees(
+                  *,
+                  job_titles(job_description),
+                  team:teams(team_name),
+                  certifications(*),
+                  employee_authorizations(*)
+                )
+              `)
               .eq('status', 'Annual Leave')
               .gt('date', new Date().toISOString().split('T')[0]);
             data = onLeave || [];
@@ -172,7 +198,17 @@ export const WorkforceMetrics = () => {
           case 'training':
             const { data: inTraining } = await supabase
               .from('employee_training_schedules')
-              .select('*, employees(name, e_number, job_titles(job_description), mobile_number), training_types(name)')
+              .select(`
+                *, 
+                employees(
+                  *,
+                  job_titles(job_description),
+                  team:teams(team_name),
+                  certifications(*),
+                  employee_authorizations(*)
+                ), 
+                training_types(*)
+              `)
               .gt('required_date', new Date().toISOString().split('T')[0])
               .lt('required_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
             data = inTraining || [];
@@ -181,7 +217,14 @@ export const WorkforceMetrics = () => {
           case 'grounded':
             const { data: groundedAircraft } = await supabase
               .from('maintenance_visits')
-              .select('*, aircraft(aircraft_name, registration)')
+              .select(`
+                *, 
+                aircraft(
+                  *,
+                  aircraft_types(*)
+                ),
+                personnel_requirements(*)
+              `)
               .eq('status', 'In Progress');
             data = groundedAircraft || [];
             break;
@@ -189,7 +232,14 @@ export const WorkforceMetrics = () => {
           case 'assigned':
             const { data: assignedAircraft } = await supabase
               .from('maintenance_visits')
-              .select('*, aircraft(aircraft_name, registration)')
+              .select(`
+                *, 
+                aircraft(
+                  *,
+                  aircraft_types(*)
+                ),
+                personnel_requirements(*)
+              `)
               .eq('status', 'In Progress')
               .gt('personnel_count', 0);
             data = assignedAircraft || [];
@@ -198,7 +248,13 @@ export const WorkforceMetrics = () => {
           case 'pending':
             const { data: pendingAircraft } = await supabase
               .from('maintenance_visits')
-              .select('*, aircraft(aircraft_name, registration)')
+              .select(`
+                *, 
+                aircraft(
+                  *,
+                  aircraft_types(*)
+                )
+              `)
               .eq('status', 'Scheduled');
             data = pendingAircraft || [];
             break;
@@ -256,6 +312,92 @@ export const WorkforceMetrics = () => {
     }
   };
 
+  const handleExport = () => {
+    try {
+      // Convert data to CSV
+      if (!detailData || detailData.length === 0) {
+        toast.error("No data to export");
+        return;
+      }
+
+      // Prepare data for CSV export based on selected metric
+      let csvData: any[] = [];
+      let filename = '';
+
+      switch (selectedMetric) {
+        case 'available':
+          csvData = detailData.map(item => ({
+            Name: item.name,
+            'Employee ID': `E${item.e_number}`,
+            Position: item.job_titles?.job_description || 'N/A',
+            Team: item.team?.team_name || 'N/A',
+            Mobile: item.mobile_number || 'N/A',
+            'Date of Joining': item.date_of_joining ? new Date(item.date_of_joining).toLocaleDateString() : 'N/A'
+          }));
+          filename = 'available-employees.csv';
+          break;
+        
+        case 'leave':
+          csvData = detailData.map(item => ({
+            Name: item.employees?.name || 'N/A',
+            'Employee ID': `E${item.employees?.e_number}` || 'N/A',
+            Position: item.employees?.job_titles?.job_description || 'N/A',
+            Team: item.employees?.team?.team_name || 'N/A',
+            Mobile: item.employees?.mobile_number || 'N/A',
+            'Leave Until': item.date ? new Date(item.date).toLocaleDateString() : 'N/A'
+          }));
+          filename = 'employees-on-leave.csv';
+          break;
+          
+        case 'training':
+          csvData = detailData.map(item => ({
+            Name: item.employees?.name || 'N/A',
+            'Employee ID': `E${item.employees?.e_number}` || 'N/A',
+            Position: item.employees?.job_titles?.job_description || 'N/A',
+            Team: item.employees?.team?.team_name || 'N/A',
+            Mobile: item.employees?.mobile_number || 'N/A',
+            Training: item.training_types?.name || 'N/A',
+            'Training Date': item.required_date ? new Date(item.required_date).toLocaleDateString() : 'N/A'
+          }));
+          filename = 'employees-in-training.csv';
+          break;
+          
+        default:
+          csvData = detailData;
+          filename = 'export.csv';
+      }
+
+      // Convert to CSV
+      const headers = Object.keys(csvData[0]);
+      let csvContent = headers.join(',') + '\n';
+      
+      csvContent += csvData.map(row => {
+        return headers.map(header => {
+          const cell = row[header] || '';
+          // Escape quotes and wrap in quotes if contains comma
+          const escaped = String(cell).includes('"') ? String(cell).replace(/"/g, '""') : String(cell);
+          return cell.toString().includes(',') ? `"${escaped}"` : escaped;
+        }).join(',');
+      }).join('\n');
+      
+      // Create download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Export completed successfully");
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error("Failed to export data");
+    }
+  };
+
   // Function to render appropriate detail content based on selected metric
   const renderDetailContent = () => {
     if (detailData.length === 0) {
@@ -274,9 +416,13 @@ export const WorkforceMetrics = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>ID</TableHead>
                   <TableHead>Position</TableHead>
-                  <TableHead>Mobile Number</TableHead>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Mobile</TableHead>
+                  <TableHead>Join Date</TableHead>
                   {selectedMetric === 'training' && <TableHead>Training</TableHead>}
+                  {selectedMetric === 'training' && <TableHead>Date</TableHead>}
                   {selectedMetric === 'leave' && <TableHead>Until</TableHead>}
+                  <TableHead>Certifications</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -301,21 +447,47 @@ export const WorkforceMetrics = () => {
                     </TableCell>
                     <TableCell>
                       {selectedMetric === 'available' ? 
+                        (item.team?.team_name || 'N/A') : 
+                       selectedMetric === 'leave' ? 
+                        (item.employees?.team?.team_name || 'N/A') : 
+                        (item.employees?.team?.team_name || 'N/A')}
+                    </TableCell>
+                    <TableCell>
+                      {selectedMetric === 'available' ? 
                         (item.mobile_number || 'N/A') : 
                        selectedMetric === 'leave' ? 
                         (item.employees?.mobile_number || 'N/A') : 
                         (item.employees?.mobile_number || 'N/A')}
+                    </TableCell>
+                    <TableCell>
+                      {selectedMetric === 'available' ? 
+                        (item.date_of_joining ? new Date(item.date_of_joining).toLocaleDateString() : 'N/A') : 
+                       selectedMetric === 'leave' ? 
+                        (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A') : 
+                        (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A')}
                     </TableCell>
                     {selectedMetric === 'training' && (
                       <TableCell>
                         {item.training_types?.name || 'N/A'}
                       </TableCell>
                     )}
-                    {selectedMetric === 'leave' && (
+                    {selectedMetric === 'training' && (
                       <TableCell>
-                        {new Date(item.date).toLocaleDateString()}
+                        {item.required_date ? new Date(item.required_date).toLocaleDateString() : 'N/A'}
                       </TableCell>
                     )}
+                    {selectedMetric === 'leave' && (
+                      <TableCell>
+                        {item.date ? new Date(item.date).toLocaleDateString() : 'N/A'}
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      {selectedMetric === 'available' ? 
+                        ((item.certifications && item.certifications.length) || '0') : 
+                       selectedMetric === 'leave' ? 
+                        ((item.employees?.certifications && item.employees?.certifications.length) || '0') : 
+                        ((item.employees?.certifications && item.employees?.certifications.length) || '0')}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -333,8 +505,12 @@ export const WorkforceMetrics = () => {
                 <TableRow>
                   <TableHead>Aircraft</TableHead>
                   <TableHead>Registration</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Check Type</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Date Range</TableHead>
+                  <TableHead>Total Hours</TableHead>
+                  <TableHead>Hangars</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -347,10 +523,30 @@ export const WorkforceMetrics = () => {
                       {item.aircraft?.registration || 'N/A'}
                     </TableCell>
                     <TableCell>
+                      {item.aircraft?.aircraft_types?.type_name || 'N/A'}
+                    </TableCell>
+                    <TableCell>
                       {item.check_type || 'N/A'}
                     </TableCell>
                     <TableCell>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        item.status === 'In Progress' ? 
+                          'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 
+                        item.status === 'Completed' ? 
+                          'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
+                          'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+                      }`}>
+                        {item.status || 'N/A'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
                       {new Date(item.date_in).toLocaleDateString()} - {new Date(item.date_out).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {item.total_hours || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {item.hangar_id || 'Not Assigned'}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -434,13 +630,53 @@ export const WorkforceMetrics = () => {
 
       {/* Metric Detail Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{getDetailTitle()}</DialogTitle>
+        <DialogContent className="w-4/5 h-4/5 max-w-[90vw] max-h-[90vh]" onInteractOutside={e => e.preventDefault()}>
+          <DialogHeader className="flex flex-row justify-between items-center">
+            <DialogTitle className="text-xl">{getDetailTitle()}</DialogTitle>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
           </DialogHeader>
-          <div className="mt-6 overflow-x-auto">
-            {renderDetailContent()}
+          
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-sm text-muted-foreground">
+              {detailData.length} record{detailData.length !== 1 ? 's' : ''} found
+            </div>
+            <div className="flex gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Filter Records</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Filter options would go here. This is a placeholder for future functionality.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction>Apply Filter</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              
+              <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleExport}>
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </div>
           </div>
+          
+          <ScrollArea className="h-[calc(100%-8rem)] pr-4">
+            {renderDetailContent()}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </>
