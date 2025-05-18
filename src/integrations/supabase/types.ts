@@ -13,49 +13,142 @@ export type Database = {
         Row: {
           aircraft_code: string
           aircraft_name: string
+          aircraft_type_id: number | null
+          customer: string | null
+          delivery_date: string | null
           id: number
+          manufacturing_date: string | null
+          registration: string | null
+          serial_number: string | null
+          total_cycles: number | null
+          total_hours: number | null
         }
         Insert: {
           aircraft_code: string
           aircraft_name: string
+          aircraft_type_id?: number | null
+          customer?: string | null
+          delivery_date?: string | null
           id?: number
+          manufacturing_date?: string | null
+          registration?: string | null
+          serial_number?: string | null
+          total_cycles?: number | null
+          total_hours?: number | null
         }
         Update: {
           aircraft_code?: string
           aircraft_name?: string
+          aircraft_type_id?: number | null
+          customer?: string | null
+          delivery_date?: string | null
           id?: number
-        }
-        Relationships: []
-      }
-      aircraft_authorities: {
-        Row: {
-          aircraft_id: number | null
-          authority_id: number | null
-          id: number
-        }
-        Insert: {
-          aircraft_id?: number | null
-          authority_id?: number | null
-          id?: number
-        }
-        Update: {
-          aircraft_id?: number | null
-          authority_id?: number | null
-          id?: number
+          manufacturing_date?: string | null
+          registration?: string | null
+          serial_number?: string | null
+          total_cycles?: number | null
+          total_hours?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "aircraft_authorities_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "aircraft_aircraft_type_id_fkey"
+            columns: ["aircraft_type_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
+            referencedRelation: "aircraft_types"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      aircraft_models: {
+        Row: {
+          aircraft_type_id: number | null
+          description: string | null
+          id: number
+          model_code: string
+          model_name: string
+        }
+        Insert: {
+          aircraft_type_id?: number | null
+          description?: string | null
+          id?: number
+          model_code: string
+          model_name: string
+        }
+        Update: {
+          aircraft_type_id?: number | null
+          description?: string | null
+          id?: number
+          model_code?: string
+          model_name?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "aircraft_authorities_authority_id_fkey"
-            columns: ["authority_id"]
+            foreignKeyName: "aircraft_models_aircraft_type_id_fkey"
+            columns: ["aircraft_type_id"]
             isOneToOne: false
-            referencedRelation: "authorities"
+            referencedRelation: "aircraft_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aircraft_types: {
+        Row: {
+          category: string
+          id: number
+          manufacturer: string
+          type_code: string
+          type_name: string
+        }
+        Insert: {
+          category: string
+          id?: number
+          manufacturer: string
+          type_code: string
+          type_name: string
+        }
+        Update: {
+          category?: string
+          id?: number
+          manufacturer?: string
+          type_code?: string
+          type_name?: string
+        }
+        Relationships: []
+      }
+      attendance: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          comments: string | null
+          date: string
+          employee_id: number | null
+          id: number
+          status: string | null
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          comments?: string | null
+          date: string
+          employee_id?: number | null
+          id?: number
+          status?: string | null
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          comments?: string | null
+          date?: string
+          employee_id?: number | null
+          id?: number
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -75,6 +168,24 @@ export type Database = {
           authority_code?: string
           authority_name?: string
           id?: number
+        }
+        Relationships: []
+      }
+      authorization_types: {
+        Row: {
+          description: string | null
+          id: number
+          name: string
+        }
+        Insert: {
+          description?: string | null
+          id?: number
+          name: string
+        }
+        Update: {
+          description?: string | null
+          id?: number
+          name?: string
         }
         Relationships: []
       }
@@ -208,6 +319,197 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_authorizations: {
+        Row: {
+          aircraft_model_id: number
+          authorization_basis: string
+          authorization_category: string | null
+          authorization_type_id: number
+          certificate_number: string | null
+          created_at: string | null
+          created_by: string | null
+          easa_certificate_number: string | null
+          easa_issued_flag: boolean | null
+          easa_issued_on: string | null
+          easa_remarks: string | null
+          employee_id: number
+          engine_model_id: number | null
+          expiry_date: string | null
+          faa_certificate_number: string | null
+          faa_issued_flag: boolean | null
+          faa_issued_on: string | null
+          faa_remarks: string | null
+          gcaa_certificate_number: string | null
+          gcaa_issued_flag: boolean | null
+          gcaa_issued_on: string | null
+          gcaa_remarks: string | null
+          icao_certificate_number: string | null
+          icao_issued_flag: boolean | null
+          icao_remarks: string | null
+          id: number
+          is_active: boolean | null
+          issued_on: string | null
+          kept: boolean | null
+          limitation: string | null
+          manufacturer_certificate_number: string | null
+          manufacturer_issued_flag: boolean | null
+          manufacturer_issued_on: string | null
+          manufacturer_remarks: string | null
+          other_authority_name: string | null
+          other_certificate_number: string | null
+          other_issued_flag: boolean | null
+          other_issued_on: string | null
+          other_remarks: string | null
+          p7_certificate_number: string | null
+          p7_issued_flag: boolean | null
+          p7_issued_on: string | null
+          p7_remarks: string | null
+          pages: number | null
+          reissued_on: string | null
+          remarks: string | null
+          suspended: boolean | null
+          suspended_on: string | null
+          suspension_reason: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          aircraft_model_id: number
+          authorization_basis: string
+          authorization_category?: string | null
+          authorization_type_id: number
+          certificate_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          easa_certificate_number?: string | null
+          easa_issued_flag?: boolean | null
+          easa_issued_on?: string | null
+          easa_remarks?: string | null
+          employee_id: number
+          engine_model_id?: number | null
+          expiry_date?: string | null
+          faa_certificate_number?: string | null
+          faa_issued_flag?: boolean | null
+          faa_issued_on?: string | null
+          faa_remarks?: string | null
+          gcaa_certificate_number?: string | null
+          gcaa_issued_flag?: boolean | null
+          gcaa_issued_on?: string | null
+          gcaa_remarks?: string | null
+          icao_certificate_number?: string | null
+          icao_issued_flag?: boolean | null
+          icao_remarks?: string | null
+          id?: number
+          is_active?: boolean | null
+          issued_on?: string | null
+          kept?: boolean | null
+          limitation?: string | null
+          manufacturer_certificate_number?: string | null
+          manufacturer_issued_flag?: boolean | null
+          manufacturer_issued_on?: string | null
+          manufacturer_remarks?: string | null
+          other_authority_name?: string | null
+          other_certificate_number?: string | null
+          other_issued_flag?: boolean | null
+          other_issued_on?: string | null
+          other_remarks?: string | null
+          p7_certificate_number?: string | null
+          p7_issued_flag?: boolean | null
+          p7_issued_on?: string | null
+          p7_remarks?: string | null
+          pages?: number | null
+          reissued_on?: string | null
+          remarks?: string | null
+          suspended?: boolean | null
+          suspended_on?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          aircraft_model_id?: number
+          authorization_basis?: string
+          authorization_category?: string | null
+          authorization_type_id?: number
+          certificate_number?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          easa_certificate_number?: string | null
+          easa_issued_flag?: boolean | null
+          easa_issued_on?: string | null
+          easa_remarks?: string | null
+          employee_id?: number
+          engine_model_id?: number | null
+          expiry_date?: string | null
+          faa_certificate_number?: string | null
+          faa_issued_flag?: boolean | null
+          faa_issued_on?: string | null
+          faa_remarks?: string | null
+          gcaa_certificate_number?: string | null
+          gcaa_issued_flag?: boolean | null
+          gcaa_issued_on?: string | null
+          gcaa_remarks?: string | null
+          icao_certificate_number?: string | null
+          icao_issued_flag?: boolean | null
+          icao_remarks?: string | null
+          id?: number
+          is_active?: boolean | null
+          issued_on?: string | null
+          kept?: boolean | null
+          limitation?: string | null
+          manufacturer_certificate_number?: string | null
+          manufacturer_issued_flag?: boolean | null
+          manufacturer_issued_on?: string | null
+          manufacturer_remarks?: string | null
+          other_authority_name?: string | null
+          other_certificate_number?: string | null
+          other_issued_flag?: boolean | null
+          other_issued_on?: string | null
+          other_remarks?: string | null
+          p7_certificate_number?: string | null
+          p7_issued_flag?: boolean | null
+          p7_issued_on?: string | null
+          p7_remarks?: string | null
+          pages?: number | null
+          reissued_on?: string | null
+          remarks?: string | null
+          suspended?: boolean | null
+          suspended_on?: string | null
+          suspension_reason?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_authorizations_aircraft_model_id_fkey"
+            columns: ["aircraft_model_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_authorizations_authorization_type_id_fkey"
+            columns: ["authorization_type_id"]
+            isOneToOne: false
+            referencedRelation: "authorization_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_authorizations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_authorizations_engine_model_id_fkey"
+            columns: ["engine_model_id"]
+            isOneToOne: false
+            referencedRelation: "engine_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_cores: {
         Row: {
           core_id: number | null
@@ -274,27 +576,115 @@ export type Database = {
           },
         ]
       }
-      employees: {
+      employee_training_schedules: {
         Row: {
-          e_number: number
+          attended_date: string | null
+          certificate_expiry_date: string | null
+          certificate_issue_date: string | null
+          employee_id: number | null
           id: number
-          job_title_id: number | null
-          name: string
-          team_id: number | null
+          remarks: string | null
+          required_date: string | null
+          status_id: number | null
+          training_type_id: number | null
         }
         Insert: {
-          e_number: number
+          attended_date?: string | null
+          certificate_expiry_date?: string | null
+          certificate_issue_date?: string | null
+          employee_id?: number | null
           id?: number
-          job_title_id?: number | null
-          name: string
-          team_id?: number | null
+          remarks?: string | null
+          required_date?: string | null
+          status_id?: number | null
+          training_type_id?: number | null
         }
         Update: {
-          e_number?: number
+          attended_date?: string | null
+          certificate_expiry_date?: string | null
+          certificate_issue_date?: string | null
+          employee_id?: number | null
           id?: number
+          remarks?: string | null
+          required_date?: string | null
+          status_id?: number | null
+          training_type_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_training_schedules_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_training_schedules_status_id_fkey"
+            columns: ["status_id"]
+            isOneToOne: false
+            referencedRelation: "training_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_training_schedules_training_type_id_fkey"
+            columns: ["training_type_id"]
+            isOneToOne: false
+            referencedRelation: "training_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          date_of_joining: string | null
+          e_number: number
+          employee_status: string | null
+          fte_date: string | null
+          id: number
+          is_active: boolean | null
+          job_title_id: number | null
+          key_name: string | null
+          mobile_number: string | null
+          name: string
+          nationality: string | null
+          night_shift_ok: boolean | null
+          profit_center: string | null
+          team_id: number | null
+          user: string | null
+        }
+        Insert: {
+          date_of_joining?: string | null
+          e_number: number
+          employee_status?: string | null
+          fte_date?: string | null
+          id?: number
+          is_active?: boolean | null
           job_title_id?: number | null
-          name?: string
+          key_name?: string | null
+          mobile_number?: string | null
+          name: string
+          nationality?: string | null
+          night_shift_ok?: boolean | null
+          profit_center?: string | null
           team_id?: number | null
+          user?: string | null
+        }
+        Update: {
+          date_of_joining?: string | null
+          e_number?: number
+          employee_status?: string | null
+          fte_date?: string | null
+          id?: number
+          is_active?: boolean | null
+          job_title_id?: number | null
+          key_name?: string | null
+          mobile_number?: string | null
+          name?: string
+          nationality?: string | null
+          night_shift_ok?: boolean | null
+          profit_center?: string | null
+          team_id?: number | null
+          user?: string | null
         }
         Relationships: [
           {
@@ -313,6 +703,27 @@ export type Database = {
           },
         ]
       }
+      engine_models: {
+        Row: {
+          description: string | null
+          id: number
+          manufacturer: string
+          model_code: string
+        }
+        Insert: {
+          description?: string | null
+          id?: number
+          manufacturer: string
+          model_code: string
+        }
+        Update: {
+          description?: string | null
+          id?: number
+          manufacturer?: string
+          model_code?: string
+        }
+        Relationships: []
+      }
       engine_types: {
         Row: {
           engine_name: string
@@ -325,6 +736,36 @@ export type Database = {
         Update: {
           engine_name?: string
           id?: number
+        }
+        Relationships: []
+      }
+      hangars: {
+        Row: {
+          active: boolean | null
+          capacity: number
+          hangar_code: string
+          hangar_name: string
+          hangar_type: string | null
+          id: number
+          location: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          capacity: number
+          hangar_code: string
+          hangar_name: string
+          hangar_type?: string | null
+          id?: number
+          location?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          capacity?: number
+          hangar_code?: string
+          hangar_name?: string
+          hangar_type?: string | null
+          id?: number
+          location?: string | null
         }
         Relationships: []
       }
@@ -343,6 +784,129 @@ export type Database = {
           id?: number
           job_code?: string
           job_description?: string
+        }
+        Relationships: []
+      }
+      maintenance_visits: {
+        Row: {
+          aircraft_id: number | null
+          check_type: string
+          created_at: string | null
+          date_in: string
+          date_out: string
+          hangar_id: number | null
+          id: number
+          remarks: string | null
+          status: string | null
+          total_hours: number | null
+          visit_number: string
+        }
+        Insert: {
+          aircraft_id?: number | null
+          check_type: string
+          created_at?: string | null
+          date_in: string
+          date_out: string
+          hangar_id?: number | null
+          id?: number
+          remarks?: string | null
+          status?: string | null
+          total_hours?: number | null
+          visit_number: string
+        }
+        Update: {
+          aircraft_id?: number | null
+          check_type?: string
+          created_at?: string | null
+          date_in?: string
+          date_out?: string
+          hangar_id?: number | null
+          id?: number
+          remarks?: string | null
+          status?: string | null
+          total_hours?: number | null
+          visit_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_visits_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_visits_hangar_id_fkey"
+            columns: ["hangar_id"]
+            isOneToOne: false
+            referencedRelation: "hangars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personnel_requirements: {
+        Row: {
+          date: string
+          day_shift_count: number
+          id: number
+          maintenance_visit_id: number | null
+          night_shift_count: number
+          remarks: string | null
+          trade_id: number | null
+        }
+        Insert: {
+          date: string
+          day_shift_count?: number
+          id?: number
+          maintenance_visit_id?: number | null
+          night_shift_count?: number
+          remarks?: string | null
+          trade_id?: number | null
+        }
+        Update: {
+          date?: string
+          day_shift_count?: number
+          id?: number
+          maintenance_visit_id?: number | null
+          night_shift_count?: number
+          remarks?: string | null
+          trade_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personnel_requirements_maintenance_visit_id_fkey"
+            columns: ["maintenance_visit_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_visits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personnel_requirements_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profit_centers: {
+        Row: {
+          code: string
+          description: string | null
+          id: number
+          name: string
+        }
+        Insert: {
+          code: string
+          description?: string | null
+          id?: number
+          name: string
+        }
+        Update: {
+          code?: string
+          description?: string | null
+          id?: number
+          name?: string
         }
         Relationships: []
       }
@@ -437,6 +1001,107 @@ export type Database = {
         }
         Relationships: []
       }
+      trades: {
+        Row: {
+          description: string | null
+          id: number
+          skill_category: string | null
+          trade_code: string
+          trade_name: string
+        }
+        Insert: {
+          description?: string | null
+          id?: number
+          skill_category?: string | null
+          trade_code: string
+          trade_name: string
+        }
+        Update: {
+          description?: string | null
+          id?: number
+          skill_category?: string | null
+          trade_code?: string
+          trade_name?: string
+        }
+        Relationships: []
+      }
+      training_status: {
+        Row: {
+          code: string
+          color: string
+          description: string | null
+          id: number
+          name: string
+        }
+        Insert: {
+          code: string
+          color: string
+          description?: string | null
+          id?: number
+          name: string
+        }
+        Update: {
+          code?: string
+          color?: string
+          description?: string | null
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
+      training_types: {
+        Row: {
+          code: string
+          description: string | null
+          frequency_months: number
+          id: number
+          is_mandatory: boolean | null
+          name: string
+        }
+        Insert: {
+          code: string
+          description?: string | null
+          frequency_months: number
+          id?: number
+          is_mandatory?: boolean | null
+          name: string
+        }
+        Update: {
+          code?: string
+          description?: string | null
+          frequency_months?: number
+          id?: number
+          is_mandatory?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      user: {
+        Row: {
+          id: number
+          password: string | null
+          user_name: string | null
+        }
+        Insert: {
+          id?: number
+          password?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          id?: number
+          password?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_user_name_fkey"
+            columns: ["user_name"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["user"]
+          },
+        ]
+      }
       validity_statuses: {
         Row: {
           id: number
@@ -457,7 +1122,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_all_personnel_requirements: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      generate_attendance_may_1_to_25_2025: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      generate_employee_authorizations: {
+        Args: { p_number_of_records: number }
+        Returns: undefined
+      }
+      generate_hangar_visits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       generate_roster_may_june_2025: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      generate_training_schedules: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      migrate_certifications_to_authorizations: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

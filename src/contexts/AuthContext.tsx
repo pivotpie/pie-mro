@@ -1,0 +1,117 @@
+
+import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { supabase } from "@/integrations/supabase/client";
+
+interface Employee {
+  id: number;
+  name: string;
+  e_number: number;
+  job_title_id: number | null;
+  team_id: number | null;
+  [key: string]: any;
+}
+
+interface User {
+  id: number;
+  username: string;
+  employee: Employee | null;
+}
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check for existing user session in localStorage
+    const checkUserSession = () => {
+      const storedUser = localStorage.getItem('mro_user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (e) {
+          console.error('Error parsing stored user:', e);
+          localStorage.removeItem('mro_user');
+        }
+      }
+      setLoading(false);
+    };
+
+    checkUserSession();
+  }, []);
+
+  const login = async (username: string, password: string) => {
+    setLoading(true);
+    
+    try {
+      // Query the user table to check credentials
+      const { data, error } = await supabase
+        .from('user')
+        .select('id, user_name')
+        .eq('user_name', username)
+        .eq('password', password)
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Get the employee information based on the username
+        const { data: employeeData, error: employeeError } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('user', username)
+          .single();
+        
+        if (employeeError && employeeError.code !== 'PGRST116') {
+          throw employeeError;
+        }
+        
+        const userData = {
+          id: data.id,
+          username: data.user_name,
+          employee: employeeData || null
+        };
+        
+        // Store user session in localStorage
+        localStorage.setItem('mro_user', JSON.stringify(userData));
+        setUser(userData);
+      } else {
+        throw new Error('Invalid username or password');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    localStorage.removeItem('mro_user');
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
