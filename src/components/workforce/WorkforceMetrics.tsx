@@ -16,6 +16,8 @@ import {
   SheetHeader, 
   SheetTitle 
 } from "@/components/ui/sheet";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MetricCardProps {
   label: string;
@@ -24,6 +26,25 @@ interface MetricCardProps {
   color: string;
   percentage?: string;
   onClick?: () => void;
+}
+
+interface EmployeeMetrics {
+  total: number;
+  active: number;
+  onLeave: number;
+  inTraining: number;
+}
+
+interface AircraftMetrics {
+  total: number;
+  inMaintenance: number;
+  scheduled: number;
+  available: number;
+}
+
+interface WorkforceMetricsProps {
+  employeeMetrics?: EmployeeMetrics;
+  aircraftMetrics?: AircraftMetrics;
 }
 
 const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick }: MetricCardProps) => (
@@ -50,63 +71,120 @@ const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick }: Me
   </Card>
 );
 
-export const WorkforceMetrics = () => {
+export const WorkforceMetrics = ({ employeeMetrics, aircraftMetrics }: WorkforceMetricsProps) => {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   
+  // Fetch detailed employee data when a specific metric is selected
+  const { data: employeeDetails } = useQuery({
+    queryKey: ['employeeDetails', selectedMetric],
+    queryFn: async () => {
+      if (selectedMetric === 'available') {
+        const { data, error } = await supabase
+          .from('employees')
+          .select('id, e_number, name, job_title_id, team_id')
+          .eq('is_active', true)
+          .limit(20);
+        
+        if (error) throw error;
+        return data;
+      }
+      
+      if (selectedMetric === 'leave') {
+        const { data, error } = await supabase
+          .from('attendance')
+          .select('employee_id, date, status, employees(name, e_number)')
+          .eq('status', 'Annual Leave')
+          .gt('date', new Date().toISOString().split('T')[0])
+          .limit(20);
+        
+        if (error) throw error;
+        return data;
+      }
+      
+      if (selectedMetric === 'training') {
+        const { data, error } = await supabase
+          .from('employee_training_schedules')
+          .select('employee_id, required_date, training_type_id, employees(name, e_number), training_types(name)')
+          .gt('required_date', new Date().toISOString().split('T')[0])
+          .lt('required_date', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+          .limit(20);
+        
+        if (error) throw error;
+        return data;
+      }
+      
+      if (selectedMetric === 'grounded' || selectedMetric === 'assigned') {
+        const status = selectedMetric === 'grounded' ? 'In Progress' : 'Scheduled';
+        const { data, error } = await supabase
+          .from('maintenance_visits')
+          .select('id, aircraft_id, check_type, status, aircraft(registration, aircraft_name)')
+          .eq('status', status)
+          .limit(20);
+        
+        if (error) throw error;
+        return data;
+      }
+      
+      return [];
+    },
+    enabled: !!selectedMetric && isSheetOpen,
+  });
+
   const metrics = [
     { 
       id: 'available', 
       label: 'Available Employees', 
-      value: 21, 
+      value: employeeMetrics?.active || 0, 
       icon: Users, 
       color: 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800',
-      percentage: '+3%'
+      percentage: employeeMetrics ? `${Math.round((employeeMetrics.active / employeeMetrics.total) * 100)}%` : '0%'
     },
     { 
       id: 'leave', 
       label: 'On Leave', 
-      value: 3, 
+      value: employeeMetrics?.onLeave || 0, 
       icon: CalendarCheck, 
       color: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
-      percentage: '-2%'
+      percentage: employeeMetrics ? `${Math.round((employeeMetrics.onLeave / employeeMetrics.total) * 100)}%` : '0%'
     },
     { 
       id: 'training', 
       label: 'In Training', 
-      value: 6, 
+      value: employeeMetrics?.inTraining || 0, 
       icon: GraduationCap, 
       color: 'bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800',
-      percentage: '+1%'
+      percentage: employeeMetrics ? `${Math.round((employeeMetrics.inTraining / employeeMetrics.total) * 100)}%` : '0%'
     },
     { 
       id: 'grounded', 
       label: 'Grounded Aircraft', 
-      value: 18, 
+      value: aircraftMetrics?.inMaintenance || 0, 
       icon: Plane, 
       color: 'bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800',
-      percentage: '0%'
+      percentage: aircraftMetrics ? `${Math.round((aircraftMetrics.inMaintenance / aircraftMetrics.total) * 100)}%` : '0%'
     },
     { 
       id: 'assigned', 
       label: 'Aircraft w/ Teams', 
-      value: 12, 
+      value: aircraftMetrics?.scheduled || 0, 
       icon: PlaneTakeoff, 
       color: 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800',
-      percentage: '+1%'
+      percentage: aircraftMetrics ? `${Math.round((aircraftMetrics.scheduled / aircraftMetrics.total) * 100)}%` : '0%'
     },
     { 
-      id: 'pending', 
-      label: 'Pending Assignment', 
-      value: 6, 
+      id: 'available-aircraft', 
+      label: 'Available Aircraft', 
+      value: aircraftMetrics?.available || 0, 
       icon: FileCheck, 
       color: 'bg-orange-50 border-orange-200 dark:bg-orange-900/30 dark:border-orange-800',
-      percentage: '+3%'
+      percentage: aircraftMetrics ? `${Math.round((aircraftMetrics.available / aircraftMetrics.total) * 100)}%` : '0%'
     },
     { 
       id: 'productivity', 
-      label: 'Productivity', 
-      value: 94, 
+      label: 'Team Utilization', 
+      value: employeeMetrics && aircraftMetrics ? 
+        Math.round(((employeeMetrics.active - employeeMetrics.onLeave) / employeeMetrics.total) * 100) : 0, 
       icon: Activity, 
       color: 'bg-cyan-50 border-cyan-200 dark:bg-cyan-900/30 dark:border-cyan-800',
       percentage: '+2%'
@@ -143,56 +221,118 @@ export const WorkforceMetrics = () => {
             </SheetTitle>
           </SheetHeader>
           <div className="mt-6">
-            {selectedMetric === 'available' && (
+            {selectedMetric === 'available' && employeeDetails && (
               <div className="space-y-4">
-                <p>Detailed information about available employees would appear here.</p>
+                <p>Showing {employeeDetails.length} of {employeeMetrics?.active || 0} available employees</p>
                 <div className="border rounded-md p-4">
                   <h3 className="font-medium mb-2">Available Employee List</h3>
-                  <ul className="space-y-2">
-                    <li className="flex justify-between">
-                      <span>Michael Johnson</span>
-                      <span className="text-blue-600">Available</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Sarah Williams</span>
-                      <span className="text-blue-600">Available</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>David Brown</span>
-                      <span className="text-blue-600">Available</span>
-                    </li>
+                  <ul className="space-y-2 divide-y">
+                    {employeeDetails.map((employee: any) => (
+                      <li key={employee.id} className="flex justify-between pt-2">
+                        <span>
+                          {employee.name}
+                          <span className="text-xs text-gray-500 ml-2">#{employee.e_number}</span>
+                        </span>
+                        <span className="text-blue-600">Available</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
             )}
 
-            {selectedMetric === 'leave' && (
+            {selectedMetric === 'leave' && employeeDetails && (
               <div className="space-y-4">
-                <p>Detailed information about employees on leave would appear here.</p>
+                <p>Showing {employeeDetails.length} of {employeeMetrics?.onLeave || 0} employees on leave</p>
                 <div className="border rounded-md p-4">
                   <h3 className="font-medium mb-2">Employees on Leave</h3>
-                  <ul className="space-y-2">
-                    <li className="flex justify-between">
-                      <span>Emily Taylor</span>
-                      <span className="text-red-600">Vacation (Until Jun 25)</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>James Wilson</span>
-                      <span className="text-red-600">Sick Leave (Until Jun 22)</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>Robert Miller</span>
-                      <span className="text-red-600">Personal (Until Jun 30)</span>
-                    </li>
+                  <ul className="space-y-2 divide-y">
+                    {employeeDetails.map((record: any) => (
+                      <li key={record.employee_id} className="flex justify-between pt-2">
+                        <span>
+                          {record.employees?.name}
+                          <span className="text-xs text-gray-500 ml-2">#{record.employees?.e_number}</span>
+                        </span>
+                        <span className="text-red-600">
+                          {record.status} (Until {new Date(record.date).toLocaleDateString()})
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {selectedMetric === 'training' && employeeDetails && (
+              <div className="space-y-4">
+                <p>Showing {employeeDetails.length} of {employeeMetrics?.inTraining || 0} employees in training</p>
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium mb-2">Employees in Training</h3>
+                  <ul className="space-y-2 divide-y">
+                    {employeeDetails.map((record: any, index: number) => (
+                      <li key={`${record.employee_id}-${index}`} className="flex justify-between pt-2">
+                        <span>
+                          {record.employees?.name}
+                          <span className="text-xs text-gray-500 ml-2">#{record.employees?.e_number}</span>
+                        </span>
+                        <span className="text-purple-600">
+                          {record.training_types?.name} ({new Date(record.required_date).toLocaleDateString()})
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {selectedMetric === 'grounded' && employeeDetails && (
+              <div className="space-y-4">
+                <p>Showing {employeeDetails.length} of {aircraftMetrics?.inMaintenance || 0} aircraft in maintenance</p>
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium mb-2">Aircraft in Maintenance</h3>
+                  <ul className="space-y-2 divide-y">
+                    {employeeDetails.map((record: any) => (
+                      <li key={record.id} className="flex justify-between pt-2">
+                        <span>
+                          {record.aircraft?.aircraft_name}
+                          <span className="text-xs text-gray-500 ml-2">{record.aircraft?.registration}</span>
+                        </span>
+                        <span className="text-amber-600">
+                          {record.check_type}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {selectedMetric === 'assigned' && employeeDetails && (
+              <div className="space-y-4">
+                <p>Showing {employeeDetails.length} of {aircraftMetrics?.scheduled || 0} scheduled aircraft</p>
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium mb-2">Aircraft with Assigned Teams</h3>
+                  <ul className="space-y-2 divide-y">
+                    {employeeDetails.map((record: any) => (
+                      <li key={record.id} className="flex justify-between pt-2">
+                        <span>
+                          {record.aircraft?.aircraft_name}
+                          <span className="text-xs text-gray-500 ml-2">{record.aircraft?.registration}</span>
+                        </span>
+                        <span className="text-green-600">
+                          Scheduled
+                        </span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
             )}
 
             {/* Placeholder for other metrics */}
-            {!['available', 'leave'].includes(selectedMetric || '') && (
+            {!['available', 'leave', 'training', 'grounded', 'assigned'].includes(selectedMetric || '') && (
               <div className="h-[300px] flex items-center justify-center border rounded-md">
-                <p className="text-gray-500">Detailed information for this metric would appear here.</p>
+                <p className="text-gray-500">Detailed information for this metric is being loaded...</p>
               </div>
             )}
           </div>
