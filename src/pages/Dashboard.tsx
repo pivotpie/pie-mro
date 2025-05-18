@@ -80,7 +80,7 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle>Roster Schedule</CardTitle>
             <CardDescription>Your current work schedule</CardDescription>
@@ -89,6 +89,27 @@ const Dashboard = () => {
             <p className="text-gray-500 italic">Roster data will be displayed here</p>
           </CardContent>
         </Card>
+
+        <div className="flex justify-end gap-4">
+          {(user.username === 'admin' || user.username === 'manager') && (
+            <>
+              <Button 
+                variant="default" 
+                onClick={() => navigate('/manager-dashboard')}
+                className="bg-slate-800 hover:bg-slate-700"
+              >
+                Manager Dashboard
+              </Button>
+              <Button 
+                variant="default" 
+                onClick={() => navigate('/admin-workforce')}
+                className="bg-blue-700 hover:bg-blue-800"
+              >
+                Workforce Management
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

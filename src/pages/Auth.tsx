@@ -22,8 +22,20 @@ const Auth = () => {
   // Redirect if user is already authenticated
   useEffect(() => {
     if (isAuthenticated && !loading) {
-      console.log("User already authenticated, redirecting to dashboard");
-      navigate('/dashboard');
+      console.log("User already authenticated, redirecting to appropriate dashboard");
+      const storedUser = localStorage.getItem('mro_user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        if (user.username === 'admin') {
+          navigate('/admin-workforce');
+        } else if (user.username === 'manager') {
+          navigate('/manager-dashboard');
+        } else {
+          navigate('/dashboard');
+        }
+      } else {
+        navigate('/dashboard');
+      }
     }
   }, [isAuthenticated, loading, navigate]);
 
@@ -44,7 +56,15 @@ const Auth = () => {
       setShowLoginAttempt(true);
       await login(username, password);
       toast.success(`Welcome back, ${username}!`);
-      navigate('/dashboard');
+      
+      // Redirect based on username
+      if (username === 'admin') {
+        navigate('/admin-workforce');
+      } else if (username === 'manager') {
+        navigate('/manager-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       setError(error.message || 'An error occurred during login');
