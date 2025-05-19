@@ -19,15 +19,32 @@ interface EmployeeRoster {
   notes: string | null;
 }
 
+interface EmployeeCore {
+  id: string;
+  employee_id: string;
+  core_code: string;
+}
+
+interface EmployeeSupport {
+  id: string;
+  employee_id: string;
+  support_code: string;
+}
+
 interface Employee {
   id: string;
-  name: string;
   e_number?: string | null;
+  name: string;
   mobile_number?: string | null;
   team?: { team_name: string } | null;
   job_title?: { job_description: string; job_code: string } | null;
   employee_status?: string | null;
-  alias?: string;
+  key_name?: string | null;
+  night_shift_ok?: boolean | null;
+  fte_date?: string | null;
+  ttl?: string | null;
+  cores?: string[];
+  supports?: string[];
   schedule?: Record<string, string>;
 }
 
@@ -79,8 +96,12 @@ export const EmployeeCalendar = () => {
     alias: 70,
     mobile: 130,
     team: 100,
+    core: 100,
+    support: 100,
     title: 100,
-    status: 100,
+    night_shift: 70,
+    fte: 80,
+    ttl: 80,
     date: 45 // Width of each date column
   };
 
@@ -94,19 +115,22 @@ export const EmployeeCalendar = () => {
     const fetchEmployees = async () => {
       try {
         setLoading(true);
-        // Fetch employees with their roster data
+        
+        // Fetch all employees with their related data
         const { data: employeesData, error: employeesError } = await supabase
           .from('employees')
           .select(`
             id,
-            name,
             e_number,
+            name,
             mobile_number,
+            key_name,
+            night_shift_ok,
+            fte_date,
             team:team_id(team_name),
             job_title:job_title_id(job_code, job_description),
             employee_status
-          `)
-          .limit(20);
+          `);
         
         if (employeesError) {
           throw employeesError;
@@ -117,8 +141,113 @@ export const EmployeeCalendar = () => {
           ...emp,
           id: emp.id.toString(), // Convert id to string
           e_number: emp.e_number?.toString(), // Convert e_number to string
-          alias: emp.name?.split(' ').map((n: string) => n[0]).join('') || ''
+          cores: [],
+          supports: []
         }));
+
+        // Fetch employee cores
+        const { data: coresData, error: coresError } = await supabase
+          .from('employee_cores')
+          .select(`
+            id,
+            employee_id,
+            core:core_id(core_code)
+          `);
+          
+        if (coresError) {
+          console.error("Error fetching employee cores:", coresError);
+        } else if (coresData) {
+          // Assign cores to employees
+          const employeesCoreMap: Record<string, string[]> = {};
+          
+          coresData.forEach((coreData: any) => {
+            const employeeId = coreData.employee_id?.toString();
+            if (employeeId) {
+              if (!employeesCoreMap[employeeId]) {
+                employeesCoreMap[employeeId] = [];
+              }
+              if (coreData.core?.core_code) {
+                employeesCoreMap[employeeId].push(coreData.core.core_code);
+              }
+            }
+          });
+          
+          // Add cores to employees
+          typedEmployees.forEach(emp => {
+            if (employeesCoreMap[emp.id]) {
+              emp.cores = employeesCoreMap[emp.id];
+            }
+          });
+        }
+        
+        // Fetch employee supports
+        const { data: supportsData, error: supportsError } = await supabase
+          .from('employee_supports')
+          .select(`
+            id,
+            employee_id,
+            support:support_id(support_code)
+          `);
+          
+        if (supportsError) {
+          console.error("Error fetching employee supports:", supportsError);
+        } else if (supportsData) {
+          // Assign supports to employees
+          const employeesSupportsMap: Record<string, string[]> = {};
+          
+          supportsData.forEach((supportData: any) => {
+            const employeeId = supportData.employee_id?.toString();
+            if (employeeId) {
+              if (!employeesSupportsMap[employeeId]) {
+                employeesSupportsMap[employeeId] = [];
+              }
+              if (supportData.support?.support_code) {
+                employeesSupportsMap[employeeId].push(supportData.support.support_code);
+              }
+            }
+          });
+          
+          // Add supports to employees
+          typedEmployees.forEach(emp => {
+            if (employeesSupportsMap[emp.id]) {
+              emp.supports = employeesSupportsMap[emp.id];
+            }
+          });
+        }
+
+        // Fetch attendance data for today to get TTL (time to location)
+        const today = new Date();
+        const todayString = format(today, 'yyyy-MM-dd');
+        
+        const { data: attendanceData, error: attendanceError } = await supabase
+          .from('attendance')
+          .select(`
+            employee_id,
+            check_in_time
+          `)
+          .eq('date', todayString);
+          
+        if (attendanceError) {
+          console.error("Error fetching attendance data:", attendanceError);
+        } else if (attendanceData) {
+          // Create a map of employee ID to check-in time
+          const checkInMap: Record<string, string> = {};
+          
+          attendanceData.forEach((attendance: any) => {
+            const employeeId = attendance.employee_id?.toString();
+            if (employeeId && attendance.check_in_time) {
+              const checkInTime = new Date(attendance.check_in_time);
+              checkInMap[employeeId] = format(checkInTime, 'hh:mm a');
+            }
+          });
+          
+          // Add TTL to employees
+          typedEmployees.forEach(emp => {
+            if (checkInMap[emp.id]) {
+              emp.ttl = checkInMap[emp.id];
+            }
+          });
+        }
 
         try {
           // Get employee roster data using RPC function
@@ -210,6 +339,15 @@ export const EmployeeCalendar = () => {
     const values = employees.map(emp => {
       if (columnName === 'team') return emp.team?.team_name || '';
       if (columnName === 'job_title') return emp.job_title?.job_description || '';
+      if (columnName === 'core') {
+        return emp.cores && emp.cores.length > 0 ? emp.cores.join(', ') : '';
+      }
+      if (columnName === 'support') {
+        return emp.supports && emp.supports.length > 0 ? emp.supports.join(', ') : '';
+      }
+      if (columnName === 'night_shift') {
+        return emp.night_shift_ok ? 'Yes' : 'No';
+      }
       return emp[columnName as keyof Employee]?.toString() || '';
     }).filter(Boolean);
     
@@ -229,6 +367,16 @@ export const EmployeeCalendar = () => {
           }
           if (column === 'job_title') {
             return values.includes(emp.job_title?.job_description || '');
+          }
+          if (column === 'core') {
+            return values.some(value => emp.cores?.includes(value));
+          }
+          if (column === 'support') {
+            return values.some(value => emp.supports?.includes(value));
+          }
+          if (column === 'night_shift') {
+            const nightShiftValue = emp.night_shift_ok ? 'Yes' : 'No';
+            return values.includes(nightShiftValue);
           }
           const empValue = emp[column as keyof Employee];
           return values.includes(String(empValue || ''));
@@ -470,14 +618,16 @@ export const EmployeeCalendar = () => {
       
       <div className="border rounded-lg shadow-sm dark:border-gray-700 h-full">
         <ScrollArea className="relative h-full rounded-lg">
-          <div className="min-w-full" style={{ width: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title + columnWidths.status + (days.length * columnWidths.date)}px` }}>
+          <div className="min-w-full" style={{ width: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + 
+            columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title + columnWidths.night_shift + columnWidths.fte + 
+            columnWidths.ttl + (days.length * columnWidths.date)}px` }}>
             <table className="w-full border-collapse">
               <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
                 <tr>
                   {/* Fixed columns */}
                   <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200" style={{ width: `${columnWidths.id}px` }}>
                     <div className="flex items-center justify-between">
-                      <span>ID</span>
+                      <span>Emp#</span>
                       <ColumnFilter column="e_number" label="ID" />
                     </div>
                   </th>
@@ -488,7 +638,10 @@ export const EmployeeCalendar = () => {
                     </div>
                   </th>
                   <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.alias}px`, left: `${columnWidths.id + columnWidths.name}px` }}>
-                    <span>Alias</span>
+                    <div className="flex items-center justify-between">
+                      <span>Alias</span>
+                      <ColumnFilter column="key_name" label="Alias" />
+                    </div>
                   </th>
                   <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.mobile}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias}px` }}>
                     <span>Mobile</span>
@@ -499,17 +652,35 @@ export const EmployeeCalendar = () => {
                       <ColumnFilter column="team" label="Team" />
                     </div>
                   </th>
-                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.core}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}>
+                    <div className="flex items-center justify-between">
+                      <span>Core</span>
+                      <ColumnFilter column="core" label="Core" />
+                    </div>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.support}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core}px` }}>
+                    <div className="flex items-center justify-between">
+                      <span>Support</span>
+                      <ColumnFilter column="support" label="Support" />
+                    </div>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support}px` }}>
                     <div className="flex items-center justify-between">
                       <span>Title</span>
                       <ColumnFilter column="job_title" label="Title" />
                     </div>
                   </th>
-                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.status}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title}px` }}>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.night_shift}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title}px` }}>
                     <div className="flex items-center justify-between">
-                      <span>Status</span>
-                      <ColumnFilter column="employee_status" label="Status" />
+                      <span>N/S</span>
+                      <ColumnFilter column="night_shift" label="Night Shift" />
                     </div>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.fte}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title + columnWidths.night_shift}px` }}>
+                    <span>FTE</span>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.ttl}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title + columnWidths.night_shift + columnWidths.fte}px` }}>
+                    <span>TTL</span>
                   </th>
                   
                   {/* Calendar days */}
@@ -551,7 +722,7 @@ export const EmployeeCalendar = () => {
                       className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
                       style={{ width: `${columnWidths.alias}px`, left: `${columnWidths.id + columnWidths.name}px` }}
                     >
-                      {employee.alias || '-'}
+                      {employee.key_name || '-'}
                     </td>
                     <td 
                       className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
@@ -567,15 +738,39 @@ export const EmployeeCalendar = () => {
                     </td>
                     <td 
                       className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
-                      style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}
+                      style={{ width: `${columnWidths.core}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}
+                    >
+                      {employee.cores?.join(', ') || '-'}
+                    </td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.support}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core}px` }}
+                    >
+                      {employee.supports?.join(', ') || '-'}
+                    </td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support}px` }}
                     >
                       {employee.job_title?.job_description || '-'}
                     </td>
                     <td 
                       className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
-                      style={{ width: `${columnWidths.status}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title}px` }}
+                      style={{ width: `${columnWidths.night_shift}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title}px` }}
                     >
-                      {employee.employee_status || 'Active'}
+                      {employee.night_shift_ok ? 'Yes' : 'No'}
+                    </td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.fte}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title + columnWidths.night_shift}px` }}
+                    >
+                      {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
+                    </td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.ttl}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title + columnWidths.night_shift + columnWidths.fte}px` }}
+                    >
+                      {employee.ttl || '-'}
                     </td>
                     
                     {/* Calendar days */}
@@ -615,7 +810,7 @@ export const EmployeeCalendar = () => {
                 
                 {filteredEmployees.length === 0 && (
                   <tr>
-                    <td colSpan={7 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
+                    <td colSpan={12 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
                       {employees.length > 0 ? 'No matching employees found.' : 'No employees found.'}
                     </td>
                   </tr>
@@ -654,6 +849,22 @@ export const EmployeeCalendar = () => {
                     <div>
                       <dt className="text-sm text-gray-500 dark:text-gray-400">Position</dt>
                       <dd className="font-medium dark:text-gray-200">{selectedEmployee.job_title?.job_description || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-gray-500 dark:text-gray-400">Core</dt>
+                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.cores?.join(', ') || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-gray-500 dark:text-gray-400">Support</dt>
+                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.supports?.join(', ') || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-gray-500 dark:text-gray-400">Night Shift</dt>
+                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.night_shift_ok ? 'Yes' : 'No'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
+                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.fte_date ? format(new Date(selectedEmployee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
                     </div>
                   </dl>
                 </div>
