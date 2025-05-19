@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,7 +15,7 @@ interface EmployeeRoster {
   employee_id: string;
   date: string;
   status_code: string;
-  notes: string;
+  notes: string | null;
 }
 
 interface Employee {
@@ -29,6 +28,17 @@ interface Employee {
   employee_status?: string | null;
   alias?: string;
   schedule?: Record<string, string>;
+}
+
+interface EmployeeData {
+  id: number;
+  name: string;
+  e_number?: number | null;
+  mobile_number?: string | null;
+  team?: { team_name: string } | null;
+  job_title?: { job_description: string; job_code: string } | null;
+  employee_status?: string | null;
+  // other employee properties...
 }
 
 // Helper function to determine if a date is a weekend
@@ -98,9 +108,13 @@ export const EmployeeCalendar = () => {
         const { data: employeesData, error: employeesError } = await supabase
           .from('employees')
           .select(`
-            *,
+            id,
+            name,
+            e_number,
+            mobile_number,
+            team:team_id(team_name),
             job_title:job_title_id(job_code, job_description),
-            team:team_id(team_name)
+            employee_status
           `)
           .limit(20);
         
@@ -108,16 +122,65 @@ export const EmployeeCalendar = () => {
           throw employeesError;
         }
 
-        // We need to use RPC or a custom SQL query since the employee_roster table 
-        // might not be in the TypeScript definitions yet
-        const { data: rosterData, error: rosterError } = await supabase
-          .rpc('get_employee_roster') // Using RPC to get roster data
-          .in('employee_id', employeesData.map(emp => emp.id));
-        
-        if (rosterError) {
-          console.error("Error fetching roster data:", rosterError);
+        // Convert the employee data to match our Employee interface
+        const typedEmployees: Employee[] = employeesData.map(emp => ({
+          ...emp,
+          id: emp.id.toString(), // Convert id to string
+          e_number: emp.e_number?.toString(), // Convert e_number to string
+          alias: emp.name?.split(' ').map((n: string) => n[0]).join('') || ''
+        }));
+
+        try {
+          // Try to fetch roster data using the RPC function
+          const { data: rosterData, error: rosterError } = await supabase
+            .from('employee_roster')
+            .select('*');
+          
+          if (rosterError) {
+            console.error("Error fetching roster data:", rosterError);
+            throw rosterError;
+          }
+
+          // Process employees with the roster data
+          if (rosterData && rosterData.length > 0) {
+            const employeesWithSchedule = typedEmployees.map(emp => {
+              const schedule: Record<string, string> = {};
+              
+              // Initialize all days with default 'O' (Off)
+              days.forEach(day => {
+                const dateKey = `${day.month+1}-${day.day}-${day.year}`;
+                schedule[dateKey] = "O";
+              });
+              
+              // Update with actual roster data
+              rosterData.forEach((roster: any) => {
+                if (roster.employee_id === emp.id) {
+                  if (roster.date) {
+                    const rosterDate = new Date(roster.date);
+                    const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
+                    schedule[dateKey] = roster.status_code || "D";
+                  }
+                }
+              });
+              
+              return {
+                ...emp,
+                schedule
+              };
+            });
+            
+            setEmployees(employeesWithSchedule);
+            setFilteredEmployees(employeesWithSchedule);
+            setLoading(false);
+            return;
+          } else {
+            throw new Error("No roster data found");
+          }
+        } catch (rosterError) {
+          console.log("Fallback to local roster data generation");
+          
           // Fallback: Create dummy roster data locally
-          const processedEmployees = employeesData.map(emp => {
+          const processedEmployees = typedEmployees.map(emp => {
             // Initialize empty schedule
             const schedule: Record<string, string> = {};
             
@@ -136,50 +199,13 @@ export const EmployeeCalendar = () => {
             
             return {
               ...emp,
-              alias: emp.name?.split(' ').map((n: string) => n[0]).join('') || '',
               schedule
             };
           });
           
           setEmployees(processedEmployees);
           setFilteredEmployees(processedEmployees);
-          setLoading(false);
-          return;
         }
-
-        // Process employees with schedule data from the roster
-        const processedEmployees = employeesData.map(emp => {
-          // Initialize empty schedule
-          const schedule: Record<string, string> = {};
-          
-          // First populate with default "O" (Off) for all days
-          days.forEach(day => {
-            const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-            schedule[dateKey] = "O"; // Default to Off
-          });
-          
-          // Then update with actual roster data where it exists
-          if (rosterData) {
-            const employeeRoster = rosterData.filter((r: EmployeeRoster) => r.employee_id === emp.id);
-            
-            employeeRoster.forEach((roster: EmployeeRoster) => {
-              if (roster.date) {
-                const rosterDate = new Date(roster.date);
-                const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
-                schedule[dateKey] = roster.status_code || "D";
-              }
-            });
-          }
-          
-          return {
-            ...emp,
-            alias: emp.name?.split(' ').map((n: string) => n[0]).join('') || '',
-            schedule
-          };
-        });
-
-        setEmployees(processedEmployees);
-        setFilteredEmployees(processedEmployees);
       } catch (error: any) {
         toast.error(`Error loading employees: ${error.message}`);
         console.error("Error fetching employees:", error);
@@ -194,9 +220,9 @@ export const EmployeeCalendar = () => {
   // Filter unique values from a column
   const getUniqueValuesForColumn = (columnName: string) => {
     const values = employees.map(emp => {
-      if (columnName === 'team') return emp.team?.team_name;
-      if (columnName === 'job_title') return emp.job_title?.job_description;
-      return emp[columnName as keyof Employee];
+      if (columnName === 'team') return emp.team?.team_name || '';
+      if (columnName === 'job_title') return emp.job_title?.job_description || '';
+      return emp[columnName as keyof Employee] || '';
     }).filter(Boolean);
     
     return [...new Set(values)].sort();
@@ -216,7 +242,8 @@ export const EmployeeCalendar = () => {
           if (column === 'job_title') {
             return values.includes(emp.job_title?.job_description || '');
           }
-          return values.includes(String(emp[column as keyof Employee] || ''));
+          const empValue = emp[column as keyof Employee];
+          return values.includes(String(empValue || ''));
         });
       }
     });
@@ -287,7 +314,7 @@ export const EmployeeCalendar = () => {
   };
 
   // Cell click handler
-  const handleCellClick = (employee: any, date: string) => {
+  const handleCellClick = (employee: Employee, date: string) => {
     setSelectedEmployee(employee);
     setSelectedDate(date);
     setIsDetailOpen(true);
@@ -344,19 +371,19 @@ export const EmployeeCalendar = () => {
           </div>
           <div className="p-2 max-h-60 overflow-auto">
             {uniqueValues.map((value) => (
-              <div key={value} className="flex items-center space-x-2 py-1">
+              <div key={String(value)} className="flex items-center space-x-2 py-1">
                 <button
                   className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1.5 rounded text-left"
-                  onClick={() => handleFilterChange(column, value)}
+                  onClick={() => handleFilterChange(column, String(value))}
                 >
                   <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${
-                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                    selectedValues.includes(String(value)) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
                   }`}>
-                    {selectedValues.includes(value) && (
+                    {selectedValues.includes(String(value)) && (
                       <Check className="h-3 w-3 text-white" />
                     )}
                   </div>
-                  <span className="flex-grow truncate">{value}</span>
+                  <span className="flex-grow truncate">{String(value)}</span>
                 </button>
               </div>
             ))}
