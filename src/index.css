@@ -8,6 +8,7 @@ html, body {
   width: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 #root {
@@ -135,4 +136,38 @@ html, body {
 
 .dark .core-support-different {
   background-color: rgba(37, 99, 235, 0.2) !important;
+}
+
+/* Sticky column styling */
+.sticky-column {
+  position: sticky !important;
+  z-index: 10 !important;
+  background-color: white !important;
+}
+
+.dark .sticky-column {
+  background-color: #0f172a !important;
+}
+
+.core-support-different.sticky-column {
+  background-color: rgba(219, 234, 254, 0.3) !important;
+}
+
+.dark .core-support-different.sticky-column {
+  background-color: rgba(37, 99, 235, 0.2) !important;
+}
+
+/* Fix header z-index */
+thead th.sticky-column {
+  z-index: 30 !important;
+  background-color: #f3f4f6 !important;
+}
+
+.dark thead th.sticky-column {
+  background-color: #1e293b !important;
+}
+
+/* Fix popover z-index to appear above sticky elements */
+.popover-content {
+  z-index: 50 !important;
 }

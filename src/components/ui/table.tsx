@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { CheckSquare, ChevronDown, ChevronUp, ListFilter, Square } from "lucide-react"
+import { Check, CheckSquare, ChevronDown, ChevronUp, ListFilter, Square, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface TableProps extends React.HTMLAttributes<HTMLTableElement> {

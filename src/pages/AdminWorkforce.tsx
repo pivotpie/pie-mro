@@ -17,13 +17,17 @@ const AdminWorkforce = () => {
       return;
     }
     
-    // Set page to full height and remove any overflow restriction
+    // Set page to full height and remove body overflow restriction
     document.body.classList.add('h-screen');
     document.documentElement.classList.add('h-screen');
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     
     return () => {
       document.body.classList.remove('h-screen');
       document.documentElement.classList.remove('h-screen');
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     };
   }, [user, navigate]);
 
@@ -46,13 +50,15 @@ const AdminWorkforce = () => {
       />
 
       {/* Main Content - Allow both x and y scrolling */}
-      <main className="flex-1 overflow-auto p-4 md:p-6 w-full">
-        <div className="w-full mx-auto">
+      <main className="flex-1 w-full overflow-hidden">
+        <div className="w-full h-full overflow-auto">
           {/* Metrics Dashboard - Number Cards */}
-          <WorkforceMetrics />
-          
-          {/* Workforce Tabs */}
-          <WorkforceTabs />
+          <div className="p-4 md:p-6">
+            <WorkforceMetrics />
+            
+            {/* Workforce Tabs */}
+            <WorkforceTabs />
+          </div>
         </div>
       </main>
     </div>
