@@ -359,10 +359,9 @@ export const EmployeeCalendar = () => {
         return emp.supports && emp.supports.length > 0 ? emp.supports.join(', ') : '';
       }
       if (columnName === 'night_shift') {
-        const nightShiftValue = emp.night_shift_ok ? 'Yes' : 'No';
-        return values.includes(nightShiftValue);
+        return emp.night_shift_ok ? 'Yes' : 'No';
       }
-      return emp[columnName as keyof Employee]?.toString() || '';
+      return (emp[columnName as keyof Employee]?.toString() || '');
     }).filter(Boolean);
     
     const uniqueValues = [...new Set(values)].sort();
@@ -629,15 +628,15 @@ export const EmployeeCalendar = () => {
           </div>
           <div className="p-2 max-h-40 overflow-auto">
             {uniqueValues.map((value) => (
-              <div key={value} className="flex items-center space-x-2 py-1">
+              <div key={value as string} className="flex items-center space-x-2 py-1">
                 <button
                   className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded text-left"
-                  onClick={() => handleDateFilterChange(dateKey, value)}
+                  onClick={() => handleDateFilterChange(dateKey, value as string)}
                 >
                   <div className={`w-3 h-3 border rounded mr-1 flex items-center justify-center ${
-                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                    selectedValues.includes(value as string) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
                   }`}>
-                    {selectedValues.includes(value) && (
+                    {selectedValues.includes(value as string) && (
                       <Check className="h-2 w-2 text-white" />
                     )}
                   </div>
