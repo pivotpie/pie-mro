@@ -136,11 +136,6 @@ html, body {
   background-color: rgba(37, 99, 235, 0.2) !important;
 }
 
-/* Fix header z-index */
-// thead th.sticky {
-//   z-index: 30 !important;
-// }
-
 /* Fix popover z-index to appear above sticky elements */
 .popover-content {
   z-index: 50 !important;
