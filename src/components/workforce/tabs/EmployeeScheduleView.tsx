@@ -23,7 +23,7 @@ export const EmployeeScheduleView = () => {
         </div>
 
         {/* Employee Schedule Calendar with full width */}
-        <div className="w-full overflow-auto">
+        <div className="w-full">
           <EmployeeCalendar />
         </div>
       </div>
