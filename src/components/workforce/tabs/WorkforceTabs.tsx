@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { User2, UsersRound, Briefcase, FileText, Download, ArrowUpRight } from "lucide-react";
 import { EmployeeScheduleView } from "./EmployeeScheduleView";
 import { AircraftScheduleView } from "./AircraftScheduleView";
-import { TeamView } from "./tabs/TeamView";
-import { CertificationView } from "./tabs/CertificationView";
+import { TeamView } from "./TeamView";
+import { CertificationView } from "./CertificationView";
 
 export const WorkforceTabs = () => {
   const [currentView, setCurrentView] = useState("employee");
