@@ -22,8 +22,8 @@ export const EmployeeScheduleView = () => {
           </div>
         </div>
 
-        {/* Employee Schedule Calendar with full width and improved scrolling */}
-        <div className="w-full overflow-hidden">
+        {/* Simple container with direct overflow control */}
+        <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
           <EmployeeCalendar />
         </div>
       </div>

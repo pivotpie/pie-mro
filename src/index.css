@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -137,52 +136,12 @@ html, body {
   background-color: rgba(37, 99, 235, 0.2) !important;
 }
 
-/* Sticky column styling */
-.sticky-column {
-  z-index: 10 !important;
-  background-color: white !important;
-  position: sticky !important;
-}
-
-.dark .sticky-column {
-  background-color: #0f172a !important;
-}
-
-.core-support-different.sticky-column {
-  background-color: rgba(219, 234, 254, 0.3) !important;
-}
-
-.dark .core-support-different.sticky-column {
-  background-color: rgba(37, 99, 235, 0.2) !important;
-}
-
 /* Fix header z-index */
-thead th.sticky-column {
+thead th.sticky {
   z-index: 30 !important;
-  background-color: #f3f4f6 !important;
-}
-
-.dark thead th.sticky-column {
-  background-color: #1e293b !important;
 }
 
 /* Fix popover z-index to appear above sticky elements */
 .popover-content {
   z-index: 50 !important;
-}
-
-/* Ensure proper table display for horizontal scrolling */
-.table-fixed {
-  table-layout: fixed;
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-/* Improve scroll area for employee schedule */
-.overflow-x-auto {
-  overflow-x: auto !important;
-}
-
-.overflow-y-auto {
-  overflow-y: auto !important;
 }
