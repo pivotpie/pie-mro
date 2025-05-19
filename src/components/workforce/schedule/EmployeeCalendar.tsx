@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -120,17 +121,16 @@ export const EmployeeCalendar = () => {
         }));
 
         try {
-          // Try to fetch roster data using the function
-          const { data: rosterData, error: rosterError } = await supabase
-            .rpc('get_employee_roster');
+          // Get employee roster data using RPC function
+          const { data, error } = await supabase.rpc('get_employee_roster');
           
-          if (rosterError) {
-            console.error("Error fetching roster data:", rosterError);
-            throw rosterError;
+          if (error) {
+            console.error("Error fetching roster data:", error);
+            throw error;
           }
 
           // Process employees with the roster data
-          if (rosterData && rosterData.length > 0) {
+          if (data && data.length > 0) {
             const employeesWithSchedule = typedEmployees.map(emp => {
               const schedule: Record<string, string> = {};
               
@@ -141,17 +141,15 @@ export const EmployeeCalendar = () => {
               });
               
               // Update with actual roster data
-              if (Array.isArray(rosterData)) {
-                rosterData.forEach((roster: any) => {
-                  if (roster.employee_id === emp.id) {
-                    if (roster.date) {
-                      const rosterDate = new Date(roster.date);
-                      const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
-                      schedule[dateKey] = roster.status_code || "D";
-                    }
+              data.forEach((roster: EmployeeRoster) => {
+                if (roster.employee_id === emp.id) {
+                  if (roster.date) {
+                    const rosterDate = new Date(roster.date);
+                    const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
+                    schedule[dateKey] = roster.status_code || "D";
                   }
-                });
-              }
+                }
+              });
               
               return {
                 ...emp,
@@ -688,17 +686,19 @@ export const EmployeeCalendar = () => {
         </SheetContent>
       </Sheet>
 
-      <style>{`
-        .weekend-shade {
-          background-color: #f9fafb;
-        }
-        .dark .weekend-shade {
-          background-color: #1f2937;
-        }
-        .today-highlight {
-          border: 2px solid #3b82f6 !important;
-        }
-      `}</style>
+      <style>
+        {`
+          .weekend-shade {
+            background-color: #f9fafb;
+          }
+          .dark .weekend-shade {
+            background-color: #1f2937;
+          }
+          .today-highlight {
+            border: 2px solid #3b82f6 !important;
+          }
+        `}
+      </style>
     </div>
   );
 };

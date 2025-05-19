@@ -1154,6 +1154,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_employee_roster: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          employee_id: string
+          date: string
+          status_code: string
+          notes: string
+        }[]
+      }
       migrate_certifications_to_authorizations: {
         Args: Record<PropertyKey, never>
         Returns: undefined
