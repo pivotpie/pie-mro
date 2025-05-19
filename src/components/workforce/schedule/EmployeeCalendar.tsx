@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -28,17 +29,6 @@ interface Employee {
   employee_status?: string | null;
   alias?: string;
   schedule?: Record<string, string>;
-}
-
-interface EmployeeData {
-  id: number;
-  name: string;
-  e_number?: number | null;
-  mobile_number?: string | null;
-  team?: { team_name: string } | null;
-  job_title?: { job_description: string; job_code: string } | null;
-  employee_status?: string | null;
-  // other employee properties...
 }
 
 // Helper function to determine if a date is a weekend
@@ -133,8 +123,7 @@ export const EmployeeCalendar = () => {
         try {
           // Try to fetch roster data using the RPC function
           const { data: rosterData, error: rosterError } = await supabase
-            .from('employee_roster')
-            .select('*');
+            .rpc('get_employee_roster');
           
           if (rosterError) {
             console.error("Error fetching roster data:", rosterError);
@@ -153,7 +142,7 @@ export const EmployeeCalendar = () => {
               });
               
               // Update with actual roster data
-              rosterData.forEach((roster: any) => {
+              rosterData.forEach((roster: EmployeeRoster) => {
                 if (roster.employee_id === emp.id) {
                   if (roster.date) {
                     const rosterDate = new Date(roster.date);
@@ -222,7 +211,7 @@ export const EmployeeCalendar = () => {
     const values = employees.map(emp => {
       if (columnName === 'team') return emp.team?.team_name || '';
       if (columnName === 'job_title') return emp.job_title?.job_description || '';
-      return emp[columnName as keyof Employee] || '';
+      return emp[columnName as keyof Employee]?.toString() || '';
     }).filter(Boolean);
     
     return [...new Set(values)].sort();
@@ -371,19 +360,19 @@ export const EmployeeCalendar = () => {
           </div>
           <div className="p-2 max-h-60 overflow-auto">
             {uniqueValues.map((value) => (
-              <div key={String(value)} className="flex items-center space-x-2 py-1">
+              <div key={value} className="flex items-center space-x-2 py-1">
                 <button
                   className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1.5 rounded text-left"
-                  onClick={() => handleFilterChange(column, String(value))}
+                  onClick={() => handleFilterChange(column, value)}
                 >
                   <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${
-                    selectedValues.includes(String(value)) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
                   }`}>
-                    {selectedValues.includes(String(value)) && (
+                    {selectedValues.includes(value) && (
                       <Check className="h-3 w-3 text-white" />
                     )}
                   </div>
-                  <span className="flex-grow truncate">{String(value)}</span>
+                  <span className="flex-grow truncate">{value}</span>
                 </button>
               </div>
             ))}
@@ -697,6 +686,18 @@ export const EmployeeCalendar = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      <style jsx global>{`
+        .weekend-shade {
+          background-color: #f9fafb;
+        }
+        .dark .weekend-shade {
+          background-color: #1f2937;
+        }
+        .today-highlight {
+          border: 2px solid #3b82f6 !important;
+        }
+      `}</style>
     </div>
   );
 };
