@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -713,11 +714,72 @@ export const EmployeeCalendar = () => {
                   <ColumnFilter column="name" label="Name" />
                 </div>
               </th>
-              
-              {/* ... keep existing code (remaining header columns) */}
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.alias}px`, left: getLeftPositionStyle(2) }}>
+                <div className="flex items-center justify-between">
+                  <span>Alias</span>
+                  <ColumnFilter column="key_name" label="Alias" />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.mobile}px`, left: getLeftPositionStyle(3) }}>
+                <div className="flex items-center justify-between">
+                  <span>Mobile</span>
+                  <ColumnFilter column="mobile_number" label="Mobile" />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.team}px`, left: getLeftPositionStyle(4) }}>
+                <div className="flex items-center justify-between">
+                  <span>Team</span>
+                  <ColumnFilter column="team" label="Team" />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.core}px`, left: getLeftPositionStyle(5) }}>
+                <div className="flex items-center justify-between">
+                  <span>Core</span>
+                  <ColumnFilter column="core" label="Core" />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.support}px`, left: getLeftPositionStyle(6) }}>
+                <div className="flex items-center justify-between">
+                  <span>Support</span>
+                  <ColumnFilter column="support" label="Support" />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.title}px`, left: getLeftPositionStyle(7) }}>
+                <div className="flex items-center justify-between">
+                  <span>Title</span>
+                  <ColumnFilter column="job_title" label="Title" />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.night_shift}px`, left: getLeftPositionStyle(8) }}>
+                <div className="flex items-center justify-between">
+                  <span>Night</span>
+                  <ColumnFilter column="night_shift" label="Night Shift" />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.fte}px`, left: getLeftPositionStyle(9) }}>
+                <div className="flex items-center justify-between">
+                  <span>FTE</span>
+                  <ColumnFilter column="fte_date" label="FTE Date" />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.ttl}px`, left: getLeftPositionStyle(10) }}>
+                <div className="flex items-center justify-between">
+                  <span>TTL</span>
+                  <ColumnFilter column="ttl" label="Time to Location" />
+                </div>
+              </th>
               
               {/* Calendar days */}
-              {days.map((day, index) => (
+              {days.map((day) => (
                 <th 
                   key={`${day.month+1}-${day.day}-${day.year}`} 
                   className={`p-2 text-center border-r sticky top-0 z-20 dark:border-gray-700 dark:text-gray-200
@@ -755,8 +817,69 @@ export const EmployeeCalendar = () => {
                   >
                     {employee.name || '-'}
                   </td>
-                  
-                  {/* ... keep existing code (remaining employee columns) */}
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.alias}px`, left: getLeftPositionStyle(2) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.key_name || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.mobile}px`, left: getLeftPositionStyle(3) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.mobile_number || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.team}px`, left: getLeftPositionStyle(4) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.team?.team_name || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.core}px`, left: getLeftPositionStyle(5) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.cores?.join(', ') || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.support}px`, left: getLeftPositionStyle(6) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.supports?.join(', ') || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.title}px`, left: getLeftPositionStyle(7) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.job_title?.job_description || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.night_shift}px`, left: getLeftPositionStyle(8) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.night_shift_ok ? 'Yes' : 'No'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.fte}px`, left: getLeftPositionStyle(9) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.ttl}px`, left: getLeftPositionStyle(10) }}
+                    onClick={() => setSelectedEmployee(employee)}
+                  >
+                    {employee.ttl || '-'}
+                  </td>
                   
                   {/* Calendar days */}
                   {days.map((day) => {
@@ -849,6 +972,18 @@ export const EmployeeCalendar = () => {
                     <div>
                       <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
                       <dd className="font-medium dark:text-gray-200">{selectedEmployee.fte_date ? format(new Date(selectedEmployee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-gray-500 dark:text-gray-400">Mobile</dt>
+                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.mobile_number || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-gray-500 dark:text-gray-400">Alias</dt>
+                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.key_name || '-'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-gray-500 dark:text-gray-400">TTL</dt>
+                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.ttl || '-'}</dd>
                     </div>
                   </dl>
                 </div>
