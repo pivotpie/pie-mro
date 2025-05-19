@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { 
@@ -11,7 +10,11 @@ import {
   Activity,
   Download,
   Filter,
-  X
+  X,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  MoreHorizontal
 } from "lucide-react";
 import { 
   Dialog,
@@ -27,6 +30,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface MetricCardProps {
   label: string;
@@ -73,7 +80,15 @@ export const WorkforceMetrics = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [detailData, setDetailData] = useState<any[]>([]);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
-  const [filterCriteria, setFilterCriteria] = useState({});
+  const [filterCriteria, setFilterCriteria] = useState<Record<string, string>>({});
+  
+  // Table functionality states
+  const [sortField, setSortField] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Record<string, string>>({});
   
   // Fetch employee metrics
   const { data: employeeMetrics, isLoading: loadingEmployees } = useQuery({
@@ -298,6 +313,12 @@ export const WorkforceMetrics = () => {
   const handleMetricClick = (metricId: string) => {
     setSelectedMetric(metricId);
     setIsDialogOpen(true);
+    // Reset selection and sorting when opening a new metric view
+    setSelectedIds([]);
+    setSortField("");
+    setSortDirection("asc");
+    setSearchTerm("");
+    setFilters({});
   };
 
   const getDetailTitle = () => {
@@ -398,11 +419,171 @@ export const WorkforceMetrics = () => {
     }
   };
 
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Handle filtering
+  const handleFilterChange = (field: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({});
+    setSearchTerm("");
+  };
+
+  // Handle row selection
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      setSelectedIds(detailData.map(item => item.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: number, selected: boolean) => {
+    if (selected) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(itemId => itemId !== id));
+    }
+  };
+
+  // Filter data based on search and filters
+  const filterData = () => {
+    let filteredData = [...detailData];
+    
+    // Apply search term if exists
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filteredData = filteredData.filter(item => {
+        // For employee data
+        if (selectedMetric === 'available' || selectedMetric === 'leave' || selectedMetric === 'training') {
+          const employee = selectedMetric === 'available' ? item : item.employees;
+          return (
+            (employee?.name && employee.name.toLowerCase().includes(term)) ||
+            (employee?.e_number && `e${employee.e_number}`.toLowerCase().includes(term)) ||
+            (employee?.job_titles?.job_description && employee.job_titles.job_description.toLowerCase().includes(term)) ||
+            (employee?.team?.team_name && employee.team.team_name.toLowerCase().includes(term))
+          );
+        } 
+        // For aircraft data
+        else {
+          return (
+            (item.aircraft?.aircraft_name && item.aircraft.aircraft_name.toLowerCase().includes(term)) ||
+            (item.aircraft?.registration && item.aircraft.registration.toLowerCase().includes(term)) ||
+            (item.check_type && item.check_type.toLowerCase().includes(term))
+          );
+        }
+      });
+    }
+    
+    // Apply field-specific filters
+    Object.entries(filters).forEach(([field, value]) => {
+      if (!value) return;
+      
+      filteredData = filteredData.filter(item => {
+        if (selectedMetric === 'available' || selectedMetric === 'leave' || selectedMetric === 'training') {
+          const employee = selectedMetric === 'available' ? item : item.employees;
+          
+          switch (field) {
+            case 'name':
+              return employee?.name && employee.name.toLowerCase().includes(value.toLowerCase());
+            case 'position':
+              return employee?.job_titles?.job_description && 
+                employee.job_titles.job_description.toLowerCase().includes(value.toLowerCase());
+            case 'team':
+              return employee?.team?.team_name && 
+                employee.team.team_name.toLowerCase().includes(value.toLowerCase());
+            default:
+              return true;
+          }
+        } 
+        else {
+          switch (field) {
+            case 'aircraft':
+              return item.aircraft?.aircraft_name && 
+                item.aircraft.aircraft_name.toLowerCase().includes(value.toLowerCase());
+            case 'registration':
+              return item.aircraft?.registration && 
+                item.aircraft.registration.toLowerCase().includes(value.toLowerCase());
+            case 'checkType':
+              return item.check_type && 
+                item.check_type.toLowerCase().includes(value.toLowerCase());
+            case 'status':
+              return item.status && 
+                item.status.toLowerCase().includes(value.toLowerCase());
+            default:
+              return true;
+          }
+        }
+      });
+    });
+    
+    // Apply sorting if field is specified
+    if (sortField) {
+      filteredData.sort((a, b) => {
+        let valueA, valueB;
+        
+        // Extract the correct values based on the field path
+        if (sortField.includes('.')) {
+          const parts = sortField.split('.');
+          let objectA = a;
+          let objectB = b;
+          
+          for (const part of parts) {
+            objectA = objectA?.[part];
+            objectB = objectB?.[part];
+          }
+          
+          valueA = objectA;
+          valueB = objectB;
+        } else {
+          valueA = a[sortField];
+          valueB = b[sortField];
+        }
+        
+        // Handle string comparison
+        if (typeof valueA === 'string' && typeof valueB === 'string') {
+          return sortDirection === 'asc' 
+            ? valueA.localeCompare(valueB) 
+            : valueB.localeCompare(valueA);
+        }
+        
+        // Handle number comparison
+        if (valueA === valueB) return 0;
+        
+        if (sortDirection === 'asc') {
+          return valueA > valueB ? 1 : -1;
+        } else {
+          return valueA < valueB ? 1 : -1;
+        }
+      });
+    }
+    
+    return filteredData;
+  };
+
   // Function to render appropriate detail content based on selected metric
   const renderDetailContent = () => {
     if (detailData.length === 0) {
       return <div className="p-4 text-center text-gray-500">No data available</div>;
     }
+
+    const filteredData = filterData();
+    const isAllSelected = selectedIds.length === filteredData.length && filteredData.length > 0;
     
     switch (selectedMetric) {
       case 'available':
@@ -413,56 +594,115 @@ export const WorkforceMetrics = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead className="w-10">
+                    <Checkbox 
+                      checked={isAllSelected} 
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === 'name' || sortField === 'employees.name' ? sortDirection : null}
+                    onSortChange={() => handleSort(selectedMetric === 'available' ? 'name' : 'employees.name')}
+                    hasFilter
+                    onFilterClick={() => setActiveFilter("name")}
+                  >
+                    Name
+                  </TableHead>
                   <TableHead>ID</TableHead>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Team</TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === 'job_titles.job_description' || sortField === 'employees.job_titles.job_description' ? sortDirection : null}
+                    onSortChange={() => handleSort(selectedMetric === 'available' ? 'job_titles.job_description' : 'employees.job_titles.job_description')}
+                    hasFilter
+                    onFilterClick={() => setActiveFilter("position")}
+                  >
+                    Position
+                  </TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === 'team.team_name' || sortField === 'employees.team.team_name' ? sortDirection : null}
+                    onSortChange={() => handleSort(selectedMetric === 'available' ? 'team.team_name' : 'employees.team.team_name')}
+                    hasFilter
+                    onFilterClick={() => setActiveFilter("team")}
+                  >
+                    Team
+                  </TableHead>
                   <TableHead>Mobile</TableHead>
-                  <TableHead>Join Date</TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === 'date_of_joining' || sortField === 'employees.date_of_joining' ? sortDirection : null}
+                    onSortChange={() => handleSort(selectedMetric === 'available' ? 'date_of_joining' : 'employees.date_of_joining')}
+                  >
+                    Join Date
+                  </TableHead>
                   {selectedMetric === 'training' && <TableHead>Training</TableHead>}
-                  {selectedMetric === 'training' && <TableHead>Date</TableHead>}
-                  {selectedMetric === 'leave' && <TableHead>Until</TableHead>}
+                  {selectedMetric === 'training' && (
+                    <TableHead 
+                      sortable 
+                      sorted={sortField === 'required_date' ? sortDirection : null}
+                      onSortChange={() => handleSort('required_date')}
+                    >
+                      Date
+                    </TableHead>
+                  )}
+                  {selectedMetric === 'leave' && (
+                    <TableHead 
+                      sortable 
+                      sorted={sortField === 'date' ? sortDirection : null}
+                      onSortChange={() => handleSort('date')}
+                    >
+                      Until
+                    </TableHead>
+                  )}
                   <TableHead>Certifications</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detailData.map((item, i) => (
-                  <TableRow key={i}>
+                {filteredData.map((item, i) => (
+                  <TableRow 
+                    key={i}
+                    selected={selectedIds.includes(selectedMetric === 'available' ? item.id : item.employees?.id)}
+                    onSelectChange={(selected) => handleSelectRow(selectedMetric === 'available' ? item.id : item.employees?.id, selected)}
+                    selectable
+                  >
                     <TableCell className="font-medium">
                       {selectedMetric === 'available' ? item.name : 
-                       selectedMetric === 'leave' ? item.employees?.name :
-                       item.employees?.name}
+                      selectedMetric === 'leave' ? item.employees?.name :
+                      item.employees?.name}
                     </TableCell>
                     <TableCell>
                       {selectedMetric === 'available' ? `E${item.e_number}` : 
-                       selectedMetric === 'leave' ? `E${item.employees?.e_number}` : 
-                       `E${item.employees?.e_number}`}
+                      selectedMetric === 'leave' ? `E${item.employees?.e_number}` : 
+                      `E${item.employees?.e_number}`}
                     </TableCell>
                     <TableCell>
                       {selectedMetric === 'available' ? 
                         (item.job_titles?.job_description || 'N/A') : 
-                       selectedMetric === 'leave' ? 
+                      selectedMetric === 'leave' ? 
                         (item.employees?.job_titles?.job_description || 'N/A') : 
                         (item.employees?.job_titles?.job_description || 'N/A')}
                     </TableCell>
                     <TableCell>
                       {selectedMetric === 'available' ? 
                         (item.team?.team_name || 'N/A') : 
-                       selectedMetric === 'leave' ? 
+                      selectedMetric === 'leave' ? 
                         (item.employees?.team?.team_name || 'N/A') : 
                         (item.employees?.team?.team_name || 'N/A')}
                     </TableCell>
                     <TableCell>
                       {selectedMetric === 'available' ? 
                         (item.mobile_number || 'N/A') : 
-                       selectedMetric === 'leave' ? 
+                      selectedMetric === 'leave' ? 
                         (item.employees?.mobile_number || 'N/A') : 
                         (item.employees?.mobile_number || 'N/A')}
                     </TableCell>
                     <TableCell>
                       {selectedMetric === 'available' ? 
                         (item.date_of_joining ? new Date(item.date_of_joining).toLocaleDateString() : 'N/A') : 
-                       selectedMetric === 'leave' ? 
+                      selectedMetric === 'leave' ? 
                         (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A') : 
                         (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A')}
                     </TableCell>
@@ -484,9 +724,24 @@ export const WorkforceMetrics = () => {
                     <TableCell>
                       {selectedMetric === 'available' ? 
                         ((item.certifications && item.certifications.length) || '0') : 
-                       selectedMetric === 'leave' ? 
+                      selectedMetric === 'leave' ? 
                         ((item.employees?.certifications && item.employees?.certifications.length) || '0') : 
                         ((item.employees?.certifications && item.employees?.certifications.length) || '0')}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem>Contact</DropdownMenuItem>
+                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -503,19 +758,70 @@ export const WorkforceMetrics = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Aircraft</TableHead>
-                  <TableHead>Registration</TableHead>
+                  <TableHead className="w-10">
+                    <Checkbox 
+                      checked={isAllSelected} 
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === "aircraft.aircraft_name" ? sortDirection : null}
+                    onSortChange={() => handleSort("aircraft.aircraft_name")}
+                    hasFilter
+                    onFilterClick={() => setActiveFilter("aircraft")}
+                  >
+                    Aircraft
+                  </TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === "aircraft.registration" ? sortDirection : null}
+                    onSortChange={() => handleSort("aircraft.registration")}
+                    hasFilter
+                    onFilterClick={() => setActiveFilter("registration")}
+                  >
+                    Registration
+                  </TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Check Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date Range</TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === "check_type" ? sortDirection : null}
+                    onSortChange={() => handleSort("check_type")}
+                    hasFilter
+                    onFilterClick={() => setActiveFilter("checkType")}
+                  >
+                    Check Type
+                  </TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === "status" ? sortDirection : null}
+                    onSortChange={() => handleSort("status")}
+                    hasFilter
+                    onFilterClick={() => setActiveFilter("status")}
+                  >
+                    Status
+                  </TableHead>
+                  <TableHead 
+                    sortable 
+                    sorted={sortField === "date_in" ? sortDirection : null}
+                    onSortChange={() => handleSort("date_in")}
+                  >
+                    Date Range
+                  </TableHead>
                   <TableHead>Total Hours</TableHead>
                   <TableHead>Hangars</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detailData.map((item, i) => (
-                  <TableRow key={i}>
+                {filteredData.map((item, i) => (
+                  <TableRow 
+                    key={i}
+                    selected={selectedIds.includes(item.id)}
+                    onSelectChange={(selected) => handleSelectRow(item.id, selected)}
+                    selectable
+                  >
                     <TableCell className="font-medium">
                       {item.aircraft?.aircraft_name || 'N/A'}
                     </TableCell>
@@ -547,6 +853,21 @@ export const WorkforceMetrics = () => {
                     </TableCell>
                     <TableCell>
                       {item.hangar_id || 'Not Assigned'}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem>Edit Schedule</DropdownMenuItem>
+                          <DropdownMenuItem>Assign Team</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -642,32 +963,43 @@ export const WorkforceMetrics = () => {
           </DialogHeader>
           
           <div className="flex justify-between items-center mb-4">
-            <div className="text-sm text-muted-foreground">
-              {detailData.length} record{detailData.length !== 1 ? 's' : ''} found
+            <div className="flex items-center gap-2 flex-1">
+              <div className="relative flex-grow max-w-sm">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                <Input 
+                  placeholder="Search..." 
+                  className="pl-8" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {filterData().length} record{filterData().length !== 1 ? 's' : ''} found
+              </div>
             </div>
             <div className="flex gap-2">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <Filter className="h-4 w-4" />
-                    Filter
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Filter Records</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Filter options would go here. This is a placeholder for future functionality.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction>Apply Filter</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              
-              <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleExport}>
+              {(Object.keys(filters).length > 0 || searchTerm) && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={clearFilters}
+                  className="flex items-center gap-1"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Clear filters
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => setIsFilterDialogOpen(true)}>
+                <Filter className="h-4 w-4" />
+                Filter
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-2" 
+                onClick={handleExport}
+                disabled={filterData().length === 0}
+              >
                 <Download className="h-4 w-4" />
                 Export
               </Button>
@@ -679,6 +1011,110 @@ export const WorkforceMetrics = () => {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Column Filter Popover */}
+      <Popover open={activeFilter !== null} onOpenChange={(open) => !open && setActiveFilter(null)}>
+        <PopoverContent className="w-80" align="start">
+          {activeFilter === "name" && (
+            <div className="space-y-2">
+              <h3 className="font-medium">Filter by Name</h3>
+              <div className="flex items-center border rounded-md">
+                <Search className="h-4 w-4 ml-2 text-gray-500" />
+                <Input 
+                  placeholder="Search name..." 
+                  className="border-0 focus-visible:ring-0"
+                  value={filters.name || ''}
+                  onChange={(e) => handleFilterChange('name', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          {activeFilter === "position" && (
+            <div className="space-y-2">
+              <h3 className="font-medium">Filter by Position</h3>
+              <div className="flex items-center border rounded-md">
+                <Search className="h-4 w-4 ml-2 text-gray-500" />
+                <Input 
+                  placeholder="Search position..." 
+                  className="border-0 focus-visible:ring-0"
+                  value={filters.position || ''}
+                  onChange={(e) => handleFilterChange('position', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          {activeFilter === "team" && (
+            <div className="space-y-2">
+              <h3 className="font-medium">Filter by Team</h3>
+              <div className="flex items-center border rounded-md">
+                <Search className="h-4 w-4 ml-2 text-gray-500" />
+                <Input 
+                  placeholder="Search team..." 
+                  className="border-0 focus-visible:ring-0"
+                  value={filters.team || ''}
+                  onChange={(e) => handleFilterChange('team', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          {activeFilter === "aircraft" && (
+            <div className="space-y-2">
+              <h3 className="font-medium">Filter by Aircraft</h3>
+              <div className="flex items-center border rounded-md">
+                <Search className="h-4 w-4 ml-2 text-gray-500" />
+                <Input 
+                  placeholder="Search aircraft..." 
+                  className="border-0 focus-visible:ring-0"
+                  value={filters.aircraft || ''}
+                  onChange={(e) => handleFilterChange('aircraft', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          {activeFilter === "registration" && (
+            <div className="space-y-2">
+              <h3 className="font-medium">Filter by Registration</h3>
+              <div className="flex items-center border rounded-md">
+                <Search className="h-4 w-4 ml-2 text-gray-500" />
+                <Input 
+                  placeholder="Search registration..." 
+                  className="border-0 focus-visible:ring-0"
+                  value={filters.registration || ''}
+                  onChange={(e) => handleFilterChange('registration', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          {activeFilter === "checkType" && (
+            <div className="space-y-2">
+              <h3 className="font-medium">Filter by Check Type</h3>
+              <div className="flex items-center border rounded-md">
+                <Search className="h-4 w-4 ml-2 text-gray-500" />
+                <Input 
+                  placeholder="Search check type..." 
+                  className="border-0 focus-visible:ring-0"
+                  value={filters.checkType || ''}
+                  onChange={(e) => handleFilterChange('checkType', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          {activeFilter === "status" && (
+            <div className="space-y-2">
+              <h3 className="font-medium">Filter by Status</h3>
+              <div className="flex items-center border rounded-md">
+                <Search className="h-4 w-4 ml-2 text-gray-500" />
+                <Input 
+                  placeholder="Search status..." 
+                  className="border-0 focus-visible:ring-0"
+                  value={filters.status || ''}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
     </>
   );
 };

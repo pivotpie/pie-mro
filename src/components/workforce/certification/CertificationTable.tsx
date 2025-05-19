@@ -14,7 +14,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ListFilter, X, Search, Download } from "lucide-react";
+import { ListFilter, X, Search, Download, MoreHorizontal, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface CertificationWithDetails {
   id: number;
@@ -49,6 +50,7 @@ export const CertificationTable = () => {
   // Filtering states
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   
   // Detail view state
   const [detailOpen, setDetailOpen] = useState(false);
@@ -173,11 +175,12 @@ export const CertificationTable = () => {
   
   const clearFilters = () => {
     setFilters({});
+    setSearchTerm("");
   };
   
   const handleSelectAll = (selected: boolean) => {
     if (selected) {
-      setSelectedIds(certifications.map(cert => cert.id));
+      setSelectedIds(filterCertifications().map(cert => cert.id));
     } else {
       setSelectedIds([]);
     }
@@ -194,8 +197,8 @@ export const CertificationTable = () => {
   const handleExport = () => {
     // Create CSV from selected rows or all rows if none selected
     const dataToExport = selectedIds.length > 0 
-      ? certifications.filter(cert => selectedIds.includes(cert.id))
-      : certifications;
+      ? filterCertifications().filter(cert => selectedIds.includes(cert.id))
+      : filterCertifications();
       
     if (dataToExport.length === 0) {
       toast.error("No data to export");
@@ -239,7 +242,22 @@ export const CertificationTable = () => {
     setDetailOpen(true);
   };
 
-  const isAllSelected = selectedIds.length === certifications.length && certifications.length > 0;
+  // Filter certifications with search term
+  const filterCertifications = () => {
+    if (!searchTerm) return certifications;
+    
+    const term = searchTerm.toLowerCase();
+    return certifications.filter(cert => {
+      return (
+        (cert.employee?.name && cert.employee.name.toLowerCase().includes(term)) || 
+        (cert.certification_code?.certification_description && cert.certification_code.certification_description.toLowerCase().includes(term)) ||
+        (cert.authority?.authority_name && cert.authority.authority_name.toLowerCase().includes(term)) ||
+        (`e${cert.employee?.e_number}`.toLowerCase().includes(term))
+      );
+    });
+  };
+
+  const isAllSelected = selectedIds.length === filterCertifications().length && filterCertifications().length > 0;
 
   return (
     <Card>
@@ -255,18 +273,29 @@ export const CertificationTable = () => {
         ) : (
           <div>
             <div className="flex justify-between items-center p-4 border-b">
-              <div className="flex items-center gap-2">
-                <Checkbox 
-                  checked={isAllSelected}
-                  onCheckedChange={handleSelectAll}
-                  id="select-all"
-                />
-                <label htmlFor="select-all" className="text-sm font-medium">
-                  {selectedIds.length > 0 ? `${selectedIds.length} selected` : "Select all"}
-                </label>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    checked={isAllSelected}
+                    onCheckedChange={handleSelectAll}
+                    id="select-all"
+                  />
+                  <label htmlFor="select-all" className="text-sm font-medium">
+                    {selectedIds.length > 0 ? `${selectedIds.length} selected` : "Select all"}
+                  </label>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                  <Input 
+                    placeholder="Search certifications..." 
+                    className="pl-8 w-[250px]" 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2">
-                {Object.keys(filters).length > 0 && (
+                {(Object.keys(filters).length > 0 || searchTerm) && (
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -282,11 +311,30 @@ export const CertificationTable = () => {
                   size="sm" 
                   className="flex items-center gap-1"
                   onClick={handleExport}
-                  disabled={certifications.length === 0}
+                  disabled={filterCertifications().length === 0}
                 >
                   <Download className="h-4 w-4" />
                   Export
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-1">
+                      <ChevronDown className="h-4 w-4" />
+                      Actions
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem disabled={selectedIds.length === 0}>
+                      Renew Selected
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={selectedIds.length === 0}>
+                      Mark as Reviewed
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={selectedIds.length === 0}>
+                      Send Reminder
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
             <ScrollArea className="h-[500px]">
@@ -341,7 +389,7 @@ export const CertificationTable = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {certifications.map((cert) => {
+                  {filterCertifications().map((cert) => {
                     const expiryStatus = getExpiryStatus(cert.expiry_date);
                     
                     return (
@@ -487,81 +535,144 @@ export const CertificationTable = () => {
       
       {/* Detail View Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+        <DialogContent className="w-4/5 sm:max-w-[80%] h-4/5 max-h-[80vh]">
+          <DialogHeader className="flex flex-row justify-between items-center">
             <DialogTitle>Certification Details</DialogTitle>
-            <DialogClose />
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
           </DialogHeader>
-          {selectedCertification && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Employee</h3>
-                  <p className="font-medium">{selectedCertification.employee?.name || 'Unknown'}</p>
-                  <p className="text-sm text-gray-500">E{selectedCertification.employee?.e_number || 'N/A'}</p>
+          <ScrollArea className="h-[calc(100%-4rem)]">
+            {selectedCertification && (
+              <div className="space-y-6 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-medium mb-4">Employee Details</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Employee</h4>
+                        <p className="text-lg font-medium">{selectedCertification.employee?.name || 'Unknown'}</p>
+                        <p className="text-sm text-gray-500">E{selectedCertification.employee?.e_number || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Contact</h4>
+                        <p className="font-medium">{selectedCertification.employee?.mobile_number || 'No contact info'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-medium mb-4">Certification Details</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Certification</h4>
+                        <p className="text-lg font-medium">{selectedCertification.certification_code?.certification_description || 'Unknown'}</p>
+                        <p className="text-sm text-gray-500">
+                          Code: {selectedCertification.certification_code?.certification_code || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Authority</h4>
+                          <p>{selectedCertification.authority?.authority_name || 'Unknown'}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Issued Date</h4>
+                          <p>{formatDate(selectedCertification.issued_date)}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Expiry Date</h4>
+                          <p>{formatDate(selectedCertification.expiry_date)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Contact</h3>
-                  <p className="font-medium">{selectedCertification.employee?.mobile_number || 'No contact info'}</p>
+                
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-medium mb-4">Status Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Current Status</h4>
+                        {(() => {
+                          const status = getExpiryStatus(selectedCertification.expiry_date);
+                          return (
+                            <div className="flex flex-col gap-2 mt-2">
+                              <span className={`px-2 py-1 text-sm rounded-md w-fit ${status.class}`}>
+                                {status.status}
+                              </span>
+                              <p className="text-sm text-gray-500">
+                                {daysUntilExpiry(selectedCertification.expiry_date) < 0
+                                  ? `Expired ${Math.abs(daysUntilExpiry(selectedCertification.expiry_date))} days ago`
+                                  : daysUntilExpiry(selectedCertification.expiry_date) === 0
+                                  ? 'Expires today'
+                                  : `Expires in ${daysUntilExpiry(selectedCertification.expiry_date)} days`}
+                              </p>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Renewal Information</h4>
+                        <p className="text-sm text-gray-500 mt-2">
+                          {daysUntilExpiry(selectedCertification.expiry_date) < 30 
+                            ? "Renewal required soon. Please initiate the renewal process."
+                            : "No immediate renewal needed. Check back closer to expiry date."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+                  <h3 className="text-lg font-medium mb-4">Certification History</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead>User</TableHead>
+                        <TableHead>Comments</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>{formatDate(selectedCertification.issued_date)}</TableCell>
+                        <TableCell>Certificate Issued</TableCell>
+                        <TableCell>System</TableCell>
+                        <TableCell>Initial certification</TableCell>
+                      </TableRow>
+                      {/* Sample history entries */}
+                      <TableRow>
+                        <TableCell>{new Date(new Date(selectedCertification.issued_date).getTime() + 7*24*60*60*1000).toLocaleDateString()}</TableCell>
+                        <TableCell>Record Updated</TableCell>
+                        <TableCell>Admin</TableCell>
+                        <TableCell>Documentation verified</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                <div className="flex justify-end space-x-2 pt-4 border-t">
+                  <Button variant="outline">Print Certificate</Button>
+                  <Button variant="outline">Edit Details</Button>
+                  <Button 
+                    className={
+                      daysUntilExpiry(selectedCertification.expiry_date) < 30 
+                        ? "bg-amber-600 hover:bg-amber-700" 
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }
+                  >
+                    {daysUntilExpiry(selectedCertification.expiry_date) < 30 ? 'Start Renewal Process' : 'View Full Record'}
+                  </Button>
                 </div>
               </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Certification</h3>
-                <p className="font-medium">{selectedCertification.certification_code?.certification_description || 'Unknown'}</p>
-                <p className="text-sm text-gray-500">
-                  Code: {selectedCertification.certification_code?.certification_code || 'N/A'}
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Authority</h3>
-                  <p>{selectedCertification.authority?.authority_name || 'Unknown'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Issued Date</h3>
-                  <p>{formatDate(selectedCertification.issued_date)}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Expiry Date</h3>
-                  <p>{formatDate(selectedCertification.expiry_date)}</p>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                {(() => {
-                  const status = getExpiryStatus(selectedCertification.expiry_date);
-                  return (
-                    <span className={`px-2 py-1 text-xs rounded-md ${status.class}`}>
-                      {status.status}
-                    </span>
-                  );
-                })()}
-                <p className="text-sm text-gray-500 mt-1">
-                  {daysUntilExpiry(selectedCertification.expiry_date) < 0
-                    ? `Expired ${Math.abs(daysUntilExpiry(selectedCertification.expiry_date))} days ago`
-                    : daysUntilExpiry(selectedCertification.expiry_date) === 0
-                    ? 'Expires today'
-                    : `Expires in ${daysUntilExpiry(selectedCertification.expiry_date)} days`}
-                </p>
-              </div>
-              
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button variant="outline">Update</Button>
-                <Button 
-                  className={
-                    daysUntilExpiry(selectedCertification.expiry_date) < 30 
-                      ? "bg-amber-600 hover:bg-amber-700" 
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }
-                >
-                  {daysUntilExpiry(selectedCertification.expiry_date) < 30 ? 'Start Renewal' : 'View History'}
-                </Button>
-              </div>
-            </div>
-          )}
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </Card>
