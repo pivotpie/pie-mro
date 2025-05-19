@@ -1,9 +1,11 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Check, Filter } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 
@@ -26,12 +28,23 @@ const generateDays = () => {
 
 export const AircraftCalendar = () => {
   const [hangars, setHangars] = useState<any[]>([]);
+  const [filteredHangars, setFilteredHangars] = useState<any[]>([]);
   const [aircraftSchedules, setAircraftSchedules] = useState<any[]>([]);
+  const [filteredSchedules, setFilteredSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const days = generateDays();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [selectedAircraft, setSelectedAircraft] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [filterOpen, setFilterOpen] = useState<Record<string, boolean>>({});
+
+  // Fixed column widths
+  const columnWidths = {
+    hangar: 120,
+    bay: 100,
+    date: 45 // Width of each date column
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,6 +76,7 @@ export const AircraftCalendar = () => {
         if (visitError) throw visitError;
 
         setHangars(hangarData || []);
+        setFilteredHangars(hangarData || []);
 
         // Process schedule data
         const schedules = [];
@@ -135,6 +149,7 @@ export const AircraftCalendar = () => {
         }
 
         setAircraftSchedules(schedules);
+        setFilteredSchedules(schedules);
       } catch (error: any) {
         toast.error(`Error loading data: ${error.message}`);
         console.error("Error fetching data:", error);
@@ -146,14 +161,79 @@ export const AircraftCalendar = () => {
     fetchData();
   }, []);
 
+  // Filter unique values for a column
+  const getUniqueValuesForColumn = (columnName: string) => {
+    if (columnName === 'hangarName') {
+      return [...new Set(hangars.map(h => h.hangar_name?.split(" ")[0] || 'Hangar'))].sort();
+    }
+    if (columnName === 'bay') {
+      return [...new Set(hangars.map(h => h.hangar_name?.split(" ")[1] || h.hangar_code || 'Bay'))].sort();
+    }
+    return [];
+  };
+
+  // Apply filters to schedules
+  useEffect(() => {
+    if (hangars.length === 0) return;
+    
+    let filteredHangarsList = [...hangars];
+    
+    // Apply hangar filters
+    if (columnFilters.hangarName?.length > 0) {
+      filteredHangarsList = filteredHangarsList.filter(h => 
+        columnFilters.hangarName.includes(h.hangar_name?.split(" ")[0] || 'Hangar')
+      );
+    }
+    
+    if (columnFilters.bay?.length > 0) {
+      filteredHangarsList = filteredHangarsList.filter(h => 
+        columnFilters.bay.includes(h.hangar_name?.split(" ")[1] || h.hangar_code || 'Bay')
+      );
+    }
+    
+    setFilteredHangars(filteredHangarsList);
+    
+    const filteredSchedulesList = aircraftSchedules.filter(s => 
+      filteredHangarsList.some(h => h.id === s.hangarId)
+    );
+    
+    setFilteredSchedules(filteredSchedulesList);
+  }, [columnFilters, hangars, aircraftSchedules]);
+
+  // Handle column filter changes
+  const handleFilterChange = (column: string, value: string) => {
+    setColumnFilters(prev => {
+      const currentValues = prev[column] || [];
+      if (currentValues.includes(value)) {
+        return {
+          ...prev,
+          [column]: currentValues.filter(v => v !== value)
+        };
+      } else {
+        return {
+          ...prev,
+          [column]: [...currentValues, value]
+        };
+      }
+    });
+  };
+
+  // Clear filters for a column
+  const clearColumnFilter = (column: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [column]: []
+    }));
+  };
+
   const calculatePosition = (schedule: any) => {
     const startIdx = days.findIndex(d => d.month === schedule.start.month && d.day === schedule.start.day);
     const endIdx = days.findIndex(d => d.month === schedule.end.month && d.day === schedule.end.day);
     
     if (startIdx === -1 || endIdx === -1) return null;
     
-    const startPosition = startIdx * 41 + 220; // 40px for column width + 1px for border, starting after fixed columns
-    const width = (endIdx - startIdx + 1) * 41 - 1; // Subtract 1px to account for border
+    const startPosition = startIdx * columnWidths.date + (columnWidths.hangar + columnWidths.bay); // After fixed columns
+    const width = (endIdx - startIdx + 1) * columnWidths.date - 1; // Subtract 1px to account for border
     
     return { startPosition, width };
   };
@@ -161,6 +241,68 @@ export const AircraftCalendar = () => {
   const handleAircraftClick = (schedule: any) => {
     setSelectedAircraft(schedule);
     setIsDetailOpen(true);
+  };
+
+  // Column filter component
+  const ColumnFilter = ({ column, label }: { column: string, label: string }) => {
+    const uniqueValues = useMemo(() => getUniqueValuesForColumn(column), [column]);
+    const selectedValues = columnFilters[column] || [];
+    
+    return (
+      <Popover open={filterOpen[column]} onOpenChange={(open) => setFilterOpen(prev => ({ ...prev, [column]: open }))}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-6 w-6 relative">
+            <Filter className={`h-3 w-3 ${selectedValues.length ? 'text-blue-500' : ''}`} />
+            {selectedValues.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
+                {selectedValues.length}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-60 p-0">
+          <div className="p-2 border-b">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium">Filter {label}</h4>
+              {selectedValues.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 px-2 text-xs"
+                  onClick={() => clearColumnFilter(column)}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="p-2 max-h-60 overflow-auto">
+            {uniqueValues.map((value) => (
+              <div key={value} className="flex items-center space-x-2 py-1">
+                <button
+                  className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1.5 rounded text-left"
+                  onClick={() => handleFilterChange(column, value)}
+                >
+                  <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${
+                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}>
+                    {selectedValues.includes(value) && (
+                      <Check className="h-3 w-3 text-white" />
+                    )}
+                  </div>
+                  <span className="flex-grow truncate">{value}</span>
+                </button>
+              </div>
+            ))}
+            {uniqueValues.length === 0 && (
+              <div className="text-center py-2 text-gray-500 dark:text-gray-400">
+                No values to filter
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
   };
 
   if (loading) {
@@ -172,38 +314,46 @@ export const AircraftCalendar = () => {
   }
 
   return (
-    <div className="border rounded-lg dark:border-gray-700">
-      <ScrollArea 
-        className="h-[400px] rounded-lg"
-        ref={scrollAreaRef}
-      >
-        <div className="min-w-[2000px]">
+    <div className="border rounded-lg shadow-sm dark:border-gray-700">
+      <ScrollArea className="h-[400px] rounded-lg">
+        <div className="min-w-full" style={{ width: `${columnWidths.hangar + columnWidths.bay + (days.length * columnWidths.date)}px` }}>
           <table className="w-full border-collapse">
             <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
               <tr>
-                <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
-                <th className="p-2 text-left border-r sticky left-[120px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[100px]">Bay</th>
+                <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200" style={{ width: `${columnWidths.hangar}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Hangar</span>
+                    <ColumnFilter column="hangarName" label="Hangar" />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky left-120px z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200" style={{ width: `${columnWidths.bay}px`, left: `${columnWidths.hangar}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Bay</span>
+                    <ColumnFilter column="bay" label="Bay" />
+                  </div>
+                </th>
                 
-                {/* Calendar days - same as EmployeeCalendar */}
+                {/* Calendar days */}
                 {days.map((day, index) => (
                   <th 
                     key={`${day.month+1}-${day.day}`} 
-                    className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200
+                    className={`p-2 text-center border-r dark:border-gray-700 dark:text-gray-200
                       ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                    style={{ width: `${columnWidths.date}px` }}
                   >
-                    <div className="text-xs font-medium">{index + 1}</div>
+                    <div className="text-xs font-medium">{day.day}</div>
                     <div className="text-xs">May</div>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {aircraftSchedules.map((hangarSchedule) => (
+              {filteredSchedules.map((hangarSchedule) => (
                 <tr key={hangarSchedule.hangarId} className="border-b h-[40px] dark:border-gray-700">
-                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">
+                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10" style={{ width: `${columnWidths.hangar}px` }}>
                     {hangarSchedule.hangarName.split(" ")[0] || 'Hangar'}
                   </td>
-                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">
+                  <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10" style={{ width: `${columnWidths.bay}px`, left: `${columnWidths.hangar}px` }}>
                     {hangarSchedule.hangarName.split(" ")[1] || hangarSchedule.hangarCode || 'Bay'}
                   </td>
                   
@@ -215,8 +365,8 @@ export const AircraftCalendar = () => {
                         key={`bg-${day.month}-${day.day}`}
                         className={`absolute top-0 bottom-0 border-r dark:border-gray-700 ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
                         style={{
-                          left: `${index * 41}px`,
-                          width: '40px'
+                          left: `${index * columnWidths.date}px`,
+                          width: `${columnWidths.date}px`
                         }}
                       />
                     ))}
@@ -260,6 +410,14 @@ export const AircraftCalendar = () => {
                   </td>
                 </tr>
               ))}
+              
+              {filteredSchedules.length === 0 && (
+                <tr>
+                  <td colSpan={2 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
+                    {aircraftSchedules.length > 0 ? 'No matching schedules found.' : 'No schedules found.'}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

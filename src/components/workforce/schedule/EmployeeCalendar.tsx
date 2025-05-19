@@ -1,10 +1,10 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Filter } from "lucide-react";
+import { Check, ChevronsUpDown, Filter, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ const generateDays = () => {
 
 export const EmployeeCalendar = () => {
   const [employees, setEmployees] = useState<any[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -35,6 +36,18 @@ export const EmployeeCalendar = () => {
   const days = generateDays();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [filterOpen, setFilterOpen] = useState<Record<string, boolean>>({});
+  
+  const columnWidths = {
+    id: 80,
+    name: 200,
+    alias: 70,
+    mobile: 130,
+    team: 100,
+    title: 100,
+    status: 100,
+    date: 45 // Width of each date column
+  };
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -80,6 +93,7 @@ export const EmployeeCalendar = () => {
         });
 
         setEmployees(processedEmployees);
+        setFilteredEmployees(processedEmployees);
       } catch (error: any) {
         toast.error(`Error loading employees: ${error.message}`);
         console.error("Error fetching employees:", error);
@@ -90,6 +104,64 @@ export const EmployeeCalendar = () => {
 
     fetchEmployees();
   }, []);
+  
+  // Filter unique values from a column
+  const getUniqueValuesForColumn = (columnName: string) => {
+    const values = employees.map(emp => {
+      if (columnName === 'team') return emp.team?.team_name;
+      if (columnName === 'job_title') return emp.job_title?.job_description;
+      return emp[columnName];
+    }).filter(Boolean);
+    
+    return [...new Set(values)].sort();
+  };
+
+  // Apply filters to employees
+  useEffect(() => {
+    let result = [...employees];
+    
+    Object.entries(columnFilters).forEach(([column, values]) => {
+      if (values.length > 0) {
+        result = result.filter(emp => {
+          if (column === 'team') {
+            return values.includes(emp.team?.team_name);
+          }
+          if (column === 'job_title') {
+            return values.includes(emp.job_title?.job_description);
+          }
+          return values.includes(emp[column]);
+        });
+      }
+    });
+    
+    setFilteredEmployees(result);
+  }, [columnFilters, employees]);
+
+  // Handle column filter changes
+  const handleFilterChange = (column: string, value: string) => {
+    setColumnFilters(prev => {
+      const currentValues = prev[column] || [];
+      if (currentValues.includes(value)) {
+        return {
+          ...prev,
+          [column]: currentValues.filter(v => v !== value)
+        };
+      } else {
+        return {
+          ...prev,
+          [column]: [...currentValues, value]
+        };
+      }
+    });
+  };
+
+  // Clear filters for a column
+  const clearColumnFilter = (column: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [column]: []
+    }));
+  };
 
   // Cell click handler
   const handleCellClick = (employee: any, date: string) => {
@@ -114,6 +186,68 @@ export const EmployeeCalendar = () => {
     { status: "Day Off", code: "O", color: "bg-gray-100 border border-gray-300 dark:bg-gray-800 dark:border-gray-600" },
   ];
 
+  // Column filter component
+  const ColumnFilter = ({ column, label }: { column: string, label: string }) => {
+    const uniqueValues = useMemo(() => getUniqueValuesForColumn(column), [column]);
+    const selectedValues = columnFilters[column] || [];
+    
+    return (
+      <Popover open={filterOpen[column]} onOpenChange={(open) => setFilterOpen(prev => ({ ...prev, [column]: open }))}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-6 w-6 relative">
+            <Filter className={`h-3 w-3 ${selectedValues.length ? 'text-blue-500' : ''}`} />
+            {selectedValues.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
+                {selectedValues.length}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-60 p-0">
+          <div className="p-2 border-b">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium">Filter {label}</h4>
+              {selectedValues.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 px-2 text-xs"
+                  onClick={() => clearColumnFilter(column)}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="p-2 max-h-60 overflow-auto">
+            {uniqueValues.map((value) => (
+              <div key={value} className="flex items-center space-x-2 py-1">
+                <button
+                  className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1.5 rounded text-left"
+                  onClick={() => handleFilterChange(column, value)}
+                >
+                  <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${
+                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}>
+                    {selectedValues.includes(value) && (
+                      <Check className="h-3 w-3 text-white" />
+                    )}
+                  </div>
+                  <span className="flex-grow truncate">{value}</span>
+                </button>
+              </div>
+            ))}
+            {uniqueValues.length === 0 && (
+              <div className="text-center py-2 text-gray-500 dark:text-gray-400">
+                No values to filter
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -134,65 +268,112 @@ export const EmployeeCalendar = () => {
         ))}
       </div>
       
-      <div className="border rounded-lg dark:border-gray-700">
-        <ScrollArea 
-          className="relative overflow-auto h-[500px] rounded-lg"
-          ref={scrollAreaRef}
-        >
-          <div className="min-w-[2000px]">
+      <div className="border rounded-lg shadow-sm dark:border-gray-700">
+        <ScrollArea className="relative h-[500px] rounded-lg">
+          <div className="min-w-full" style={{ width: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title + columnWidths.status + (days.length * columnWidths.date)}px` }}>
             <table className="w-full border-collapse">
               <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
                 <tr>
                   {/* Fixed columns */}
-                  <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">ID</th>
-                  <th className="p-2 text-left border-r sticky left-[80px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Name</th>
-                  <th className="p-2 text-left border-r sticky left-[280px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Alias</th>
-                  <th className="p-2 text-left border-r sticky left-[350px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Mobile</th>
-                  <th className="p-2 text-left border-r sticky left-[480px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                  <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200" style={{ width: `${columnWidths.id}px` }}>
                     <div className="flex items-center justify-between">
-                      Team
-                      <Button variant="ghost" size="icon" className="h-6 w-6">
-                        <Filter className="h-3 w-3" />
-                      </Button>
+                      <span>ID</span>
+                      <ColumnFilter column="e_number" label="ID" />
                     </div>
                   </th>
-                  <th className="p-2 text-left border-r sticky left-[580px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Title</th>
-                  <th className="p-2 text-left border-r sticky left-[680px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Status</th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.name}px`, left: `${columnWidths.id}px` }}>
+                    <div className="flex items-center justify-between">
+                      <span>Name</span>
+                      <ColumnFilter column="name" label="Name" />
+                    </div>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.alias}px`, left: `${columnWidths.id + columnWidths.name}px` }}>
+                    <span>Alias</span>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.mobile}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias}px` }}>
+                    <span>Mobile</span>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.team}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile}px` }}>
+                    <div className="flex items-center justify-between">
+                      <span>Team</span>
+                      <ColumnFilter column="team" label="Team" />
+                    </div>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}>
+                    <div className="flex items-center justify-between">
+                      <span>Title</span>
+                      <ColumnFilter column="job_title" label="Title" />
+                    </div>
+                  </th>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.status}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title}px` }}>
+                    <div className="flex items-center justify-between">
+                      <span>Status</span>
+                      <ColumnFilter column="employee_status" label="Status" />
+                    </div>
+                  </th>
                   
                   {/* Calendar days */}
                   {days.map((day, index) => (
                     <th 
                       key={`${day.month+1}-${day.day}`} 
-                      className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200 
+                      className={`p-2 text-center border-r min-w-[${columnWidths.date}px] dark:border-gray-700 dark:text-gray-200 
                         ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                      style={{ width: `${columnWidths.date}px` }}
                     >
-                      <div className="text-xs font-medium">{index + 1}</div>
+                      <div className="text-xs font-medium">{day.day}</div>
                       <div className="text-xs">May</div>
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {employees.map((employee) => (
+                {filteredEmployees.map((employee) => (
                   <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                     {/* Fixed columns */}
                     <td 
                       className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
+                      style={{ width: `${columnWidths.id}px` }}
                       onClick={() => setSelectedEmployee(employee)}
                     >
                       {employee.e_number || '-'}
                     </td>
                     <td 
-                      className="p-2 border-r sticky left-[80px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer`}
+                      style={{ width: `${columnWidths.name}px`, left: `${columnWidths.id}px` }}
                       onClick={() => setSelectedEmployee(employee)}
                     >
                       {employee.name || '-'}
                     </td>
-                    <td className="p-2 border-r sticky left-[280px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.alias || '-'}</td>
-                    <td className="p-2 border-r sticky left-[350px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.mobile_number || '-'}</td>
-                    <td className="p-2 border-r sticky left-[480px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.team?.team_name || '-'}</td>
-                    <td className="p-2 border-r sticky left-[580px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.job_title?.job_description || '-'}</td>
-                    <td className="p-2 border-r sticky left-[680px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.employee_status || 'Active'}</td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.alias}px`, left: `${columnWidths.id + columnWidths.name}px` }}
+                    >
+                      {employee.alias || '-'}
+                    </td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.mobile}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias}px` }}
+                    >
+                      {employee.mobile_number || '-'}
+                    </td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.team}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile}px` }}
+                    >
+                      {employee.team?.team_name || '-'}
+                    </td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}
+                    >
+                      {employee.job_title?.job_description || '-'}
+                    </td>
+                    <td 
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      style={{ width: `${columnWidths.status}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title}px` }}
+                    >
+                      {employee.employee_status || 'Active'}
+                    </td>
                     
                     {/* Calendar days */}
                     {days.map((day) => {
@@ -207,6 +388,7 @@ export const EmployeeCalendar = () => {
                                 className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
                                   ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''} 
                                   ${status ? statusColors[status] : ''}`}
+                                style={{ width: `${columnWidths.date}px` }}
                                 onClick={() => handleCellClick(employee, dateKey)}
                               >
                                 {status}
@@ -226,6 +408,14 @@ export const EmployeeCalendar = () => {
                     })}
                   </tr>
                 ))}
+                
+                {filteredEmployees.length === 0 && (
+                  <tr>
+                    <td colSpan={7 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
+                      {employees.length > 0 ? 'No matching employees found.' : 'No employees found.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
