@@ -14,7 +14,8 @@ import {
   Search,
   ChevronDown,
   ChevronUp,
-  MoreHorizontal
+  MoreHorizontal,
+  UserCheck
 } from "lucide-react";
 import { 
   Dialog,
@@ -90,6 +91,66 @@ export const WorkforceMetrics = () => {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [filters, setFilters] = useState<Record<string, string>>({});
   
+  // Get current date for roster data
+  const currentDate = new Date().toISOString().split('T')[0];
+
+  // Fetch total employees
+  const { data: totalEmployees, isLoading: loadingTotalEmployees } = useQuery({
+    queryKey: ['totalEmployees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('is_active', true);
+        
+      if (error) throw error;
+      return data.length;
+    }
+  });
+
+  // Fetch available employees (those without roster assignments for today)
+  const { data: availableEmployees, isLoading: loadingAvailableEmployees } = useQuery({
+    queryKey: ['availableEmployees'],
+    queryFn: async () => {
+      // First get all employees
+      const { data: allEmployees, error: employeesError } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('is_active', true);
+        
+      if (employeesError) throw employeesError;
+      
+      // Get date_id for current date
+      const { data: dateRef, error: dateError } = await supabase
+        .from('date_references')
+        .select('id')
+        .eq('actual_date', currentDate);
+        
+      if (dateError) throw dateError;
+      
+      if (dateRef && dateRef.length > 0) {
+        const dateId = dateRef[0].id;
+        
+        // Get employees with roster assignments today
+        const { data: assignedEmployees, error: assignedError } = await supabase
+          .from('roster_assignments')
+          .select('employee_id')
+          .eq('date_id', dateId);
+          
+        if (assignedError) throw assignedError;
+        
+        // Filter out the assigned employees
+        const assignedIds = new Set(assignedEmployees.map(e => e.employee_id));
+        const availableCount = allEmployees.filter(e => !assignedIds.has(e.id)).length;
+        
+        return availableCount;
+      } else {
+        // If no date record found, assume all employees are available
+        return allEmployees.length;
+      }
+    }
+  });
+
   // Fetch employee metrics
   const { data: employeeMetrics, isLoading: loadingEmployees } = useQuery({
     queryKey: ['employeeMetrics'],
@@ -165,7 +226,7 @@ export const WorkforceMetrics = () => {
     }
   });
 
-  const isLoading = loadingEmployees || loadingAircraft;
+  const isLoading = loadingEmployees || loadingAircraft || loadingTotalEmployees || loadingAvailableEmployees;
 
   // Fetch detail data when a metric is selected
   useEffect(() => {
@@ -883,10 +944,17 @@ export const WorkforceMetrics = () => {
   
   const metrics = [
     { 
+      id: 'total-employees', 
+      label: 'Total Employees', 
+      value: isLoading ? '-' : (totalEmployees || 0), 
+      icon: Users, 
+      color: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800',
+    },
+    { 
       id: 'available', 
       label: 'Available Employees', 
-      value: isLoading ? '-' : (employeeMetrics?.active || 0) - (employeeMetrics?.onLeave || 0) - (employeeMetrics?.inTraining || 0), 
-      icon: Users, 
+      value: isLoading ? '-' : (availableEmployees || 0), 
+      icon: UserCheck, 
       color: 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800',
     },
     { 
@@ -935,7 +1003,7 @@ export const WorkforceMetrics = () => {
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
         {metrics.map((metric) => (
           <MetricCard 
             key={metric.id}
