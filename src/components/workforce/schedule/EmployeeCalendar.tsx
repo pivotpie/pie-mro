@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -121,7 +120,7 @@ export const EmployeeCalendar = () => {
         }));
 
         try {
-          // Try to fetch roster data using the RPC function
+          // Try to fetch roster data using the function
           const { data: rosterData, error: rosterError } = await supabase
             .rpc('get_employee_roster');
           
@@ -142,15 +141,17 @@ export const EmployeeCalendar = () => {
               });
               
               // Update with actual roster data
-              rosterData.forEach((roster: EmployeeRoster) => {
-                if (roster.employee_id === emp.id) {
-                  if (roster.date) {
-                    const rosterDate = new Date(roster.date);
-                    const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
-                    schedule[dateKey] = roster.status_code || "D";
+              if (Array.isArray(rosterData)) {
+                rosterData.forEach((roster: any) => {
+                  if (roster.employee_id === emp.id) {
+                    if (roster.date) {
+                      const rosterDate = new Date(roster.date);
+                      const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
+                      schedule[dateKey] = roster.status_code || "D";
+                    }
                   }
-                }
-              });
+                });
+              }
               
               return {
                 ...emp,
@@ -687,7 +688,7 @@ export const EmployeeCalendar = () => {
         </SheetContent>
       </Sheet>
 
-      <style jsx global>{`
+      <style>{`
         .weekend-shade {
           background-color: #f9fafb;
         }
