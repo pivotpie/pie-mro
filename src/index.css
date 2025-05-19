@@ -130,7 +130,7 @@ html, body {
 
 /* Custom employee highlighting */
 .core-support-different {
-  background-color: rgba(219, 234, 254, 0.3) !important;
+  background-color: rgba(219, 234, 254, 0.7) !important;
 }
 
 .dark .core-support-different {
