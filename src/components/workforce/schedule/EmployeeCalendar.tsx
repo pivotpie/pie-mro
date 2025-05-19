@@ -782,7 +782,7 @@ export const EmployeeCalendar = () => {
               {days.map((day) => (
                 <th 
                   key={`${day.month+1}-${day.day}-${day.year}`} 
-                  className={`p-2 text-center border-r sticky top-0 z-20 dark:border-gray-700 dark:text-gray-200
+                  className={`p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200
                     ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-800'}`}
                   style={{ width: `${columnWidths.date}px` }}
                 >
