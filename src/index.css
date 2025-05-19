@@ -139,7 +139,6 @@ html, body {
 
 /* Sticky column styling */
 .sticky-column {
-  position: sticky !important;
   z-index: 10 !important;
   background-color: white !important;
 }
