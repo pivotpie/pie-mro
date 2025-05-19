@@ -7,7 +7,7 @@ import { AircraftScheduleView } from "./AircraftScheduleView";
 
 export const EmployeeScheduleView = () => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Employee Schedule</h2>
@@ -22,8 +22,10 @@ export const EmployeeScheduleView = () => {
           </div>
         </div>
 
-        {/* Employee Schedule Calendar */}
-        <EmployeeCalendar />
+        {/* Employee Schedule Calendar with full width */}
+        <div className="w-full overflow-auto">
+          <EmployeeCalendar />
+        </div>
       </div>
       
       {/* Aircraft Schedule View (Now positioned below) */}
