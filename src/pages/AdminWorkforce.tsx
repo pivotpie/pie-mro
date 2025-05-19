@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
 import { WorkforceMetrics } from "@/components/workforce/WorkforceMetrics";
+import { WorkforceTabs } from "@/components/workforce/tabs/WorkforceTabs";
 
 const AdminWorkforce = () => {
   const { user, logout } = useAuth();
@@ -48,7 +49,8 @@ const AdminWorkforce = () => {
           {/* Metrics Dashboard - Number Cards */}
           <WorkforceMetrics />
           
-          {/* No tabs or other components as requested */}
+          {/* Workforce Tabs */}
+          <WorkforceTabs />
         </div>
       </main>
     </div>

@@ -157,6 +157,19 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
   const displayName = user.username || 'User';
   const initials = getInitials(displayName);
 
+  // Add keyboard shortcut listener for Ctrl+G
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -185,7 +198,7 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
               Universal search...
             </span>
             <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
-              Ctrl+K
+              Ctrl+G
             </span>
           </Button>
         </div>
