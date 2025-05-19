@@ -1,84 +1,50 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { User2, UsersRound, Briefcase, FileText, Download, ArrowUpRight } from "lucide-react";
-import { EmployeeScheduleView } from "./EmployeeScheduleView";
-import { AircraftScheduleView } from "./AircraftScheduleView";
-import { TeamView } from "../tabs/TeamView";
-import { CertificationView } from "./CertificationView";
-import { useNotification } from '@/contexts/NotificationContext';
+import { EmployeeScheduleView } from './EmployeeScheduleView';
+import { AircraftScheduleView } from './AircraftScheduleView';
+import { CertificationView } from './CertificationView';
+import { TeamView } from './TeamView';
 
-interface WorkforceTabsProps {
-  onViewEmployeeDetails?: (id: string) => void;
-  onViewAircraftDetails?: (id: string) => void;
-}
-
-export const WorkforceTabs = ({ 
-  onViewEmployeeDetails,
-  onViewAircraftDetails
-}: WorkforceTabsProps) => {
-  const [currentView, setCurrentView] = useState("employee");
-  const { showToast } = useNotification();
-
-  const handleExportData = () => {
-    showToast({
-      title: "Export Started",
-      message: "Your data export is being prepared and will be available shortly.",
-      type: "success"
-    });
-  };
-
+export const WorkforceTabs = () => {
+  const [activeTab, setActiveTab] = useState("schedule");
+  
   return (
-    <Tabs 
-      value={currentView} 
-      onValueChange={setCurrentView} 
-      className="mt-4"
+    <Tabs
+      defaultValue="schedule"
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="w-full"
     >
-      <div className="flex items-center justify-between mb-2">
-        <TabsList className="h-10">
-          <TabsTrigger value="employee" className="flex items-center gap-1">
-            <User2 className="h-4 w-4" />
-            Employee View
-          </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center gap-1">
-            <UsersRound className="h-4 w-4" />
-            Team View
-          </TabsTrigger>
-          <TabsTrigger value="aircraft" className="flex items-center gap-1">
-            <Briefcase className="h-4 w-4" />
-            Aircraft View
-          </TabsTrigger>
-          <TabsTrigger value="certification" className="flex items-center gap-1">
-            <FileText className="h-4 w-4" />
-            Certification View
-          </TabsTrigger>
-        </TabsList>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={handleExportData}
-        >
-          <Download className="h-4 w-4" />
-          Export Data
-        </Button>
-      </div>
-
-      <TabsContent value="employee" className="mt-2 space-y-4">
-        <EmployeeScheduleView onViewDetails={onViewEmployeeDetails} />
+      <TabsList className="flex justify-start mb-6 bg-transparent">
+        <TabsTrigger value="schedule" className="text-sm px-4 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/30 dark:data-[state=active]:text-blue-400">
+          Employee Schedule
+        </TabsTrigger>
+        <TabsTrigger value="aircraft" className="text-sm px-4 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/30 dark:data-[state=active]:text-blue-400">
+          Aircraft Schedule
+        </TabsTrigger>
+        <TabsTrigger value="certification" className="text-sm px-4 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/30 dark:data-[state=active]:text-blue-400">
+          Certifications
+        </TabsTrigger>
+        <TabsTrigger value="teams" className="text-sm px-4 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-900/30 dark:data-[state=active]:text-blue-400">
+          Teams
+        </TabsTrigger>
+      </TabsList>
+      
+      <TabsContent value="schedule" className="p-0">
+        <EmployeeScheduleView />
       </TabsContent>
-
-      <TabsContent value="aircraft" className="mt-2 space-y-4">
-        <AircraftScheduleView onViewDetails={onViewAircraftDetails} />
+      
+      <TabsContent value="aircraft" className="p-0">
+        <AircraftScheduleView />
       </TabsContent>
-
-      <TabsContent value="team" className="mt-2">
-        <TeamView />
-      </TabsContent>
-
-      <TabsContent value="certification" className="mt-2">
+      
+      <TabsContent value="certification" className="p-0">
         <CertificationView />
+      </TabsContent>
+      
+      <TabsContent value="teams" className="p-0">
+        <TeamView />
       </TabsContent>
     </Tabs>
   );
