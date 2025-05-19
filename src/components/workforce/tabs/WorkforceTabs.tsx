@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { User2, UsersRound, Briefcase, FileText, Download, ArrowUpRight } from "lucide-react";
 import { EmployeeScheduleView } from "./EmployeeScheduleView";
 import { AircraftScheduleView } from "./AircraftScheduleView";
-import { TeamView } from "./tabs/TeamView";
+import { TeamView } from "../tabs/TeamView";
 import { CertificationView } from "./CertificationView";
 import { useNotification } from '@/contexts/NotificationContext';
 

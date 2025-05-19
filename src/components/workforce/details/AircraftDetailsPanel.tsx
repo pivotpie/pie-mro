@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarDays, Clock, FileSpreadsheet, Plane, Tool, AlertTriangle } from "lucide-react";
+import { CalendarDays, Clock, FileSpreadsheet, Plane, Wrench, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 interface AircraftDetailsProps {
@@ -107,7 +107,7 @@ export const AircraftDetailsPanel = ({ aircraft }: AircraftDetailsProps) => {
           {aircraft.recentActivities.map((activity, index) => (
             <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-0">
               <div className="p-2 bg-secondary rounded-md">
-                <Tool className="h-4 w-4" />
+                <Wrench className="h-4 w-4" />
               </div>
               <div>
                 <div className="font-medium text-sm">{activity.type}</div>
