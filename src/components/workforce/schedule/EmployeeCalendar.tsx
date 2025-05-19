@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, createRef, useCallback } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -8,23 +8,7 @@ import { Check, ChevronsUpDown, Filter, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
-
-// Helper function to determine if a date is a weekend
-const isWeekend = (dayOfMonth: number, month: number) => {
-  const date = new Date(2025, month, dayOfMonth);
-  const day = date.getDay();
-  return day === 0 || day === 6;
-};
-
-// Generate days for May 2025
-const generateDays = () => {
-  const days = [];
-  // May 2025 has 31 days
-  for (let i = 1; i <= 31; i++) {
-    days.push({ day: i, month: 4, isWeekend: isWeekend(i, 4) }); // Month is 0-indexed, so May is 4
-  }
-  return days;
-};
+import { generateDaysForMonths, statusColors, statusLegend, getFormattedDate, isWeekend } from './calendarUtils';
 
 export const EmployeeCalendar = () => {
   const [employees, setEmployees] = useState<any[]>([]);
@@ -33,10 +17,13 @@ export const EmployeeCalendar = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const days = generateDays();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [filterOpen, setFilterOpen] = useState<Record<string, boolean>>({});
+  
+  // Generate days for May and June 2025
+  const days = useMemo(() => generateDaysForMonths(4, 5), []); // 4 = May, 5 = June
+  
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const columnWidths = {
     id: 80,
@@ -48,6 +35,38 @@ export const EmployeeCalendar = () => {
     status: 100,
     date: 45 // Width of each date column
   };
+
+  // This function will be used by the parent to sync scrolling with the aircraft calendar
+  const syncScroll = useCallback((scrollLeft: number) => {
+    if (scrollAreaRef.current && scrollAreaRef.current.scrollLeft !== scrollLeft) {
+      scrollAreaRef.current.scrollLeft = scrollLeft;
+    }
+  }, []);
+
+  // Handle scroll events
+  const handleScroll = () => {
+    if (scrollAreaRef.current) {
+      // This would be used by the parent component to sync scrolling with other calendars
+      const scrollEvent = new CustomEvent('employee-calendar-scroll', { 
+        detail: { scrollLeft: scrollAreaRef.current.scrollLeft } 
+      });
+      window.dispatchEvent(scrollEvent);
+    }
+  };
+
+  // Setup scroll event listeners
+  useEffect(() => {
+    const handleAircraftScroll = (e: CustomEvent) => {
+      syncScroll(e.detail.scrollLeft);
+    };
+
+    // Add event listener for the custom event
+    window.addEventListener('aircraft-calendar-scroll', handleAircraftScroll as EventListener);
+
+    return () => {
+      window.removeEventListener('aircraft-calendar-scroll', handleAircraftScroll as EventListener);
+    };
+  }, [syncScroll]);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -71,8 +90,8 @@ export const EmployeeCalendar = () => {
           // Generate random schedule data for demonstration
           const schedule: Record<string, string> = {};
           days.forEach(day => {
-            const randomValue = Math.random();
             const dateKey = `${day.month+1}-${day.day}`;
+            const randomValue = Math.random();
             
             if (randomValue < 0.1) {
               schedule[dateKey] = "L"; // Leave
@@ -103,7 +122,7 @@ export const EmployeeCalendar = () => {
     };
 
     fetchEmployees();
-  }, []);
+  }, [days]);
   
   // Filter unique values from a column
   const getUniqueValuesForColumn = (columnName: string) => {
@@ -169,22 +188,6 @@ export const EmployeeCalendar = () => {
     setSelectedDate(date);
     setIsDetailOpen(true);
   };
-
-  // Status color mapping
-  const statusColors: Record<string, string> = {
-    "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
-  };
-
-  // Legend for status colors
-  const statusLegend = [
-    { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
-    { status: "On Leave", code: "L", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
-    { status: "Training", code: "T", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
-    { status: "Day Off", code: "O", color: "bg-gray-100 border border-gray-300 dark:bg-gray-800 dark:border-gray-600" },
-  ];
 
   // Column filter component
   const ColumnFilter = ({ column, label }: { column: string, label: string }) => {
@@ -262,50 +265,54 @@ export const EmployeeCalendar = () => {
       <div className="flex items-center gap-4 mb-2">
         {statusLegend.map((item) => (
           <div key={item.status} className="flex items-center">
-            <span className={`inline-block w-3 h-3 rounded-full mr-1 ${item.color}`}></span>
+            <span className={`inline-block w-3 h-3 rounded-full mr-1 ${item.className}`}></span>
             <span className="text-xs text-gray-600 dark:text-gray-400">{item.status} ({item.code})</span>
           </div>
         ))}
       </div>
       
-      <div className="border rounded-lg shadow-sm dark:border-gray-700">
-        <ScrollArea className="relative h-[500px] rounded-lg">
+      <div className="border rounded-lg shadow-sm dark:border-gray-700 calendar-container">
+        <ScrollArea 
+          className="relative h-[500px] rounded-lg"
+          ref={scrollAreaRef}
+          onScroll={handleScroll}
+        >
           <div className="min-w-full" style={{ width: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title + columnWidths.status + (days.length * columnWidths.date)}px` }}>
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse calendar-grid">
               <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
                 <tr>
                   {/* Fixed columns */}
-                  <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200" style={{ width: `${columnWidths.id}px` }}>
+                  <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 sticky-column" style={{ width: `${columnWidths.id}px` }}>
                     <div className="flex items-center justify-between">
                       <span>ID</span>
                       <ColumnFilter column="e_number" label="ID" />
                     </div>
                   </th>
-                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.name}px`, left: `${columnWidths.id}px` }}>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 sticky-column`} style={{ width: `${columnWidths.name}px`, left: `${columnWidths.id}px` }}>
                     <div className="flex items-center justify-between">
                       <span>Name</span>
                       <ColumnFilter column="name" label="Name" />
                     </div>
                   </th>
-                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.alias}px`, left: `${columnWidths.id + columnWidths.name}px` }}>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 sticky-column`} style={{ width: `${columnWidths.alias}px`, left: `${columnWidths.id + columnWidths.name}px` }}>
                     <span>Alias</span>
                   </th>
-                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.mobile}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias}px` }}>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 sticky-column`} style={{ width: `${columnWidths.mobile}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias}px` }}>
                     <span>Mobile</span>
                   </th>
-                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.team}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile}px` }}>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 sticky-column`} style={{ width: `${columnWidths.team}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile}px` }}>
                     <div className="flex items-center justify-between">
                       <span>Team</span>
                       <ColumnFilter column="team" label="Team" />
                     </div>
                   </th>
-                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 sticky-column`} style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}>
                     <div className="flex items-center justify-between">
                       <span>Title</span>
                       <ColumnFilter column="job_title" label="Title" />
                     </div>
                   </th>
-                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200`} style={{ width: `${columnWidths.status}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title}px` }}>
+                  <th className={`p-2 text-left border-r sticky z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 sticky-column`} style={{ width: `${columnWidths.status}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title}px` }}>
                     <div className="flex items-center justify-between">
                       <span>Status</span>
                       <ColumnFilter column="employee_status" label="Status" />
@@ -313,17 +320,20 @@ export const EmployeeCalendar = () => {
                   </th>
                   
                   {/* Calendar days */}
-                  {days.map((day, index) => (
-                    <th 
-                      key={`${day.month+1}-${day.day}`} 
-                      className={`p-2 text-center border-r min-w-[${columnWidths.date}px] dark:border-gray-700 dark:text-gray-200 
-                        ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
-                      style={{ width: `${columnWidths.date}px` }}
-                    >
-                      <div className="text-xs font-medium">{day.day}</div>
-                      <div className="text-xs">May</div>
-                    </th>
-                  ))}
+                  {days.map((day, index) => {
+                    const monthName = day.month === 4 ? 'May' : 'June';
+                    return (
+                      <th 
+                        key={`${day.month+1}-${day.day}`} 
+                        className={`p-2 text-center border-r min-w-[${columnWidths.date}px] dark:border-gray-700 dark:text-gray-200 
+                          ${day.isWeekend ? 'weekend-column' : ''}`}
+                        style={{ width: `${columnWidths.date}px` }}
+                      >
+                        <div className="text-xs font-medium">{day.day}</div>
+                        <div className="text-xs">{monthName}</div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -331,45 +341,45 @@ export const EmployeeCalendar = () => {
                   <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                     {/* Fixed columns */}
                     <td 
-                      className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
+                      className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer sticky-column"
                       style={{ width: `${columnWidths.id}px` }}
                       onClick={() => setSelectedEmployee(employee)}
                     >
                       {employee.e_number || '-'}
                     </td>
                     <td 
-                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer`}
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer sticky-column`}
                       style={{ width: `${columnWidths.name}px`, left: `${columnWidths.id}px` }}
                       onClick={() => setSelectedEmployee(employee)}
                     >
                       {employee.name || '-'}
                     </td>
                     <td 
-                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 sticky-column`}
                       style={{ width: `${columnWidths.alias}px`, left: `${columnWidths.id + columnWidths.name}px` }}
                     >
                       {employee.alias || '-'}
                     </td>
                     <td 
-                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 sticky-column`}
                       style={{ width: `${columnWidths.mobile}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias}px` }}
                     >
                       {employee.mobile_number || '-'}
                     </td>
                     <td 
-                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 sticky-column`}
                       style={{ width: `${columnWidths.team}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile}px` }}
                     >
                       {employee.team?.team_name || '-'}
                     </td>
                     <td 
-                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 sticky-column`}
                       style={{ width: `${columnWidths.title}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team}px` }}
                     >
                       {employee.job_title?.job_description || '-'}
                     </td>
                     <td 
-                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10`}
+                      className={`p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 sticky-column`}
                       style={{ width: `${columnWidths.status}px`, left: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title}px` }}
                     >
                       {employee.employee_status || 'Active'}
@@ -379,6 +389,7 @@ export const EmployeeCalendar = () => {
                     {days.map((day) => {
                       const dateKey = `${day.month+1}-${day.day}`;
                       const status = employee.schedule?.[dateKey] || 'O';
+                      const statusClass = statusColors[status] || '';
                       
                       return (
                         <TooltipProvider key={dateKey}>
@@ -386,8 +397,8 @@ export const EmployeeCalendar = () => {
                             <TooltipTrigger asChild>
                               <td 
                                 className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
-                                  ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''} 
-                                  ${status ? statusColors[status] : ''}`}
+                                  ${day.isWeekend ? 'weekend-column' : ''} 
+                                  ${statusClass}`}
                                 style={{ width: `${columnWidths.date}px` }}
                                 onClick={() => handleCellClick(employee, dateKey)}
                               >
@@ -396,7 +407,7 @@ export const EmployeeCalendar = () => {
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="text-sm font-medium">{employee.name}</div>
-                              <div className="text-xs">May {day.day}, 2025</div>
+                              <div className="text-xs">{getFormattedDate(day.day, day.month)}</div>
                               {status === 'D' && <div className="text-green-600">On Duty</div>}
                               {status === 'L' && <div className="text-red-600">On Leave</div>}
                               {status === 'T' && <div className="text-purple-600">In Training</div>}
