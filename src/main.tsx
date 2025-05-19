@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
-// Add some styles to ensure the root takes full height
+// Add some styles to ensure the root takes full height and width
 const rootElement = document.getElementById("root");
 if (rootElement) {
   rootElement.style.height = "100%";

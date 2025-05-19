@@ -4,26 +4,38 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Filter, X } from "lucide-react";
+import { Check, ChevronsUpDown, Filter, X, Calendar as CalendarIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
+import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
 
 // Helper function to determine if a date is a weekend
-const isWeekend = (dayOfMonth: number, month: number) => {
-  const date = new Date(2025, month, dayOfMonth);
-  const day = date.getDay();
-  return day === 0 || day === 6;
+const isWeekendDate = (date: Date) => {
+  return isWeekend(date);
 };
 
-// Generate days for May 2025
-const generateDays = () => {
-  const days = [];
-  // May 2025 has 31 days
-  for (let i = 1; i <= 31; i++) {
-    days.push({ day: i, month: 4, isWeekend: isWeekend(i, 4) }); // Month is 0-indexed, so May is 4
-  }
-  return days;
+// Generate days for a two-month period
+const generateTwoMonthDays = () => {
+  const currentDate = new Date();
+  const currentMonth = startOfMonth(currentDate);
+  const nextMonth = addMonths(currentMonth, 1);
+  const endOfNextMonth = endOfMonth(nextMonth);
+  
+  const dateRange = eachDayOfInterval({
+    start: currentMonth,
+    end: endOfNextMonth
+  });
+  
+  return dateRange.map(date => ({
+    date,
+    day: date.getDate(),
+    month: date.getMonth(),
+    year: date.getFullYear(),
+    isWeekend: isWeekendDate(date),
+    isToday: isToday(date),
+    monthName: format(date, 'MMM')
+  }));
 };
 
 export const EmployeeCalendar = () => {
@@ -33,10 +45,12 @@ export const EmployeeCalendar = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const days = generateDays();
+  const days = generateTwoMonthDays();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [filterOpen, setFilterOpen] = useState<Record<string, boolean>>({});
+  const [dateColumnFilters, setDateColumnFilters] = useState<Record<string, string[]>>({});
+  const [dateFilterOpen, setDateFilterOpen] = useState<Record<string, boolean>>({});
   
   const columnWidths = {
     id: 80,
@@ -49,41 +63,63 @@ export const EmployeeCalendar = () => {
     date: 45 // Width of each date column
   };
 
+  // Get unique status values for a specific date
+  const getUniqueStatusValues = (dateKey: string) => {
+    const statuses = employees.map(emp => emp.schedule?.[dateKey] || 'O');
+    return [...new Set(statuses)].sort();
+  };
+
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        // Fetch employees with their roster data
+        const { data: employeesData, error: employeesError } = await supabase
           .from('employees')
           .select(`
             *,
             job_title:job_title_id(job_code, job_description),
             team:team_id(team_name)
           `)
-          .limit(10);
+          .limit(20);
         
-        if (error) {
-          throw error;
+        if (employeesError) {
+          throw employeesError;
         }
 
-        // Process employees with schedule data
-        const processedEmployees = data.map(emp => {
-          // Generate random schedule data for demonstration
+        // Fetch roster data from the database
+        const { data: rosterData, error: rosterError } = await supabase
+          .from('employee_roster')
+          .select('*')
+          .in('employee_id', employeesData.map(emp => emp.id));
+        
+        if (rosterError) {
+          throw rosterError;
+        }
+
+        // Process employees with schedule data from the roster
+        const processedEmployees = employeesData.map(emp => {
+          // Initialize empty schedule
           const schedule: Record<string, string> = {};
+          
+          // First populate with default "O" (Off) for all days
           days.forEach(day => {
-            const randomValue = Math.random();
-            const dateKey = `${day.month+1}-${day.day}`;
-            
-            if (randomValue < 0.1) {
-              schedule[dateKey] = "L"; // Leave
-            } else if (randomValue < 0.2) {
-              schedule[dateKey] = "T"; // Training
-            } else if (randomValue < 0.8) {
-              schedule[dateKey] = "D"; // Duty
-            } else {
-              schedule[dateKey] = "O"; // Off
-            }
+            const dateKey = `${day.month+1}-${day.day}-${day.year}`;
+            schedule[dateKey] = "O"; // Default to Off
           });
+          
+          // Then update with actual roster data where it exists
+          if (rosterData) {
+            const employeeRoster = rosterData.filter(r => r.employee_id === emp.id);
+            
+            employeeRoster.forEach(roster => {
+              if (roster.date) {
+                const rosterDate = new Date(roster.date);
+                const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
+                schedule[dateKey] = roster.status_code || "D";
+              }
+            });
+          }
           
           return {
             ...emp,
@@ -120,6 +156,7 @@ export const EmployeeCalendar = () => {
   useEffect(() => {
     let result = [...employees];
     
+    // Apply regular column filters
     Object.entries(columnFilters).forEach(([column, values]) => {
       if (values.length > 0) {
         result = result.filter(emp => {
@@ -134,8 +171,18 @@ export const EmployeeCalendar = () => {
       }
     });
     
+    // Apply date column filters
+    Object.entries(dateColumnFilters).forEach(([dateKey, values]) => {
+      if (values.length > 0) {
+        result = result.filter(emp => {
+          const status = emp.schedule?.[dateKey] || 'O';
+          return values.includes(status);
+        });
+      }
+    });
+    
     setFilteredEmployees(result);
-  }, [columnFilters, employees]);
+  }, [columnFilters, dateColumnFilters, employees]);
 
   // Handle column filter changes
   const handleFilterChange = (column: string, value: string) => {
@@ -155,11 +202,37 @@ export const EmployeeCalendar = () => {
     });
   };
 
+  // Handle date column filter changes
+  const handleDateFilterChange = (dateKey: string, value: string) => {
+    setDateColumnFilters(prev => {
+      const currentValues = prev[dateKey] || [];
+      if (currentValues.includes(value)) {
+        return {
+          ...prev,
+          [dateKey]: currentValues.filter(v => v !== value)
+        };
+      } else {
+        return {
+          ...prev,
+          [dateKey]: [...currentValues, value]
+        };
+      }
+    });
+  };
+
   // Clear filters for a column
   const clearColumnFilter = (column: string) => {
     setColumnFilters(prev => ({
       ...prev,
       [column]: []
+    }));
+  };
+
+  // Clear filters for a date column
+  const clearDateColumnFilter = (dateKey: string) => {
+    setDateColumnFilters(prev => ({
+      ...prev,
+      [dateKey]: []
     }));
   };
 
@@ -248,6 +321,68 @@ export const EmployeeCalendar = () => {
     );
   };
 
+  // Date column filter component
+  const DateColumnFilter = ({ dateKey }: { dateKey: string }) => {
+    const uniqueValues = useMemo(() => getUniqueStatusValues(dateKey), [dateKey]);
+    const selectedValues = dateColumnFilters[dateKey] || [];
+    
+    return (
+      <Popover open={dateFilterOpen[dateKey]} onOpenChange={(open) => setDateFilterOpen(prev => ({ ...prev, [dateKey]: open }))}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-4 w-4 relative">
+            <Filter className={`h-2 w-2 ${selectedValues.length ? 'text-blue-500' : ''}`} />
+            {selectedValues.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-3 h-3 text-[8px] flex items-center justify-center">
+                {selectedValues.length}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-0">
+          <div className="p-2 border-b">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-xs">Filter Status</h4>
+              {selectedValues.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 px-2 text-xs"
+                  onClick={() => clearDateColumnFilter(dateKey)}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="p-2 max-h-40 overflow-auto">
+            {uniqueValues.map((value) => (
+              <div key={value} className="flex items-center space-x-2 py-1">
+                <button
+                  className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded text-left"
+                  onClick={() => handleDateFilterChange(dateKey, value)}
+                >
+                  <div className={`w-3 h-3 border rounded mr-1 flex items-center justify-center ${
+                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}>
+                    {selectedValues.includes(value) && (
+                      <Check className="h-2 w-2 text-white" />
+                    )}
+                  </div>
+                  <span className="flex-grow truncate text-xs">
+                    {value === "D" && "On Duty"}
+                    {value === "L" && "Leave"}
+                    {value === "T" && "Training"}
+                    {value === "O" && "Off"}
+                  </span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -257,7 +392,7 @@ export const EmployeeCalendar = () => {
   }
 
   return (
-    <div>
+    <div className="h-[80vh]">
       {/* Status Legend */}
       <div className="flex items-center gap-4 mb-2">
         {statusLegend.map((item) => (
@@ -268,8 +403,8 @@ export const EmployeeCalendar = () => {
         ))}
       </div>
       
-      <div className="border rounded-lg shadow-sm dark:border-gray-700">
-        <ScrollArea className="relative h-[500px] rounded-lg">
+      <div className="border rounded-lg shadow-sm dark:border-gray-700 h-full">
+        <ScrollArea className="relative h-full rounded-lg">
           <div className="min-w-full" style={{ width: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.title + columnWidths.status + (days.length * columnWidths.date)}px` }}>
             <table className="w-full border-collapse">
               <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
@@ -315,13 +450,16 @@ export const EmployeeCalendar = () => {
                   {/* Calendar days */}
                   {days.map((day, index) => (
                     <th 
-                      key={`${day.month+1}-${day.day}`} 
+                      key={`${day.month+1}-${day.day}-${day.year}`} 
                       className={`p-2 text-center border-r min-w-[${columnWidths.date}px] dark:border-gray-700 dark:text-gray-200 
                         ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                       style={{ width: `${columnWidths.date}px` }}
                     >
-                      <div className="text-xs font-medium">{day.day}</div>
-                      <div className="text-xs">May</div>
+                      <div className="flex flex-col items-center">
+                        <div className="text-xs font-medium">{day.day}</div>
+                        <div className="text-xs">{day.monthName}</div>
+                        <DateColumnFilter dateKey={`${day.month+1}-${day.day}-${day.year}`} />
+                      </div>
                     </th>
                   ))}
                 </tr>
@@ -377,7 +515,7 @@ export const EmployeeCalendar = () => {
                     
                     {/* Calendar days */}
                     {days.map((day) => {
-                      const dateKey = `${day.month+1}-${day.day}`;
+                      const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                       const status = employee.schedule?.[dateKey] || 'O';
                       
                       return (
@@ -387,7 +525,8 @@ export const EmployeeCalendar = () => {
                               <td 
                                 className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
                                   ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''} 
-                                  ${status ? statusColors[status] : ''}`}
+                                  ${status ? statusColors[status] : ''}
+                                  ${day.isToday ? 'border-2 border-blue-500' : ''}`}
                                 style={{ width: `${columnWidths.date}px` }}
                                 onClick={() => handleCellClick(employee, dateKey)}
                               >
@@ -396,7 +535,7 @@ export const EmployeeCalendar = () => {
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="text-sm font-medium">{employee.name}</div>
-                              <div className="text-xs">May {day.day}, 2025</div>
+                              <div className="text-xs">{format(day.date, 'MMMM d, yyyy')}</div>
                               {status === 'D' && <div className="text-green-600">On Duty</div>}
                               {status === 'L' && <div className="text-red-600">On Leave</div>}
                               {status === 'T' && <div className="text-purple-600">In Training</div>}

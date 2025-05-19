@@ -39,15 +39,15 @@ const AdminWorkforce = () => {
 
   return (
     <div className="flex flex-col h-screen w-full bg-gray-50 dark:bg-gray-900 dark:text-gray-100">
-      {/* Global Header */}
+      {/* Global Header with full width */}
       <WorkforceGlobalHeader 
         user={user}
         onLogout={handleLogout}
       />
 
       {/* Main Content - Allow scrolling here */}
-      <main className="flex-1 overflow-auto p-4 md:p-6">
-        <div className="max-w-full mx-auto">
+      <main className="flex-1 overflow-auto p-4 md:p-6 w-full">
+        <div className="w-full mx-auto">
           {/* Metrics Dashboard - Number Cards */}
           <WorkforceMetrics />
           

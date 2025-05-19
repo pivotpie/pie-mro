@@ -171,8 +171,8 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
   }, []);
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm w-full">
+      <div className="w-full px-4 h-16 flex items-center justify-between">
         {/* Logo/Brand */}
         <div className="flex items-center">
           <span className="text-xl font-semibold flex items-center">
