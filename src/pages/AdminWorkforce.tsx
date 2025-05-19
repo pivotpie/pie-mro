@@ -45,7 +45,7 @@ const AdminWorkforce = () => {
         onLogout={handleLogout}
       />
 
-      {/* Main Content - Allow scrolling here */}
+      {/* Main Content - Allow both x and y scrolling */}
       <main className="flex-1 overflow-auto p-4 md:p-6 w-full">
         <div className="w-full mx-auto">
           {/* Metrics Dashboard - Number Cards */}
