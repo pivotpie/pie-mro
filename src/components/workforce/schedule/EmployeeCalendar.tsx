@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -676,6 +677,12 @@ export const EmployeeCalendar = () => {
     );
   }
 
+  // Calculate total width for all columns to ensure proper horizontal scrolling
+  const totalWidth = columnWidths.id + columnWidths.name + columnWidths.alias + 
+    columnWidths.mobile + columnWidths.team + columnWidths.core + 
+    columnWidths.support + columnWidths.title + columnWidths.night_shift + 
+    columnWidths.fte + columnWidths.ttl + (days.length * columnWidths.date);
+
   return (
     <div className="h-[80vh]">
       {/* Status Legend */}
@@ -689,11 +696,9 @@ export const EmployeeCalendar = () => {
       </div>
       
       <div className="border rounded-lg shadow-sm dark:border-gray-700 h-full">
-        <ScrollArea className="h-full rounded-lg">
-          <div className="min-w-full" style={{ width: `${columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + 
-            columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title + columnWidths.night_shift + columnWidths.fte + 
-            columnWidths.ttl + (days.length * columnWidths.date)}px` }}>
-            <table className="w-full border-collapse">
+        <ScrollArea className="h-full rounded-lg overflow-x-auto">
+          <div className="min-w-full" style={{ width: `${totalWidth}px` }}>
+            <table className="w-full border-collapse table-fixed">
               <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
                 <tr>
                   {/* Fixed columns - all headers should be sticky */}
@@ -783,7 +788,7 @@ export const EmployeeCalendar = () => {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="w-full overflow-y-auto">
                 {filteredEmployees.map((employee) => {
                   const isDifferent = hasDifferentCoreSupport(employee);
                   

@@ -141,6 +141,7 @@ html, body {
 .sticky-column {
   z-index: 10 !important;
   background-color: white !important;
+  position: sticky !important;
 }
 
 .dark .sticky-column {
@@ -168,4 +169,20 @@ thead th.sticky-column {
 /* Fix popover z-index to appear above sticky elements */
 .popover-content {
   z-index: 50 !important;
+}
+
+/* Ensure proper table display for horizontal scrolling */
+.table-fixed {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Improve scroll area for employee schedule */
+.overflow-x-auto {
+  overflow-x: auto !important;
+}
+
+.overflow-y-auto {
+  overflow-y: auto !important;
 }
