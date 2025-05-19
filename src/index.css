@@ -137,9 +137,9 @@ html, body {
 }
 
 /* Fix header z-index */
-thead th.sticky {
-  z-index: 30 !important;
-}
+// thead th.sticky {
+//   z-index: 30 !important;
+// }
 
 /* Fix popover z-index to appear above sticky elements */
 .popover-content {
