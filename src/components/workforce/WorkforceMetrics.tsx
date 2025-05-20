@@ -78,7 +78,7 @@ const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick, isLo
   </Card>
 );
 
-// Define basic interfaces without circular references
+// Define base interfaces with minimal fields to avoid deep nesting
 interface JobTitle {
   job_description: string;
 }
@@ -87,25 +87,17 @@ interface Team {
   team_name: string;
 }
 
-interface Certification {
-  id: number;
-  [key: string]: any;
-}
-
-interface EmployeeAuthorization {
-  id: number;
-  [key: string]: any;
-}
-
-interface DateReferenceType {
-  id: number;
+// Simple interface for date reference
+interface SimpleDateReference {
   actual_date: string;
 }
 
-interface RosterCodeType {
+// Simple interface for roster code
+interface SimpleRosterCode {
   roster_code: string;
 }
 
+// Basic employee interface without nested objects
 interface EmployeeBase {
   id: number;
   name: string;
@@ -115,62 +107,62 @@ interface EmployeeBase {
   is_active: boolean;
 }
 
-// Break the circular reference by making these simpler interfaces
-interface EmployeeBasicInfo {
+// Employee with basic job title and team info
+interface EmployeeInfo {
   id: number;
   name: string;
   e_number: number;
-  job_titles?: { job_description: string };
-  team?: { team_name: string };
+  job_titles?: JobTitle;
+  team?: Team;
   mobile_number?: string;
 }
 
-// Now define the more complex interfaces using the basic ones
+// Employee with all details
 interface Employee extends EmployeeBase {
   job_titles?: JobTitle;
   team?: Team;
-  certifications?: Certification[];
-  employee_authorizations?: EmployeeAuthorization[];
+  certifications?: { id: number }[];
+  employee_authorizations?: { id: number }[];
 }
 
-interface RosterAssignmentType {
+// Simplified roster assignment
+interface RosterAssignment {
   id: number;
   employee_id: number;
   date_id: number;
   roster_id: number;
-  employees?: EmployeeBasicInfo; // Use simplified employee type to avoid deep nesting
-  date?: {
-    actual_date: string;
-  };
-  roster?: RosterCodeType;
+  employees?: EmployeeInfo;
+  date?: SimpleDateReference;
+  roster?: SimpleRosterCode;
 }
 
-interface AircraftType {
+// Simplified aircraft type
+interface SimpleAircraftType {
+  type_name: string;
+  manufacturer: string;
+}
+
+// Basic aircraft interface 
+interface SimpleAircraft {
   id: number;
   aircraft_name?: string;
   registration?: string;
-  aircraft_types?: { 
-    type_name: string; 
-    manufacturer: string 
-  };
+  aircraft_types?: SimpleAircraftType;
   customer?: string;
   total_hours?: number;
   total_cycles?: number;
 }
 
-interface HangarType {
+// Simplified hangar type
+interface SimpleHangar {
   hangar_name: string;
 }
 
-interface PersonnelRequirement {
-  id: number;
-  [key: string]: any;
-}
-
-interface MaintenanceVisitType {
+// Simplified maintenance visit
+interface MaintenanceVisit {
   id: number;
   aircraft_id: number;
-  aircraft?: AircraftType;
+  aircraft?: SimpleAircraft;
   visit_number: string;
   check_type: string;
   status?: string;
@@ -178,16 +170,16 @@ interface MaintenanceVisitType {
   date_out: string;
   remarks?: string;
   hangar_id?: number;
-  hangar?: HangarType;
+  hangar?: SimpleHangar;
   total_hours?: number;
-  personnel_requirements?: PersonnelRequirement[];
+  personnel_requirements?: { id: number }[];
 }
 
-interface EmployeeSupportType {
+// Simple employee support type
+interface EmployeeSupport {
   id: number;
   employee_id: number;
   support_id: number;
-  date?: string;
 }
 
 export const WorkforceMetrics = () => {
@@ -233,7 +225,7 @@ export const WorkforceMetrics = () => {
         .eq('date', currentDate);
       if (error) throw error;
       console.log('Employee supports fetched for today:', data?.length);
-      return data as EmployeeSupportType[] || [];
+      return data as EmployeeSupport[] || [];
     }
   });
 
@@ -251,7 +243,7 @@ export const WorkforceMetrics = () => {
         return null;
       }
       console.log('Date reference fetched:', data);
-      return data as DateReferenceType | null;
+      return data as { id: number } | null;
     }
   });
 
@@ -276,7 +268,7 @@ export const WorkforceMetrics = () => {
         return [];
       }
       console.log('Roster assignments fetched for today:', data?.length);
-      return data as unknown as RosterAssignmentType[] || [];
+      return data as RosterAssignment[] || [];
     },
     enabled: !!dateReference?.id
   });
@@ -295,7 +287,7 @@ export const WorkforceMetrics = () => {
           
         if (error) throw error;
         console.log('Aircraft fetched:', data?.length);
-        return data as AircraftType[] || [];
+        return data as SimpleAircraft[] || [];
       } catch (error: any) {
         console.error("Error fetching aircraft:", error);
         return [];
@@ -323,7 +315,7 @@ export const WorkforceMetrics = () => {
           
         if (error) throw error;
         console.log('Maintenance visits fetched for today:', data?.length);
-        return data as MaintenanceVisitType[] || [];
+        return data as MaintenanceVisit[] || [];
       } catch (error: any) {
         console.error("Error fetching maintenance visits:", error);
         return [];
