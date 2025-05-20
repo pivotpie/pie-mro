@@ -17,7 +17,7 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
   if (error) throw error;
   console.log('Total employees fetched:', data?.length);
   
-  // Transform the data to a flatter structure
+  // Transform the data to a flatter structure with explicit typing
   return (data || []).map(emp => ({
     id: emp.id,
     name: emp.name,
@@ -27,9 +27,9 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
     is_active: emp.is_active,
     job_title_description: emp.job_titles?.job_description,
     team_name: emp.team?.team_name,
-    certification_count: (emp.certifications || []).length,
-    authorization_count: (emp.employee_authorizations || []).length
-  })) as EmployeeBasic[];
+    certification_count: Array.isArray(emp.certifications) ? emp.certifications.length : 0,
+    authorization_count: Array.isArray(emp.employee_authorizations) ? emp.employee_authorizations.length : 0
+  }));
 };
 
 export const fetchEmployeeSupports = async (currentDate: string): Promise<EmployeeSupportBasic[]> => {
@@ -40,7 +40,7 @@ export const fetchEmployeeSupports = async (currentDate: string): Promise<Employ
 
   if (error) throw error;
   console.log('Employee supports fetched for today:', data?.length);
-  return data as EmployeeSupportBasic[] || [];
+  return data || [];
 };
 
 export const fetchDateReference = async (currentDate: string): Promise<{ id: number } | null> => {
@@ -55,7 +55,7 @@ export const fetchDateReference = async (currentDate: string): Promise<{ id: num
     return null;
   }
   console.log('Date reference fetched:', data);
-  return data as { id: number } | null;
+  return data;
 };
 
 export const fetchRosterAssignments = async (dateId: number): Promise<SimpleRosterAssignment[]> => {
@@ -90,7 +90,7 @@ export const fetchRosterAssignments = async (dateId: number): Promise<SimpleRost
     employee_mobile: ra.employees?.mobile_number,
     date_value: ra.date?.actual_date,
     roster_code: ra.roster?.roster_code
-  })) as SimpleRosterAssignment[];
+  }));
 };
 
 export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
@@ -115,7 +115,7 @@ export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
       customer: ac.customer,
       total_hours: ac.total_hours,
       total_cycles: ac.total_cycles
-    })) as AircraftBasic[];
+    }));
   } catch (error: any) {
     console.error("Error fetching aircraft:", error);
     return [];
@@ -170,7 +170,7 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
       hangar_name: mv.hangar?.hangar_name,
       total_hours: mv.total_hours,
       has_personnel_requirements: visitsWithPersonnel.has(mv.id)
-    })) as MaintenanceVisitBasic[];
+    }));
   } catch (error: any) {
     console.error("Error fetching maintenance visits:", error);
     return [];
