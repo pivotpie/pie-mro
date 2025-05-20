@@ -68,8 +68,6 @@ export const AircraftCalendar = () => {
             check_type,
             date_in,
             date_out,
-            start_date,
-            end_date,
             status,
             remarks,
             hangar_id,
@@ -80,7 +78,8 @@ export const AircraftCalendar = () => {
               aircraft_name,
               registration,
               customer
-            )
+            ),
+            total_hours
           `);
         
         if (visitError) throw visitError;
