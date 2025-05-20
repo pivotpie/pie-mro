@@ -80,17 +80,25 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
             status,
             start_date,
             end_date,
+            date_in,
+            date_out,
             hangar_id,
             aircraft:aircraft_id (
               id, 
               registration, 
               customer,
-              aircraft_name
+              aircraft_name,
+              aircraft_type_id
             )
           `)
           .order('start_date');
           
-        if (visitsError) throw visitsError;
+        if (visitsError) {
+          console.error('Error fetching visits:', visitsError);
+          throw visitsError;
+        }
+        
+        console.log('Fetched visits data:', visitsData);
         
         // Process hangars
         const processedHangars = hangarsData.map((hangar: any) => ({
@@ -113,23 +121,41 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
           'R44': 'bg-pink-200 border-pink-400 dark:bg-pink-900 dark:border-pink-700'
         };
         
+        // Get aircraft types for color mapping
+        const { data: aircraftTypes } = await supabase
+          .from('aircraft_types')
+          .select('id, type_code');
+        
+        const typeIdToCode: Record<number, string> = {};
+        if (aircraftTypes) {
+          aircraftTypes.forEach((type: any) => {
+            typeIdToCode[type.id] = type.type_code;
+          });
+        }
+        
         // Group by hangar
         processedHangars.forEach(hangar => {
           const hangarSchedules = visitsData
             .filter((visit: any) => visit.hangar_id === hangar.id)
             .map((visit: any) => {
               // Parse dates
-              const startDate = new Date(visit.start_date);
-              const endDate = new Date(visit.end_date);
+              let startDate, endDate;
+              
+              try {
+                startDate = visit.start_date ? new Date(visit.start_date) : new Date(visit.date_in);
+                endDate = visit.end_date ? new Date(visit.end_date) : new Date(visit.date_out);
+              } catch (error) {
+                console.error('Error parsing dates for visit:', visit);
+                startDate = new Date();
+                endDate = new Date(new Date().getTime() + 86400000); // Next day
+              }
               
               // Determine color based on aircraft type
               let color = 'bg-gray-200 border-gray-400 dark:bg-gray-900 dark:border-gray-700';
-              if (visit.aircraft && visit.aircraft.aircraft_name) {
-                // Extract type code from name (e.g., "Airbus A320" -> "A320")
-                const typeMatch = visit.aircraft.aircraft_name.match(/(A\d{3}|B\d{3}|PA-?\d{2}|R\d{2})/i);
-                if (typeMatch) {
-                  const typeCode = typeMatch[0].replace('-', '').toUpperCase();
-                  color = colorMap[typeCode] || color;
+              if (visit.aircraft && visit.aircraft.aircraft_type_id) {
+                const typeCode = typeIdToCode[visit.aircraft.aircraft_type_id];
+                if (typeCode && colorMap[typeCode]) {
+                  color = colorMap[typeCode];
                 }
               }
               
@@ -147,7 +173,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                   day: endDate.getDate() 
                 },
                 team: null, // We don't have team data yet
-                status: visit.status,
+                status: visit.status || 'Scheduled',
                 registration: visit.aircraft?.registration || 'UNKNOWN',
                 customer: visit.aircraft?.customer || 'Unknown Operator',
                 color
@@ -162,6 +188,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
         
         setHangars(processedHangars);
         setAircraftSchedules(schedulesByHangar);
+        console.log('Processed aircraft schedules:', schedulesByHangar);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load aircraft schedule data');
@@ -200,13 +227,8 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
   // Handle scroll events from the scrollArea
   const handleScroll = () => {
     if (scrollAreaRef.current) {
-      onScroll(scrollAreaRef.current.scrollLeft);
+      // This would normally send the scroll position back up to the parent
     }
-  };
-
-  // Dummy function to satisfy TypeScript even though we don't need to propagate upward
-  const onScroll = (_scrollLeft: number) => {
-    // This would normally send the scroll position back up to the parent
   };
 
   if (loading) {
@@ -241,7 +263,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                     className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200
                       ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                   >
-                    <div className="text-xs font-medium">{index + 1}</div>
+                    <div className="text-xs font-medium">{day.day}</div>
                     <div className="text-xs">May</div>
                   </th>
                 ))}
