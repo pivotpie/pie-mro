@@ -107,7 +107,7 @@ export const WorkforceMetrics = () => {
         .eq('is_active', true);
         
       if (error) throw error;
-      return data.length;
+      return data || [];
     }
   });
 
@@ -119,13 +119,13 @@ export const WorkforceMetrics = () => {
         // First get all employees
         const { data: allEmployees, error: employeesError } = await supabase
           .from('employees')
-          .select('id')
+          .select('*')
           .eq('is_active', true);
           
         if (employeesError) throw employeesError;
         
         if (!allEmployees || allEmployees.length === 0) {
-          return 0;
+          return [];
         }
         
         // Get date_id for current date
@@ -148,302 +148,199 @@ export const WorkforceMetrics = () => {
           if (assignedError) throw assignedError;
           
           // Filter out the assigned employees
-          const assignedIds = new Set(assignedEmployees.map(e => e.employee_id));
-          const availableCount = allEmployees.filter(e => !assignedIds.has(e.id)).length;
-          
-          return availableCount;
+          const assignedIds = new Set(assignedEmployees?.map(e => e.employee_id) || []);
+          return allEmployees.filter(e => !assignedIds.has(e.id)) || [];
         } else {
           // If no date record found, assume all employees are available
-          return allEmployees.length;
+          return allEmployees || [];
         }
       } catch (error: any) {
         console.error("Error fetching available employees:", error);
-        // Return 0 if there's an error
-        return 0;
+        return [];
       }
     }
   });
 
   // Fetch on leave employees
-  const { data: onLeaveCount, isLoading: loadingOnLeave } = useQuery({
-    queryKey: ['onLeaveCount', currentDate],
+  const { data: onLeave, isLoading: loadingOnLeave } = useQuery({
+    queryKey: ['onLeave', currentDate],
     queryFn: async () => {
       try {
-        const { data: onLeave, error } = await supabase
+        const { data, error } = await supabase
           .from('attendance')
-          .select('employee_id')
+          .select(`
+            *, 
+            employees(
+              *,
+              job_titles(job_description),
+              team:teams(team_name),
+              certifications(*),
+              employee_authorizations(*)
+            )
+          `)
           .eq('status', 'Annual Leave')
           .gt('date', currentDate);
           
         if (error) throw error;
-        
-        return onLeave ? onLeave.length : 0;
+        return data || [];
       } catch (error: any) {
         console.error("Error fetching on leave employees:", error);
-        return 0;
+        return [];
       }
     }
   });
 
   // Fetch employees in training
-  const { data: inTrainingCount, isLoading: loadingInTraining } = useQuery({
-    queryKey: ['inTrainingCount', currentDate],
+  const { data: inTraining, isLoading: loadingInTraining } = useQuery({
+    queryKey: ['inTraining', currentDate],
     queryFn: async () => {
       try {
         const sevenDaysLater = new Date();
         sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
         const sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0];
         
-        const { data: inTraining, error } = await supabase
+        const { data, error } = await supabase
           .from('employee_training_schedules')
-          .select('employee_id')
+          .select(`
+            *, 
+            employees(
+              *,
+              job_titles(job_description),
+              team:teams(team_name),
+              certifications(*),
+              employee_authorizations(*)
+            ), 
+            training_types(*)
+          `)
           .gt('required_date', currentDate)
           .lt('required_date', sevenDaysLaterStr);
           
         if (error) throw error;
-        
-        return inTraining ? inTraining.length : 0;
+        return data || [];
       } catch (error: any) {
         console.error("Error fetching employees in training:", error);
-        return 0;
+        return [];
       }
     }
   });
 
   // Fetch aircraft metrics
-  const { data: aircraftMetrics, isLoading: loadingAircraft } = useQuery({
-    queryKey: ['aircraftMetrics'],
+  const { data: aircraft, isLoading: loadingAircraft } = useQuery({
+    queryKey: ['allAircraft'],
     queryFn: async () => {
       try {
-        // Get all aircraft
-        const { data: aircraft, error: aircraftError } = await supabase
+        const { data, error } = await supabase
           .from('aircraft')
-          .select('*');
+          .select(`
+            *,
+            aircraft_types(*)
+          `);
           
-        if (aircraftError) throw aircraftError;
-        
-        // Get maintenance visits data
-        const { data: visits, error: visitsError } = await supabase
-          .from('maintenance_visits')
-          .select('*');
-          
-        if (visitsError) throw visitsError;
-        
-        if (!visits || !aircraft) {
-          return {
-            total: 0,
-            inMaintenance: 0,
-            scheduled: 0,
-            available: 0
-          };
-        }
-        
-        // Calculate metrics
-        const inMaintenance = visits.filter(v => v.status === 'In Progress').length;
-        const scheduled = visits.filter(v => v.status === 'Scheduled').length;
-        
-        return {
-          total: aircraft.length,
-          inMaintenance,
-          scheduled,
-          available: aircraft.length - inMaintenance
-        };
+        if (error) throw error;
+        return data || [];
       } catch (error: any) {
-        console.error("Error fetching aircraft metrics:", error);
-        return {
-          total: 0,
-          inMaintenance: 0,
-          scheduled: 0,
-          available: 0
-        };
+        console.error("Error fetching aircraft:", error);
+        return [];
       }
     }
   });
 
-  const isLoading = loadingTotalEmployees || loadingAvailableEmployees || loadingOnLeave || loadingInTraining || loadingAircraft;
-
-  // Fetch detail data when a metric is selected
-  useEffect(() => {
-    const fetchDetailData = async () => {
-      if (!selectedMetric) return;
-      
-      let data: any[] = [];
-      
+  // Fetch maintenance visits
+  const { data: maintenanceVisits, isLoading: loadingMaintenanceVisits } = useQuery({
+    queryKey: ['maintenanceVisits'],
+    queryFn: async () => {
       try {
-        switch (selectedMetric) {
-          case 'available':
-            // Get all active employees
-            const { data: allEmployees, error: allEmpError } = await supabase
-              .from('employees')
-              .select(`
-                *, 
-                job_titles(job_description),
-                team:teams(team_name),
-                certifications(*),
-                employee_authorizations(*)
-              `)
-              .eq('is_active', true);
-              
-            if (allEmpError) throw allEmpError;
-            
-            // Get date_id for current date
-            const { data: dateRef, error: dateError } = await supabase
-              .from('date_references')
-              .select('id')
-              .eq('actual_date', currentDate);
-              
-            if (dateError) throw dateError;
-            
-            if (dateRef && dateRef.length > 0) {
-              const dateId = dateRef[0].id;
-              
-              // Get employees with roster assignments today
-              const { data: assignedEmployees, error: assignedError } = await supabase
-                .from('roster_assignments')
-                .select('employee_id')
-                .eq('date_id', dateId);
-                
-              if (assignedError) throw assignedError;
-              
-              // Filter out the assigned employees
-              const assignedIds = new Set(assignedEmployees.map(e => e.employee_id));
-              data = allEmployees.filter(e => !assignedIds.has(e.id)) || [];
-            } else {
-              data = allEmployees || [];
-            }
-            break;
+        const { data, error } = await supabase
+          .from('maintenance_visits')
+          .select(`
+            *, 
+            aircraft(
+              *,
+              aircraft_types(*)
+            ),
+            personnel_requirements(*)
+          `);
           
-          case 'leave':
-            const { data: onLeave, error: leaveError } = await supabase
-              .from('attendance')
-              .select(`
-                *, 
-                employees(
-                  *,
-                  job_titles(job_description),
-                  team:teams(team_name),
-                  certifications(*),
-                  employee_authorizations(*)
-                )
-              `)
-              .eq('status', 'Annual Leave')
-              .gt('date', currentDate);
-              
-            if (leaveError) throw leaveError;
-            data = onLeave || [];
-            break;
-            
-          case 'training':
-            const sevenDaysLater = new Date();
-            sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-            const sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0];
-            
-            const { data: inTraining, error: trainingError } = await supabase
-              .from('employee_training_schedules')
-              .select(`
-                *, 
-                employees(
-                  *,
-                  job_titles(job_description),
-                  team:teams(team_name),
-                  certifications(*),
-                  employee_authorizations(*)
-                ), 
-                training_types(*)
-              `)
-              .gt('required_date', currentDate)
-              .lt('required_date', sevenDaysLaterStr);
-              
-            if (trainingError) throw trainingError;
-            data = inTraining || [];
-            break;
-            
-          case 'grounded':
-            const { data: groundedAircraft, error: groundedError } = await supabase
-              .from('maintenance_visits')
-              .select(`
-                *, 
-                aircraft(
-                  *,
-                  aircraft_types(*)
-                ),
-                personnel_requirements(*)
-              `)
-              .eq('status', 'In Progress');
-              
-            if (groundedError) throw groundedError;
-            data = groundedAircraft || [];
-            break;
-            
-          case 'assigned':
-            const { data: assignedAircraft, error: assignedError } = await supabase
-              .from('maintenance_visits')
-              .select(`
-                *, 
-                aircraft(
-                  *,
-                  aircraft_types(*)
-                ),
-                personnel_requirements(*)
-              `)
-              .eq('status', 'In Progress');
-              
-            if (assignedError) throw assignedError;
-            data = assignedAircraft || [];
-            break;
-            
-          case 'pending':
-            const { data: pendingAircraft, error: pendingError } = await supabase
-              .from('maintenance_visits')
-              .select(`
-                *, 
-                aircraft(
-                  *,
-                  aircraft_types(*)
-                )
-              `)
-              .eq('status', 'Scheduled');
-              
-            if (pendingError) throw pendingError;
-            data = pendingAircraft || [];
-            break;
-            
-          case 'productivity':
-            const { data: availableAircraft, error: availableError } = await supabase
-              .from('aircraft')
-              .select(`
-                *,
-                aircraft_types(*)
-              `);
-              
-            if (availableError) throw availableError;
-            
-            const { data: maintenanceVisits, error: visitsError } = await supabase
-              .from('maintenance_visits')
-              .select('aircraft_id')
-              .eq('status', 'In Progress');
-              
-            if (visitsError) throw visitsError;
-            
-            const inMaintenanceIds = new Set(maintenanceVisits.map(v => v.aircraft_id));
-            data = availableAircraft.filter(a => !inMaintenanceIds.has(a.id)) || [];
-            break;
-        }
-        
-        setDetailData(data);
-      } catch (error) {
-        console.error('Error fetching detail data:', error);
-        toast.error("Error fetching data details");
-        setDetailData([]);
+        if (error) throw error;
+        return data || [];
+      } catch (error: any) {
+        console.error("Error fetching maintenance visits:", error);
+        return [];
       }
-    };
-    
-    if (selectedMetric && isDialogOpen) {
-      fetchDetailData();
     }
-  }, [selectedMetric, isDialogOpen, currentDate]);
+  });
+
+  // Calculate aircraft metrics
+  const aircraftMetrics = React.useMemo(() => {
+    if (aircraft && maintenanceVisits) {
+      const inMaintenance = maintenanceVisits.filter(v => v.status === 'In Progress').length;
+      const scheduled = maintenanceVisits.filter(v => v.status === 'Scheduled').length;
+      
+      return {
+        total: aircraft.length,
+        inMaintenance,
+        scheduled,
+        available: aircraft.length - inMaintenance
+      };
+    }
+    return {
+      total: 0,
+      inMaintenance: 0,
+      scheduled: 0,
+      available: 0
+    };
+  }, [aircraft, maintenanceVisits]);
+
+  const isLoading = loadingTotalEmployees || loadingAvailableEmployees || loadingOnLeave || loadingInTraining || loadingAircraft || loadingMaintenanceVisits;
+
+  // Set detail data when selecting a metric
+  useEffect(() => {
+    if (!selectedMetric || !isDialogOpen) return;
+    
+    let data: any[] = [];
+    
+    switch (selectedMetric) {
+      case 'total-employees':
+        data = totalEmployees || [];
+        break;
+      case 'available':
+        data = availableEmployees || [];
+        break;
+      case 'leave':
+        data = onLeave || [];
+        break;
+      case 'training':
+        data = inTraining || [];
+        break;
+      case 'grounded':
+        data = maintenanceVisits?.filter(v => v.status === 'In Progress') || [];
+        break;
+      case 'assigned':
+        data = maintenanceVisits?.filter(v => v.status === 'In Progress') || [];
+        break;
+      case 'pending':
+        data = maintenanceVisits?.filter(v => v.status === 'Scheduled') || [];
+        break;
+      case 'productivity':
+        if (aircraft && maintenanceVisits) {
+          const inMaintenanceIds = new Set(
+            maintenanceVisits
+              .filter(v => v.status === 'In Progress')
+              .map(v => v.aircraft_id)
+          );
+          data = aircraft.filter(a => !inMaintenanceIds.has(a.id)) || [];
+        }
+        break;
+      default:
+        data = [];
+    }
+    
+    setDetailData(data);
+    console.log(`Setting detail data for ${selectedMetric}:`, data);
+  }, [selectedMetric, isDialogOpen, totalEmployees, availableEmployees, onLeave, inTraining, aircraft, maintenanceVisits]);
 
   const handleMetricClick = (metricId: string) => {
+    console.log(`Metric clicked: ${metricId}`);
     setSelectedMetric(metricId);
     setIsDialogOpen(true);
     // Reset selection and sorting when opening a new metric view
@@ -456,6 +353,7 @@ export const WorkforceMetrics = () => {
 
   const getDetailTitle = () => {
     switch (selectedMetric) {
+      case 'total-employees': return 'Total Employees';
       case 'available': return 'Available Employees';
       case 'leave': return 'Employees on Leave';
       case 'training': return 'Employees in Training';
@@ -463,7 +361,6 @@ export const WorkforceMetrics = () => {
       case 'assigned': return 'Aircraft with Assigned Teams';
       case 'pending': return 'Aircraft Pending Assignment';
       case 'productivity': return 'Available Aircraft';
-      case 'total-employees': return 'Total Employees';
       default: return 'Details';
     }
   };
@@ -613,6 +510,8 @@ export const WorkforceMetrics = () => {
 
   // Filter data based on search and filters
   const filterData = () => {
+    if (!detailData) return [];
+    
     let filteredData = [...detailData];
     
     // Apply search term if exists
@@ -1153,7 +1052,7 @@ export const WorkforceMetrics = () => {
     return (
       <div className="space-y-4">
         <SortableTable 
-          data={filteredData}
+          data={filteredData.map((item, index) => ({...item, id: item.id || `temp-${index}`}))}
           columns={columns}
           defaultSortColumn={sortField}
           className="w-full"
@@ -1166,28 +1065,28 @@ export const WorkforceMetrics = () => {
     { 
       id: 'total-employees', 
       label: 'Total Employees', 
-      value: isLoading ? '-' : (totalEmployees || 0), 
+      value: isLoading ? '-' : (totalEmployees?.length || 0), 
       icon: Users, 
       color: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800',
     },
     { 
       id: 'available', 
       label: 'Available Employees', 
-      value: isLoading ? '-' : (availableEmployees || 0), 
+      value: isLoading ? '-' : (availableEmployees?.length || 0), 
       icon: UserCheck, 
       color: 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800',
     },
     { 
       id: 'leave', 
       label: 'On Leave', 
-      value: isLoading ? '-' : onLeaveCount || 0, 
+      value: isLoading ? '-' : onLeave?.length || 0, 
       icon: CalendarCheck, 
       color: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
     },
     { 
       id: 'training', 
       label: 'In Training', 
-      value: isLoading ? '-' : inTrainingCount || 0, 
+      value: isLoading ? '-' : inTraining?.length || 0, 
       icon: GraduationCap, 
       color: 'bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800',
     },
@@ -1408,3 +1307,4 @@ export const WorkforceMetrics = () => {
     </>
   );
 };
+
