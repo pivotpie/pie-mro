@@ -18,18 +18,28 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
   console.log('Total employees fetched:', data?.length);
   
   // Transform the data to a flatter structure with explicit typing
-  return (data || []).map(emp => ({
-    id: emp.id,
-    name: emp.name,
-    e_number: emp.e_number,
-    mobile_number: emp.mobile_number,
-    date_of_joining: emp.date_of_joining,
-    is_active: emp.is_active,
-    job_title_description: emp.job_titles?.job_description,
-    team_name: emp.team?.team_name,
-    certification_count: Array.isArray(emp.certifications) ? emp.certifications.length : 0,
-    authorization_count: Array.isArray(emp.employee_authorizations) ? emp.employee_authorizations.length : 0
-  }));
+  return (data || []).map(emp => {
+    const certCount = emp.certifications && Array.isArray(emp.certifications) 
+      ? emp.certifications.length 
+      : 0;
+    
+    const authCount = emp.employee_authorizations && Array.isArray(emp.employee_authorizations) 
+      ? emp.employee_authorizations.length 
+      : 0;
+      
+    return {
+      id: emp.id,
+      name: emp.name,
+      e_number: emp.e_number,
+      mobile_number: emp.mobile_number,
+      date_of_joining: emp.date_of_joining,
+      is_active: emp.is_active,
+      job_title_description: emp.job_titles?.job_description,
+      team_name: emp.team?.team_name,
+      certification_count: certCount,
+      authorization_count: authCount
+    };
+  });
 };
 
 export const fetchEmployeeSupports = async (currentDate: string): Promise<EmployeeSupportBasic[]> => {
