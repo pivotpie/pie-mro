@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -111,15 +112,16 @@ export const WorkforceMetrics = () => {
     }
   });
 
-  // Fetch employee supports for available calculation
+  // Fetch employee supports for current date
   const { data: employeeSupports, isLoading: loadingEmployeeSupports } = useQuery({
-    queryKey: ['employeeSupports'],
+    queryKey: ['employeeSupports', currentDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employee_supports')
-        .select('*');
+        .select('*')
+        .eq('date', currentDate);
       if (error) throw error;
-      console.log('Employee supports fetched:', data?.length);
+      console.log('Employee supports fetched for today:', data?.length);
       return data || [];
     }
   });
@@ -133,9 +135,12 @@ export const WorkforceMetrics = () => {
         .select('id')
         .eq('actual_date', currentDate)
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching date reference:", error);
+        return null;
+      }
       console.log('Date reference fetched:', data);
-      return data || null;
+      return data;
     }
   });
 
@@ -155,8 +160,11 @@ export const WorkforceMetrics = () => {
         `)
         .eq('date_id', dateReference.id);
       
-      if (error) throw error;
-      console.log('Roster assignments fetched:', data?.length);
+      if (error) {
+        console.error("Error fetching roster assignments:", error);
+        return [];
+      }
+      console.log('Roster assignments fetched for today:', data?.length);
       return data || [];
     },
     enabled: !!dateReference?.id
@@ -184,9 +192,9 @@ export const WorkforceMetrics = () => {
     }
   });
 
-  // Fetch maintenance visits
+  // Fetch maintenance visits for current date
   const { data: maintenanceVisits, isLoading: loadingMaintenanceVisits } = useQuery({
-    queryKey: ['maintenanceVisits'],
+    queryKey: ['maintenanceVisits', currentDate],
     queryFn: async () => {
       try {
         const { data, error } = await supabase
@@ -198,10 +206,12 @@ export const WorkforceMetrics = () => {
             ),
             hangar:hangars(*),
             personnel_requirements(*)
-          `);
+          `)
+          .lte('date_in', currentDate)
+          .gte('date_out', currentDate);
           
         if (error) throw error;
-        console.log('Maintenance visits fetched:', data?.length);
+        console.log('Maintenance visits fetched for today:', data?.length);
         return data || [];
       } catch (error: any) {
         console.error("Error fetching maintenance visits:", error);
@@ -210,11 +220,11 @@ export const WorkforceMetrics = () => {
     }
   });
 
-  // Calculate available employees (excluding those with support assignments)
+  // Calculate available employees (excluding those with support assignments and roster assignments for leave/training)
   const availableEmployees = React.useMemo(() => {
     if (!totalEmployees || !employeeSupports || !rosterAssignments) return [];
     
-    // Get IDs of employees with support assignments
+    // Get IDs of employees with support assignments for today
     const supportEmployeeIds = new Set(employeeSupports.map(es => es.employee_id));
     
     // Get IDs of employees on leave or training from roster
@@ -256,16 +266,27 @@ export const WorkforceMetrics = () => {
     return rosterAssignments.filter(ra => ra.roster_id === 9);
   }, [rosterAssignments]);
 
-  // Calculate aircraft metrics
+  // Calculate aircraft metrics for today
   const aircraftMetrics = React.useMemo(() => {
     if (aircraft && maintenanceVisits) {
+      // Aircraft currently in maintenance
       const inMaintenance = maintenanceVisits.filter(v => v.status === 'In Progress').length;
+      
+      // Aircraft scheduled for maintenance today but not started
       const scheduled = maintenanceVisits.filter(v => v.status === 'Scheduled').length;
+      
+      // Aircraft with assigned teams (use actual maintenance visits with personnel requirements)
+      const withTeams = maintenanceVisits.filter(visit => 
+        visit.status === 'In Progress' && 
+        visit.personnel_requirements && 
+        visit.personnel_requirements.length > 0
+      ).length;
       
       return {
         total: aircraft.length,
         inMaintenance,
         scheduled,
+        withTeams,
         available: aircraft.length - inMaintenance
       };
     }
@@ -273,6 +294,7 @@ export const WorkforceMetrics = () => {
       total: 0,
       inMaintenance: 0,
       scheduled: 0,
+      withTeams: 0,
       available: 0
     };
   }, [aircraft, maintenanceVisits]);
@@ -302,7 +324,11 @@ export const WorkforceMetrics = () => {
         data = maintenanceVisits?.filter(v => v.status === 'In Progress') || [];
         break;
       case 'assigned':
-        data = maintenanceVisits?.filter(v => v.status === 'In Progress') || [];
+        data = maintenanceVisits?.filter(v => 
+          v.status === 'In Progress' && 
+          v.personnel_requirements && 
+          v.personnel_requirements.length > 0
+        ) || [];
         break;
       case 'pending':
         data = maintenanceVisits?.filter(v => v.status === 'Scheduled') || [];
@@ -1038,21 +1064,21 @@ export const WorkforceMetrics = () => {
     },
     { 
       id: 'available', 
-      label: 'Available Employees', 
+      label: 'Available Today', 
       value: isLoading ? '-' : (availableEmployees?.length || 0), 
       icon: UserCheck, 
       color: 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800',
     },
     { 
       id: 'leave', 
-      label: 'On Leave', 
+      label: 'On Leave Today', 
       value: isLoading ? '-' : onLeaveEmployees?.length || 0, 
       icon: CalendarCheck, 
       color: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
     },
     { 
       id: 'training', 
-      label: 'In Training', 
+      label: 'In Training Today', 
       value: isLoading ? '-' : inTrainingEmployees?.length || 0, 
       icon: GraduationCap, 
       color: 'bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800',
@@ -1067,7 +1093,7 @@ export const WorkforceMetrics = () => {
     { 
       id: 'assigned', 
       label: 'Aircraft w/ Teams', 
-      value: isLoading ? '-' : aircraftMetrics?.inMaintenance || 0, 
+      value: isLoading ? '-' : aircraftMetrics?.withTeams || 0, 
       icon: PlaneTakeoff, 
       color: 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800',
     },
@@ -1288,3 +1314,4 @@ export const WorkforceMetrics = () => {
     </>
   );
 };
+
