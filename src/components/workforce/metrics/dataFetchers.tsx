@@ -18,7 +18,6 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
     if (error) throw error;
     console.log('Total employees fetched:', data?.length);
     
-    // Use a simpler approach with direct mapping
     const result: EmployeeBasic[] = [];
     
     if (data && Array.isArray(data)) {
@@ -58,7 +57,6 @@ export const fetchEmployeeSupports = async (currentDate: string): Promise<Employ
     if (error) throw error;
     console.log('Employee supports fetched for today:', data?.length);
     
-    // Create a properly typed array
     const supports: EmployeeSupportBasic[] = [];
     
     if (data && Array.isArray(data)) {
@@ -123,7 +121,6 @@ export const fetchRosterAssignments = async (dateId: number): Promise<SimpleRost
     }
     console.log('Roster assignments fetched for today:', data?.length);
     
-    // Create a properly typed array with direct property assignments
     const assignments: SimpleRosterAssignment[] = [];
     
     if (data && Array.isArray(data)) {
@@ -163,7 +160,6 @@ export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
     if (error) throw error;
     console.log('Aircraft fetched:', data?.length);
     
-    // Create a properly typed array with direct property assignments
     const aircraft: AircraftBasic[] = [];
     
     if (data && Array.isArray(data)) {
@@ -215,6 +211,7 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
     
     // Create a Set of maintenance visit IDs that have personnel requirements
     const visitsWithPersonnel = new Set<number>();
+    
     if (personnelData && Array.isArray(personnelData)) {
       for (const p of personnelData) {
         if (p.maintenance_visit_id) {
