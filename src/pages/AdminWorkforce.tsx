@@ -79,15 +79,17 @@ const AdminWorkforce = () => {
       <FloatingActionMenu />
 
       {/* Add global styles for Dialog/Modal components */}
-      <style jsx global>{`
-        /* Style to make all dialogs centered with 80% width and height */
-        [data-radix-dialog-content] {
-          max-width: 80vw !important;
-          width: 80vw !important;
-          max-height: 80vh !important;
-          height: 80vh !important;
-        }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ 
+        __html: `
+          /* Style to make all dialogs centered with 80% width and height */
+          [data-radix-dialog-content] {
+            max-width: 80vw !important;
+            width: 80vw !important;
+            max-height: 80vh !important;
+            height: 80vh !important;
+          }
+        `
+      }} />
     </div>
   );
 };
