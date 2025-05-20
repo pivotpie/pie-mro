@@ -108,7 +108,7 @@ export const AircraftCalendar = () => {
       
       {/* Added ScrollArea with horizontal scrollbar and increased height to 50vh */}
       <div className="w-full h-[50vh] border rounded-lg dark:border-gray-700">
-        <ScrollArea className="h-full" orientation="horizontal">
+        <ScrollArea className="h-full">
           <div className="min-w-full h-full">
             <AircraftGanttChart 
               scrollLeft={scrollPosition} 
