@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -78,91 +79,68 @@ const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick, isLo
   </Card>
 );
 
-// Define base interfaces with minimal fields to avoid deep nesting
-interface JobTitle {
+// Define simple non-nested interfaces to avoid deep type instantiation
+interface JobTitleBasic {
   job_description: string;
 }
 
-interface Team {
+interface TeamBasic {
   team_name: string;
 }
 
-// Simple interface for date reference
-interface SimpleDateReference {
-  actual_date: string;
-}
+// Use primitive types where possible to prevent deep nesting
+type DateString = string;
+type RosterCodeString = string;
 
-// Simple interface for roster code
-interface SimpleRosterCode {
-  roster_code: string;
-}
-
-// Basic employee interface without nested objects
-interface EmployeeBase {
+// Basic employee interface with minimal fields
+interface EmployeeMinimal {
   id: number;
   name: string;
   e_number: number;
-  mobile_number?: string;
-  date_of_joining?: string;
   is_active: boolean;
 }
 
-// Employee with basic job title and team info
-interface EmployeeInfo {
-  id: number;
-  name: string;
-  e_number: number;
-  job_titles?: JobTitle;
-  team?: Team;
+// Expanded employee with optional fields but no nested objects
+interface EmployeeBasic extends EmployeeMinimal {
   mobile_number?: string;
+  date_of_joining?: string;
+  job_title_description?: string;
+  team_name?: string;
 }
 
-// Employee with all details
-interface Employee extends EmployeeBase {
-  job_titles?: JobTitle;
-  team?: Team;
-  certifications?: { id: number }[];
-  employee_authorizations?: { id: number }[];
-}
-
-// Simplified roster assignment
-interface RosterAssignment {
+// Interface for roster assignments with minimal needed fields
+interface SimpleRosterAssignment {
   id: number;
   employee_id: number;
   date_id: number;
   roster_id: number;
-  employees?: EmployeeInfo;
-  date?: SimpleDateReference;
-  roster?: SimpleRosterCode;
+  employee_name?: string;
+  employee_number?: number;
+  employee_position?: string;
+  employee_team?: string;
+  employee_mobile?: string;
+  date_value?: string;
 }
 
-// Simplified aircraft type
-interface SimpleAircraftType {
-  type_name: string;
-  manufacturer: string;
-}
-
-// Basic aircraft interface 
-interface SimpleAircraft {
+// Simple aircraft interface without deep nesting
+interface AircraftBasic {
   id: number;
   aircraft_name?: string;
   registration?: string;
-  aircraft_types?: SimpleAircraftType;
+  type_name?: string;
+  manufacturer?: string;
   customer?: string;
   total_hours?: number;
   total_cycles?: number;
 }
 
-// Simplified hangar type
-interface SimpleHangar {
-  hangar_name: string;
-}
-
-// Simplified maintenance visit
-interface MaintenanceVisit {
+// Simple maintenance visit interface
+interface MaintenanceVisitBasic {
   id: number;
   aircraft_id: number;
-  aircraft?: SimpleAircraft;
+  aircraft_name?: string;
+  aircraft_registration?: string;
+  aircraft_type?: string;
   visit_number: string;
   check_type: string;
   status?: string;
@@ -170,13 +148,13 @@ interface MaintenanceVisit {
   date_out: string;
   remarks?: string;
   hangar_id?: number;
-  hangar?: SimpleHangar;
+  hangar_name?: string;
   total_hours?: number;
-  personnel_requirements?: { id: number }[];
+  has_personnel_requirements?: boolean;
 }
 
-// Simple employee support type
-interface EmployeeSupport {
+// Employee support with minimal fields
+interface EmployeeSupportBasic {
   id: number;
   employee_id: number;
   support_id: number;
@@ -206,12 +184,24 @@ export const WorkforceMetrics = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('*, job_titles(*), team:teams(*), certifications(*), employee_authorizations(*)')
-        .eq('is_active', true);
+        .select('*, job_titles(*), team:teams(*), certifications(*), employee_authorizations(*)');
         
       if (error) throw error;
       console.log('Total employees fetched:', data?.length);
-      return data as Employee[] || [];
+      
+      // Transform the data to a flatter structure to avoid deep nesting
+      return (data || []).map(emp => ({
+        id: emp.id,
+        name: emp.name,
+        e_number: emp.e_number,
+        mobile_number: emp.mobile_number,
+        date_of_joining: emp.date_of_joining,
+        is_active: emp.is_active,
+        job_title_description: emp.job_titles?.job_description,
+        team_name: emp.team?.team_name,
+        certification_count: emp.certifications?.length || 0,
+        authorization_count: emp.employee_authorizations?.length || 0
+      }));
     }
   });
 
@@ -225,7 +215,7 @@ export const WorkforceMetrics = () => {
         .eq('date', currentDate);
       if (error) throw error;
       console.log('Employee supports fetched for today:', data?.length);
-      return data as EmployeeSupport[] || [];
+      return data as EmployeeSupportBasic[] || [];
     }
   });
 
@@ -259,7 +249,7 @@ export const WorkforceMetrics = () => {
           *,
           employees(id, name, e_number, job_titles(*), team:teams(*), mobile_number),
           date:date_references(actual_date),
-          roster:roster_codes(*)
+          roster:roster_codes(roster_code)
         `)
         .eq('date_id', dateReference.id);
       
@@ -268,7 +258,21 @@ export const WorkforceMetrics = () => {
         return [];
       }
       console.log('Roster assignments fetched for today:', data?.length);
-      return data as RosterAssignment[] || [];
+      
+      // Transform to a flatter structure
+      return (data || []).map(ra => ({
+        id: ra.id,
+        employee_id: ra.employee_id,
+        date_id: ra.date_id,
+        roster_id: ra.roster_id,
+        employee_name: ra.employees?.name,
+        employee_number: ra.employees?.e_number,
+        employee_position: ra.employees?.job_titles?.job_description,
+        employee_team: ra.employees?.team?.team_name,
+        employee_mobile: ra.employees?.mobile_number,
+        date_value: ra.date?.actual_date,
+        roster_code: ra.roster?.roster_code
+      })) as SimpleRosterAssignment[];
     },
     enabled: !!dateReference?.id
   });
@@ -287,7 +291,18 @@ export const WorkforceMetrics = () => {
           
         if (error) throw error;
         console.log('Aircraft fetched:', data?.length);
-        return data as SimpleAircraft[] || [];
+        
+        // Transform to a flatter structure
+        return (data || []).map(ac => ({
+          id: ac.id,
+          aircraft_name: ac.aircraft_name,
+          registration: ac.registration,
+          type_name: ac.aircraft_types?.type_name,
+          manufacturer: ac.aircraft_types?.manufacturer,
+          customer: ac.customer,
+          total_hours: ac.total_hours,
+          total_cycles: ac.total_cycles
+        })) as AircraftBasic[];
       } catch (error: any) {
         console.error("Error fetching aircraft:", error);
         return [];
@@ -315,7 +330,25 @@ export const WorkforceMetrics = () => {
           
         if (error) throw error;
         console.log('Maintenance visits fetched for today:', data?.length);
-        return data as MaintenanceVisit[] || [];
+        
+        // Transform to a flatter structure
+        return (data || []).map(mv => ({
+          id: mv.id,
+          aircraft_id: mv.aircraft_id,
+          aircraft_name: mv.aircraft?.aircraft_name,
+          aircraft_registration: mv.aircraft?.registration,
+          aircraft_type: mv.aircraft?.aircraft_types?.type_name,
+          visit_number: mv.visit_number,
+          check_type: mv.check_type,
+          status: mv.status,
+          date_in: mv.date_in,
+          date_out: mv.date_out,
+          remarks: mv.remarks,
+          hangar_id: mv.hangar_id,
+          hangar_name: mv.hangar?.hangar_name,
+          total_hours: mv.total_hours,
+          has_personnel_requirements: mv.personnel_requirements && mv.personnel_requirements.length > 0
+        })) as MaintenanceVisitBasic[];
       } catch (error: any) {
         console.error("Error fetching maintenance visits:", error);
         return [];
@@ -380,9 +413,7 @@ export const WorkforceMetrics = () => {
       
       // Aircraft with assigned teams (use actual maintenance visits with personnel requirements)
       const withTeams = maintenanceVisits.filter(visit => 
-        visit.status === 'In Progress' && 
-        visit.personnel_requirements && 
-        visit.personnel_requirements.length > 0
+        visit.status === 'In Progress' && visit.has_personnel_requirements
       ).length;
       
       return {
