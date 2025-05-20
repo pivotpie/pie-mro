@@ -20,38 +20,39 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
     
     const result: EmployeeBasic[] = [];
     
-    if (data && Array.isArray(data)) {
-      for (const emp of data) {
-        // Flatten the data structure
-        let jobTitleDesc: string | undefined = undefined;
-        let teamName: string | undefined = undefined;
+    if (!data || !Array.isArray(data)) return [];
+    
+    for (const emp of data) {
+      // Extract values safely
+      const jobTitleDesc = emp.job_titles && typeof emp.job_titles === 'object' 
+        ? emp.job_titles.job_description 
+        : undefined;
+      
+      const teamName = emp.team && typeof emp.team === 'object' 
+        ? emp.team.team_name 
+        : undefined;
+      
+      const certCount = Array.isArray(emp.certifications) 
+        ? emp.certifications.length 
+        : 0;
         
-        if (emp.job_titles && typeof emp.job_titles === 'object') {
-          jobTitleDesc = emp.job_titles.job_description;
-        }
-        
-        if (emp.team && typeof emp.team === 'object') {
-          teamName = emp.team.team_name;
-        }
-        
-        const certCount = Array.isArray(emp.certifications) ? emp.certifications.length : 0;
-        const authCount = Array.isArray(emp.employee_authorizations) ? emp.employee_authorizations.length : 0;
-        
-        const employee: EmployeeBasic = {
-          id: emp.id,
-          name: emp.name,
-          e_number: emp.e_number,
-          is_active: emp.is_active,
-          mobile_number: emp.mobile_number || undefined,
-          date_of_joining: emp.date_of_joining || undefined,
-          job_title_description: jobTitleDesc,
-          team_name: teamName,
-          certification_count: certCount,
-          authorization_count: authCount
-        };
-        
-        result.push(employee);
-      }
+      const authCount = Array.isArray(emp.employee_authorizations) 
+        ? emp.employee_authorizations.length 
+        : 0;
+      
+      // Create a flat employee object
+      result.push({
+        id: emp.id,
+        name: emp.name,
+        e_number: emp.e_number,
+        is_active: emp.is_active,
+        mobile_number: emp.mobile_number || undefined,
+        date_of_joining: emp.date_of_joining || undefined,
+        job_title_description: jobTitleDesc,
+        team_name: teamName,
+        certification_count: certCount,
+        authorization_count: authCount
+      });
     }
     
     return result;
@@ -71,19 +72,14 @@ export const fetchEmployeeSupports = async (currentDate: string): Promise<Employ
     if (error) throw error;
     console.log('Employee supports fetched for today:', data?.length);
     
-    const supports: EmployeeSupportBasic[] = [];
+    if (!data || !Array.isArray(data)) return [];
     
-    if (data && Array.isArray(data)) {
-      for (const support of data) {
-        supports.push({
-          id: support.id,
-          employee_id: support.employee_id,
-          support_id: support.support_id
-        });
-      }
-    }
-    
-    return supports;
+    // Directly map to flat objects
+    return data.map(support => ({
+      id: support.id,
+      employee_id: support.employee_id,
+      support_id: support.support_id
+    }));
   } catch (error) {
     console.error("Error fetching employee supports:", error);
     return [];
@@ -101,11 +97,7 @@ export const fetchDateReference = async (currentDate: string): Promise<{ id: num
     if (error) throw error;
     console.log('Date reference fetched:', data);
     
-    if (data) {
-      return { id: data.id };
-    }
-    
-    return null;
+    return data ? { id: data.id } : null;
   } catch (error) {
     console.error("Error fetching date reference:", error);
     return null;
@@ -127,64 +119,56 @@ export const fetchRosterAssignments = async (dateId: number): Promise<SimpleRost
       .eq('date_id', dateId);
     
     if (error) throw error;
-    console.log('Roster assignments fetched for today:', data?.length);
+    console.log('Roster assignments fetched:', data?.length);
     
     const assignments: SimpleRosterAssignment[] = [];
     
-    if (data && Array.isArray(data)) {
-      for (const ra of data) {
-        // Flat extraction of nested data
-        let employeeName: string | undefined = undefined;
-        let employeeNumber: number | undefined = undefined; 
-        let employeePosition: string | undefined = undefined;
-        let employeeTeam: string | undefined = undefined;
-        let employeeMobile: string | undefined = undefined;
-        let dateValue: string | undefined = undefined;
-        let rosterCode: string | undefined = undefined;
+    if (!data || !Array.isArray(data)) return [];
+    
+    for (const ra of data) {
+      // Extract all nested properties in a flat way
+      const assignment: SimpleRosterAssignment = {
+        id: ra.id,
+        employee_id: ra.employee_id,
+        date_id: ra.date_id,
+        roster_id: ra.roster_id,
+        employee_name: undefined,
+        employee_number: undefined,
+        employee_position: undefined,
+        employee_team: undefined,
+        employee_mobile: undefined,
+        date_value: undefined,
+        roster_code: undefined
+      };
+      
+      // Safely extract employee data
+      if (ra.employees && typeof ra.employees === 'object') {
+        assignment.employee_name = ra.employees.name;
+        assignment.employee_number = ra.employees.e_number;
+        assignment.employee_mobile = ra.employees.mobile_number;
         
-        // Extract employee data safely
-        if (ra.employees && typeof ra.employees === 'object') {
-          employeeName = ra.employees.name;
-          employeeNumber = ra.employees.e_number;
-          employeeMobile = ra.employees.mobile_number;
-          
-          // Extract nested job title
-          if (ra.employees.job_titles && typeof ra.employees.job_titles === 'object') {
-            employeePosition = ra.employees.job_titles.job_description;
-          }
-          
-          // Extract nested team
-          if (ra.employees.team && typeof ra.employees.team === 'object') {
-            employeeTeam = ra.employees.team.team_name;
-          }
+        // Extract nested job title
+        if (ra.employees.job_titles && typeof ra.employees.job_titles === 'object') {
+          assignment.employee_position = ra.employees.job_titles.job_description;
         }
         
-        // Extract date
-        if (ra.date && typeof ra.date === 'object') {
-          dateValue = ra.date.actual_date;
+        // Extract nested team
+        if (ra.employees.team && typeof ra.employees.team === 'object') {
+          assignment.employee_team = ra.employees.team.team_name;
         }
-        
-        // Extract roster code
-        if (ra.roster && typeof ra.roster === 'object') {
-          rosterCode = ra.roster.roster_code;
-        }
-        
-        const assignment: SimpleRosterAssignment = {
-          id: ra.id,
-          employee_id: ra.employee_id,
-          date_id: ra.date_id,
-          roster_id: ra.roster_id,
-          employee_name: employeeName,
-          employee_number: employeeNumber,
-          employee_position: employeePosition,
-          employee_team: employeeTeam,
-          employee_mobile: employeeMobile,
-          date_value: dateValue,
-          roster_code: rosterCode
-        };
-        
-        assignments.push(assignment);
       }
+      
+      // Extract date
+      if (ra.date && typeof ra.date === 'object') {
+        assignment.date_value = ra.date.actual_date;
+      }
+      
+      // Extract roster code
+      if (ra.roster && typeof ra.roster === 'object') {
+        assignment.roster_code = ra.roster.roster_code;
+      }
+      
+      assignments.push(assignment);
     }
     
     return assignments;
@@ -208,31 +192,28 @@ export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
     
     const aircraft: AircraftBasic[] = [];
     
-    if (data && Array.isArray(data)) {
-      for (const ac of data) {
-        // Flat extraction of nested data
-        let typeName: string | undefined = undefined;
-        let manufacturer: string | undefined = undefined;
-        
-        // Extract aircraft type data safely
-        if (ac.aircraft_types && typeof ac.aircraft_types === 'object') {
-          typeName = ac.aircraft_types.type_name;
-          manufacturer = ac.aircraft_types.manufacturer;
-        }
-        
-        const aircraftItem: AircraftBasic = {
-          id: ac.id,
-          aircraft_name: ac.aircraft_name,
-          registration: ac.registration,
-          type_name: typeName,
-          manufacturer: manufacturer,
-          customer: ac.customer,
-          total_hours: ac.total_hours,
-          total_cycles: ac.total_cycles
-        };
-        
-        aircraft.push(aircraftItem);
+    if (!data || !Array.isArray(data)) return [];
+    
+    for (const ac of data) {
+      // Create a flat aircraft object with optional values
+      const aircraftItem: AircraftBasic = {
+        id: ac.id,
+        aircraft_name: ac.aircraft_name,
+        registration: ac.registration,
+        customer: ac.customer,
+        total_hours: ac.total_hours,
+        total_cycles: ac.total_cycles,
+        type_name: undefined,
+        manufacturer: undefined
+      };
+      
+      // Extract nested aircraft type data
+      if (ac.aircraft_types && typeof ac.aircraft_types === 'object') {
+        aircraftItem.type_name = ac.aircraft_types.type_name;
+        aircraftItem.manufacturer = ac.aircraft_types.manufacturer;
       }
+      
+      aircraft.push(aircraftItem);
     }
     
     return aircraft;
@@ -280,53 +261,47 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
     
     console.log('Maintenance visits fetched for today:', data?.length);
     
-    // Process the data with flat mapping
+    if (!data || !Array.isArray(data)) return [];
+    
+    // Process the data with a flat mapping approach
     const visits: MaintenanceVisitBasic[] = [];
     
-    if (data && Array.isArray(data)) {
-      for (const mv of data) {
-        // Flat extraction of nested data
-        let aircraftName: string | undefined = undefined;
-        let aircraftRegistration: string | undefined = undefined;
-        let aircraftType: string | undefined = undefined;
-        let hangarName: string | undefined = undefined;
+    for (const mv of data) {
+      const visit: MaintenanceVisitBasic = {
+        id: mv.id,
+        aircraft_id: mv.aircraft_id,
+        visit_number: mv.visit_number,
+        check_type: mv.check_type,
+        status: mv.status,
+        date_in: mv.date_in,
+        date_out: mv.date_out,
+        remarks: mv.remarks,
+        hangar_id: mv.hangar_id,
+        total_hours: mv.total_hours,
+        aircraft_name: undefined,
+        aircraft_registration: undefined,
+        aircraft_type: undefined,
+        hangar_name: undefined,
+        has_personnel_requirements: visitsWithPersonnel.has(mv.id)
+      };
+      
+      // Extract aircraft data
+      if (mv.aircraft && typeof mv.aircraft === 'object') {
+        visit.aircraft_name = mv.aircraft.aircraft_name;
+        visit.aircraft_registration = mv.aircraft.registration;
         
-        // Extract aircraft data safely
-        if (mv.aircraft && typeof mv.aircraft === 'object') {
-          aircraftName = mv.aircraft.aircraft_name;
-          aircraftRegistration = mv.aircraft.registration;
-          
-          // Extract aircraft type
-          if (mv.aircraft.aircraft_types && typeof mv.aircraft.aircraft_types === 'object') {
-            aircraftType = mv.aircraft.aircraft_types.type_name;
-          }
+        // Extract aircraft type
+        if (mv.aircraft.aircraft_types && typeof mv.aircraft.aircraft_types === 'object') {
+          visit.aircraft_type = mv.aircraft.aircraft_types.type_name;
         }
-        
-        // Extract hangar data safely
-        if (mv.hangar && typeof mv.hangar === 'object') {
-          hangarName = mv.hangar.hangar_name;
-        }
-        
-        const visit: MaintenanceVisitBasic = {
-          id: mv.id,
-          aircraft_id: mv.aircraft_id,
-          aircraft_name: aircraftName,
-          aircraft_registration: aircraftRegistration,
-          aircraft_type: aircraftType,
-          visit_number: mv.visit_number,
-          check_type: mv.check_type,
-          status: mv.status,
-          date_in: mv.date_in,
-          date_out: mv.date_out,
-          remarks: mv.remarks,
-          hangar_id: mv.hangar_id,
-          hangar_name: hangarName,
-          total_hours: mv.total_hours,
-          has_personnel_requirements: visitsWithPersonnel.has(mv.id)
-        };
-        
-        visits.push(visit);
       }
+      
+      // Extract hangar data
+      if (mv.hangar && typeof mv.hangar === 'object') {
+        visit.hangar_name = mv.hangar.hangar_name;
+      }
+      
+      visits.push(visit);
     }
     
     return visits;
