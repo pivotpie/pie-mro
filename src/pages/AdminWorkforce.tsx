@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
 import { WorkforceMetrics } from "@/components/workforce/WorkforceMetrics";
-import { WorkforceTabs } from "@/components/workforce/tabs/WorkforceTabs";
+import { WorkforceTabs } from "@/components/workforce/WorkforceTabs";
 
 const AdminWorkforce = () => {
   const { user, logout } = useAuth();

@@ -113,83 +113,100 @@ export const WorkforceMetrics = () => {
 
   // Fetch available employees (those without roster assignments for today)
   const { data: availableEmployees, isLoading: loadingAvailableEmployees } = useQuery({
-    queryKey: ['availableEmployees'],
+    queryKey: ['availableEmployees', currentDate],
     queryFn: async () => {
-      // First get all employees
-      const { data: allEmployees, error: employeesError } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('is_active', true);
-        
-      if (employeesError) throw employeesError;
-      
-      // Get date_id for current date
-      const { data: dateRef, error: dateError } = await supabase
-        .from('date_references')
-        .select('id')
-        .eq('actual_date', currentDate);
-        
-      if (dateError) throw dateError;
-      
-      if (dateRef && dateRef.length > 0) {
-        const dateId = dateRef[0].id;
-        
-        // Get employees with roster assignments today
-        const { data: assignedEmployees, error: assignedError } = await supabase
-          .from('roster_assignments')
-          .select('employee_id')
-          .eq('date_id', dateId);
+      try {
+        // First get all employees
+        const { data: allEmployees, error: employeesError } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('is_active', true);
           
-        if (assignedError) throw assignedError;
+        if (employeesError) throw employeesError;
         
-        // Filter out the assigned employees
-        const assignedIds = new Set(assignedEmployees.map(e => e.employee_id));
-        const availableCount = allEmployees.filter(e => !assignedIds.has(e.id)).length;
+        if (!allEmployees || allEmployees.length === 0) {
+          return 0;
+        }
         
-        return availableCount;
-      } else {
-        // If no date record found, assume all employees are available
-        return allEmployees.length;
+        // Get date_id for current date
+        const { data: dateRef, error: dateError } = await supabase
+          .from('date_references')
+          .select('id')
+          .eq('actual_date', currentDate);
+          
+        if (dateError) throw dateError;
+        
+        if (dateRef && dateRef.length > 0) {
+          const dateId = dateRef[0].id;
+          
+          // Get employees with roster assignments today
+          const { data: assignedEmployees, error: assignedError } = await supabase
+            .from('roster_assignments')
+            .select('employee_id')
+            .eq('date_id', dateId);
+            
+          if (assignedError) throw assignedError;
+          
+          // Filter out the assigned employees
+          const assignedIds = new Set(assignedEmployees.map(e => e.employee_id));
+          const availableCount = allEmployees.filter(e => !assignedIds.has(e.id)).length;
+          
+          return availableCount;
+        } else {
+          // If no date record found, assume all employees are available
+          return allEmployees.length;
+        }
+      } catch (error: any) {
+        console.error("Error fetching available employees:", error);
+        // Return 0 if there's an error
+        return 0;
       }
     }
   });
 
-  // Fetch employee metrics
-  const { data: employeeMetrics, isLoading: loadingEmployees } = useQuery({
-    queryKey: ['employeeMetrics'],
+  // Fetch on leave employees
+  const { data: onLeaveCount, isLoading: loadingOnLeave } = useQuery({
+    queryKey: ['onLeaveCount', currentDate],
     queryFn: async () => {
-      // Get all employees
-      const { data: employees, error: employeesError } = await supabase
-        .from('employees')
-        .select('*');
+      try {
+        const { data: onLeave, error } = await supabase
+          .from('attendance')
+          .select('employee_id')
+          .eq('status', 'Annual Leave')
+          .gt('date', currentDate);
+          
+        if (error) throw error;
         
-      if (employeesError) throw employeesError;
-      
-      // Get leave data (using attendance table with status = 'Annual Leave')
-      const { data: onLeave, error: leaveError } = await supabase
-        .from('attendance')
-        .select('employee_id')
-        .eq('status', 'Annual Leave')
-        .gt('date', new Date().toISOString().split('T')[0]);
+        return onLeave ? onLeave.length : 0;
+      } catch (error: any) {
+        console.error("Error fetching on leave employees:", error);
+        return 0;
+      }
+    }
+  });
+
+  // Fetch employees in training
+  const { data: inTrainingCount, isLoading: loadingInTraining } = useQuery({
+    queryKey: ['inTrainingCount', currentDate],
+    queryFn: async () => {
+      try {
+        const sevenDaysLater = new Date();
+        sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+        const sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0];
         
-      if (leaveError) throw leaveError;
-      
-      // Get training data (using employee_training_schedules table)
-      const { data: inTraining, error: trainingError } = await supabase
-        .from('employee_training_schedules')
-        .select('employee_id')
-        .gt('required_date', new Date().toISOString().split('T')[0])
-        .lt('required_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        const { data: inTraining, error } = await supabase
+          .from('employee_training_schedules')
+          .select('employee_id')
+          .gt('required_date', currentDate)
+          .lt('required_date', sevenDaysLaterStr);
+          
+        if (error) throw error;
         
-      if (trainingError) throw trainingError;
-      
-      // Calculate metrics
-      return {
-        total: employees.length,
-        active: employees.filter(e => e.is_active).length,
-        onLeave: new Set(onLeave.map(l => l.employee_id)).size,
-        inTraining: new Set(inTraining.map(t => t.employee_id)).size,
-      };
+        return inTraining ? inTraining.length : 0;
+      } catch (error: any) {
+        console.error("Error fetching employees in training:", error);
+        return 0;
+      }
     }
   });
 
@@ -197,39 +214,53 @@ export const WorkforceMetrics = () => {
   const { data: aircraftMetrics, isLoading: loadingAircraft } = useQuery({
     queryKey: ['aircraftMetrics'],
     queryFn: async () => {
-      // Get all aircraft
-      const { data: aircraft, error: aircraftError } = await supabase
-        .from('aircraft')
-        .select('*');
+      try {
+        // Get all aircraft
+        const { data: aircraft, error: aircraftError } = await supabase
+          .from('aircraft')
+          .select('*');
+          
+        if (aircraftError) throw aircraftError;
         
-      if (aircraftError) throw aircraftError;
-      
-      // Get maintenance visits data
-      const { data: visits, error: visitsError } = await supabase
-        .from('maintenance_visits')
-        .select('*');
+        // Get maintenance visits data
+        const { data: visits, error: visitsError } = await supabase
+          .from('maintenance_visits')
+          .select('*');
+          
+        if (visitsError) throw visitsError;
         
-      if (visitsError) throw visitsError;
-      
-      // Calculate metrics
-      const inMaintenance = new Set(visits
-        .filter(v => v.status === 'In Progress')
-        .map(v => v.aircraft_id)).size;
+        if (!visits || !aircraft) {
+          return {
+            total: 0,
+            inMaintenance: 0,
+            scheduled: 0,
+            available: 0
+          };
+        }
         
-      const scheduled = new Set(visits
-        .filter(v => v.status === 'Scheduled')
-        .map(v => v.aircraft_id)).size;
-      
-      return {
-        total: aircraft.length,
-        inMaintenance,
-        scheduled,
-        available: aircraft.length - inMaintenance - scheduled
-      };
+        // Calculate metrics
+        const inMaintenance = visits.filter(v => v.status === 'In Progress').length;
+        const scheduled = visits.filter(v => v.status === 'Scheduled').length;
+        
+        return {
+          total: aircraft.length,
+          inMaintenance,
+          scheduled,
+          available: aircraft.length - inMaintenance
+        };
+      } catch (error: any) {
+        console.error("Error fetching aircraft metrics:", error);
+        return {
+          total: 0,
+          inMaintenance: 0,
+          scheduled: 0,
+          available: 0
+        };
+      }
     }
   });
 
-  const isLoading = loadingEmployees || loadingAircraft || loadingTotalEmployees || loadingAvailableEmployees;
+  const isLoading = loadingTotalEmployees || loadingAvailableEmployees || loadingOnLeave || loadingInTraining || loadingAircraft;
 
   // Fetch detail data when a metric is selected
   useEffect(() => {
@@ -241,23 +272,49 @@ export const WorkforceMetrics = () => {
       try {
         switch (selectedMetric) {
           case 'available':
-            const { data: availableEmployees } = await supabase
+            // Get all active employees
+            const { data: allEmployees, error: allEmpError } = await supabase
               .from('employees')
               .select(`
                 *, 
                 job_titles(job_description),
                 team:teams(team_name),
                 certifications(*),
-                employee_authorizations(*),
-                attendance(*)
+                employee_authorizations(*)
               `)
-              .eq('is_active', true)
-              .not('id', 'in', `(${await getEmployeesOnLeaveOrTraining()})`);
-            data = availableEmployees || [];
+              .eq('is_active', true);
+              
+            if (allEmpError) throw allEmpError;
+            
+            // Get date_id for current date
+            const { data: dateRef, error: dateError } = await supabase
+              .from('date_references')
+              .select('id')
+              .eq('actual_date', currentDate);
+              
+            if (dateError) throw dateError;
+            
+            if (dateRef && dateRef.length > 0) {
+              const dateId = dateRef[0].id;
+              
+              // Get employees with roster assignments today
+              const { data: assignedEmployees, error: assignedError } = await supabase
+                .from('roster_assignments')
+                .select('employee_id')
+                .eq('date_id', dateId);
+                
+              if (assignedError) throw assignedError;
+              
+              // Filter out the assigned employees
+              const assignedIds = new Set(assignedEmployees.map(e => e.employee_id));
+              data = allEmployees.filter(e => !assignedIds.has(e.id)) || [];
+            } else {
+              data = allEmployees || [];
+            }
             break;
           
           case 'leave':
-            const { data: onLeave } = await supabase
+            const { data: onLeave, error: leaveError } = await supabase
               .from('attendance')
               .select(`
                 *, 
@@ -270,12 +327,18 @@ export const WorkforceMetrics = () => {
                 )
               `)
               .eq('status', 'Annual Leave')
-              .gt('date', new Date().toISOString().split('T')[0]);
+              .gt('date', currentDate);
+              
+            if (leaveError) throw leaveError;
             data = onLeave || [];
             break;
             
           case 'training':
-            const { data: inTraining } = await supabase
+            const sevenDaysLater = new Date();
+            sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+            const sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0];
+            
+            const { data: inTraining, error: trainingError } = await supabase
               .from('employee_training_schedules')
               .select(`
                 *, 
@@ -288,13 +351,15 @@ export const WorkforceMetrics = () => {
                 ), 
                 training_types(*)
               `)
-              .gt('required_date', new Date().toISOString().split('T')[0])
-              .lt('required_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+              .gt('required_date', currentDate)
+              .lt('required_date', sevenDaysLaterStr);
+              
+            if (trainingError) throw trainingError;
             data = inTraining || [];
             break;
             
           case 'grounded':
-            const { data: groundedAircraft } = await supabase
+            const { data: groundedAircraft, error: groundedError } = await supabase
               .from('maintenance_visits')
               .select(`
                 *, 
@@ -305,11 +370,13 @@ export const WorkforceMetrics = () => {
                 personnel_requirements(*)
               `)
               .eq('status', 'In Progress');
+              
+            if (groundedError) throw groundedError;
             data = groundedAircraft || [];
             break;
             
           case 'assigned':
-            const { data: assignedAircraft } = await supabase
+            const { data: assignedAircraft, error: assignedError } = await supabase
               .from('maintenance_visits')
               .select(`
                 *, 
@@ -319,13 +386,14 @@ export const WorkforceMetrics = () => {
                 ),
                 personnel_requirements(*)
               `)
-              .eq('status', 'In Progress')
-              .gt('personnel_count', 0);
+              .eq('status', 'In Progress');
+              
+            if (assignedError) throw assignedError;
             data = assignedAircraft || [];
             break;
             
           case 'pending':
-            const { data: pendingAircraft } = await supabase
+            const { data: pendingAircraft, error: pendingError } = await supabase
               .from('maintenance_visits')
               .select(`
                 *, 
@@ -335,44 +403,45 @@ export const WorkforceMetrics = () => {
                 )
               `)
               .eq('status', 'Scheduled');
+              
+            if (pendingError) throw pendingError;
             data = pendingAircraft || [];
+            break;
+            
+          case 'productivity':
+            const { data: availableAircraft, error: availableError } = await supabase
+              .from('aircraft')
+              .select(`
+                *,
+                aircraft_types(*)
+              `);
+              
+            if (availableError) throw availableError;
+            
+            const { data: maintenanceVisits, error: visitsError } = await supabase
+              .from('maintenance_visits')
+              .select('aircraft_id')
+              .eq('status', 'In Progress');
+              
+            if (visitsError) throw visitsError;
+            
+            const inMaintenanceIds = new Set(maintenanceVisits.map(v => v.aircraft_id));
+            data = availableAircraft.filter(a => !inMaintenanceIds.has(a.id)) || [];
             break;
         }
         
         setDetailData(data);
       } catch (error) {
         console.error('Error fetching detail data:', error);
+        toast.error("Error fetching data details");
+        setDetailData([]);
       }
-    };
-    
-    // Helper function to get employees who are on leave or training
-    const getEmployeesOnLeaveOrTraining = async () => {
-      // Get employees on leave
-      const { data: onLeave } = await supabase
-        .from('attendance')
-        .select('employee_id')
-        .eq('status', 'Annual Leave')
-        .gt('date', new Date().toISOString().split('T')[0]);
-        
-      // Get employees in training
-      const { data: inTraining } = await supabase
-        .from('employee_training_schedules')
-        .select('employee_id')
-        .gt('required_date', new Date().toISOString().split('T')[0])
-        .lt('required_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-        
-      // Combine and deduplicate
-      const employeeIds = [...(onLeave || []), ...(inTraining || [])]
-        .map(item => item.employee_id)
-        .filter((value, index, self) => self.indexOf(value) === index);
-        
-      return employeeIds.join(',') || '0';
     };
     
     if (selectedMetric && isDialogOpen) {
       fetchDetailData();
     }
-  }, [selectedMetric, isDialogOpen]);
+  }, [selectedMetric, isDialogOpen, currentDate]);
 
   const handleMetricClick = (metricId: string) => {
     setSelectedMetric(metricId);
@@ -393,6 +462,8 @@ export const WorkforceMetrics = () => {
       case 'grounded': return 'Grounded Aircraft';
       case 'assigned': return 'Aircraft with Assigned Teams';
       case 'pending': return 'Aircraft Pending Assignment';
+      case 'productivity': return 'Available Aircraft';
+      case 'total-employees': return 'Total Employees';
       default: return 'Details';
     }
   };
@@ -411,6 +482,7 @@ export const WorkforceMetrics = () => {
 
       switch (selectedMetric) {
         case 'available':
+        case 'total-employees':
           csvData = detailData.map(item => ({
             Name: item.name,
             'Employee ID': `E${item.e_number}`,
@@ -419,7 +491,7 @@ export const WorkforceMetrics = () => {
             Mobile: item.mobile_number || 'N/A',
             'Date of Joining': item.date_of_joining ? new Date(item.date_of_joining).toLocaleDateString() : 'N/A'
           }));
-          filename = 'available-employees.csv';
+          filename = selectedMetric === 'available' ? 'available-employees.csv' : 'total-employees.csv';
           break;
         
         case 'leave':
@@ -445,6 +517,37 @@ export const WorkforceMetrics = () => {
             'Training Date': item.required_date ? new Date(item.required_date).toLocaleDateString() : 'N/A'
           }));
           filename = 'employees-in-training.csv';
+          break;
+          
+        case 'grounded':
+        case 'assigned':
+        case 'pending':
+        case 'productivity':
+          csvData = detailData.map(item => {
+            if (selectedMetric === 'productivity') {
+              return {
+                Aircraft: item.aircraft_name || 'N/A',
+                Registration: item.registration || 'N/A',
+                Type: item.aircraft_types?.type_name || 'N/A',
+                Manufacturer: item.aircraft_types?.manufacturer || 'N/A',
+                Customer: item.customer || 'N/A',
+                'Total Hours': item.total_hours || '0',
+                'Total Cycles': item.total_cycles || '0'
+              };
+            } else {
+              return {
+                Aircraft: item.aircraft?.aircraft_name || 'N/A',
+                Registration: item.aircraft?.registration || 'N/A',
+                Type: item.aircraft?.aircraft_types?.type_name || 'N/A',
+                'Check Type': item.check_type || 'N/A',
+                'Date Range': `${new Date(item.date_in).toLocaleDateString()} - ${new Date(item.date_out).toLocaleDateString()}`,
+                Status: item.status || 'N/A',
+                'Total Hours': item.total_hours || '0',
+                Remarks: item.remarks || ''
+              };
+            }
+          });
+          filename = `${selectedMetric}-aircraft.csv`;
           break;
           
         default:
@@ -508,23 +611,6 @@ export const WorkforceMetrics = () => {
     setSearchTerm("");
   };
 
-  // Handle row selection
-  const handleSelectAll = (selected: boolean) => {
-    if (selected) {
-      setSelectedIds(detailData.map(item => item.id));
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  const handleSelectRow = (id: number, selected: boolean) => {
-    if (selected) {
-      setSelectedIds(prev => [...prev, id]);
-    } else {
-      setSelectedIds(prev => prev.filter(itemId => itemId !== id));
-    }
-  };
-
   // Filter data based on search and filters
   const filterData = () => {
     let filteredData = [...detailData];
@@ -534,16 +620,31 @@ export const WorkforceMetrics = () => {
       const term = searchTerm.toLowerCase();
       filteredData = filteredData.filter(item => {
         // For employee data
-        if (selectedMetric === 'available' || selectedMetric === 'leave' || selectedMetric === 'training') {
-          const employee = selectedMetric === 'available' ? item : item.employees;
+        if (selectedMetric === 'available' || selectedMetric === 'total-employees') {
+          return (
+            (item?.name && item.name.toLowerCase().includes(term)) ||
+            (item?.e_number && `e${item.e_number}`.toLowerCase().includes(term)) ||
+            (item?.job_titles?.job_description && item.job_titles.job_description.toLowerCase().includes(term)) ||
+            (item?.team?.team_name && item.team.team_name.toLowerCase().includes(term))
+          );
+        } 
+        else if (selectedMetric === 'leave' || selectedMetric === 'training') {
+          const employee = item.employees;
           return (
             (employee?.name && employee.name.toLowerCase().includes(term)) ||
             (employee?.e_number && `e${employee.e_number}`.toLowerCase().includes(term)) ||
             (employee?.job_titles?.job_description && employee.job_titles.job_description.toLowerCase().includes(term)) ||
             (employee?.team?.team_name && employee.team.team_name.toLowerCase().includes(term))
           );
-        } 
+        }
         // For aircraft data
+        else if (selectedMetric === 'productivity') {
+          return (
+            (item?.aircraft_name && item.aircraft_name.toLowerCase().includes(term)) ||
+            (item?.registration && item.registration.toLowerCase().includes(term)) ||
+            (item?.aircraft_types?.type_name && item.aircraft_types.type_name.toLowerCase().includes(term))
+          );
+        }
         else {
           return (
             (item.aircraft?.aircraft_name && item.aircraft.aircraft_name.toLowerCase().includes(term)) ||
@@ -559,8 +660,22 @@ export const WorkforceMetrics = () => {
       if (!value) return;
       
       filteredData = filteredData.filter(item => {
-        if (selectedMetric === 'available' || selectedMetric === 'leave' || selectedMetric === 'training') {
-          const employee = selectedMetric === 'available' ? item : item.employees;
+        if (selectedMetric === 'available' || selectedMetric === 'total-employees') {
+          switch (field) {
+            case 'name':
+              return item?.name && item.name.toLowerCase().includes(value.toLowerCase());
+            case 'position':
+              return item?.job_titles?.job_description && 
+                item.job_titles.job_description.toLowerCase().includes(value.toLowerCase());
+            case 'team':
+              return item?.team?.team_name && 
+                item.team.team_name.toLowerCase().includes(value.toLowerCase());
+            default:
+              return true;
+          }
+        } 
+        else if (selectedMetric === 'leave' || selectedMetric === 'training') {
+          const employee = item.employees;
           
           switch (field) {
             case 'name':
@@ -574,7 +689,22 @@ export const WorkforceMetrics = () => {
             default:
               return true;
           }
-        } 
+        }
+        else if (selectedMetric === 'productivity') {
+          switch (field) {
+            case 'aircraft':
+              return item?.aircraft_name && 
+                item.aircraft_name.toLowerCase().includes(value.toLowerCase());
+            case 'registration':
+              return item?.registration && 
+                item.registration.toLowerCase().includes(value.toLowerCase());
+            case 'type':
+              return item?.aircraft_types?.type_name && 
+                item.aircraft_types.type_name.toLowerCase().includes(value.toLowerCase());
+            default:
+              return true;
+          }
+        }
         else {
           switch (field) {
             case 'aircraft':
@@ -642,77 +772,127 @@ export const WorkforceMetrics = () => {
 
   // Convert data to columns format for SortableTable
   const getColumnsForMetric = () => {
-    if (selectedMetric === 'available' || selectedMetric === 'leave' || selectedMetric === 'training') {
+    if (selectedMetric === 'available' || selectedMetric === 'total-employees') {
       return [
         {
           id: 'name',
           header: 'Name',
           cell: (item: any) => (
-            <span className="font-medium">
-              {selectedMetric === 'available' ? item.name : 
-              selectedMetric === 'leave' ? item.employees?.name :
-              item.employees?.name}
-            </span>
+            <span className="font-medium">{item.name}</span>
           ),
           sortable: true,
-          accessorFn: (item: any) => selectedMetric === 'available' ? item.name : item.employees?.name,
+          accessorFn: (item: any) => item.name,
         },
         {
           id: 'id',
           header: 'ID',
           cell: (item: any) => (
-            <span>
-              {selectedMetric === 'available' ? `E${item.e_number}` : 
-              selectedMetric === 'leave' ? `E${item.employees?.e_number}` : 
-              `E${item.employees?.e_number}`}
-            </span>
+            <span>E{item.e_number}</span>
           ),
         },
         {
           id: 'position',
           header: 'Position',
           cell: (item: any) => (
-            <span>
-              {selectedMetric === 'available' ? 
-                (item.job_titles?.job_description || 'N/A') : 
-              selectedMetric === 'leave' ? 
-                (item.employees?.job_titles?.job_description || 'N/A') : 
-                (item.employees?.job_titles?.job_description || 'N/A')}
-            </span>
+            <span>{item.job_titles?.job_description || 'N/A'}</span>
           ),
           sortable: true,
-          accessorFn: (item: any) => selectedMetric === 'available' ? 
-            item.job_titles?.job_description : 
-            item.employees?.job_titles?.job_description,
+          accessorFn: (item: any) => item.job_titles?.job_description,
         },
         {
           id: 'team',
           header: 'Team',
           cell: (item: any) => (
-            <span>
-              {selectedMetric === 'available' ? 
-                (item.team?.team_name || 'N/A') : 
-              selectedMetric === 'leave' ? 
-                (item.employees?.team?.team_name || 'N/A') : 
-                (item.employees?.team?.team_name || 'N/A')}
-            </span>
+            <span>{item.team?.team_name || 'N/A'}</span>
           ),
           sortable: true,
-          accessorFn: (item: any) => selectedMetric === 'available' ? 
-            item.team?.team_name : 
-            item.employees?.team?.team_name,
+          accessorFn: (item: any) => item.team?.team_name,
         },
         {
           id: 'mobile',
           header: 'Mobile',
           cell: (item: any) => (
-            <span>
-              {selectedMetric === 'available' ? 
-                (item.mobile_number || 'N/A') : 
-              selectedMetric === 'leave' ? 
-                (item.employees?.mobile_number || 'N/A') : 
-                (item.employees?.mobile_number || 'N/A')}
-            </span>
+            <span>{item.mobile_number || 'N/A'}</span>
+          ),
+        },
+        {
+          id: 'joinDate',
+          header: 'Join Date',
+          cell: (item: any) => (
+            <span>{item.date_of_joining ? new Date(item.date_of_joining).toLocaleDateString() : 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.date_of_joining,
+        },
+        {
+          id: 'certifications',
+          header: 'Certifications',
+          cell: (item: any) => (
+            <span>{(item.certifications && item.certifications.length) || '0'}</span>
+          ),
+        },
+        {
+          id: 'actions',
+          header: 'Actions',
+          cell: (item: any) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>View Details</DropdownMenuItem>
+                <DropdownMenuItem>Contact</DropdownMenuItem>
+                <DropdownMenuItem>Edit</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ),
+        },
+      ];
+    } 
+    else if (selectedMetric === 'leave' || selectedMetric === 'training') {
+      return [
+        {
+          id: 'name',
+          header: 'Name',
+          cell: (item: any) => (
+            <span className="font-medium">{item.employees?.name || 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.employees?.name,
+        },
+        {
+          id: 'id',
+          header: 'ID',
+          cell: (item: any) => (
+            <span>E{item.employees?.e_number || 'N/A'}</span>
+          ),
+        },
+        {
+          id: 'position',
+          header: 'Position',
+          cell: (item: any) => (
+            <span>{item.employees?.job_titles?.job_description || 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.employees?.job_titles?.job_description,
+        },
+        {
+          id: 'team',
+          header: 'Team',
+          cell: (item: any) => (
+            <span>{item.employees?.team?.team_name || 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.employees?.team?.team_name,
+        },
+        {
+          id: 'mobile',
+          header: 'Mobile',
+          cell: (item: any) => (
+            <span>{item.employees?.mobile_number || 'N/A'}</span>
           ),
         },
         {
@@ -720,17 +900,12 @@ export const WorkforceMetrics = () => {
           header: 'Join Date',
           cell: (item: any) => (
             <span>
-              {selectedMetric === 'available' ? 
-                (item.date_of_joining ? new Date(item.date_of_joining).toLocaleDateString() : 'N/A') : 
-              selectedMetric === 'leave' ? 
-                (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A') : 
-                (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A')}
+              {item.employees?.date_of_joining ? 
+                new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A'}
             </span>
           ),
           sortable: true,
-          accessorFn: (item: any) => selectedMetric === 'available' ? 
-            item.date_of_joining : 
-            item.employees?.date_of_joining,
+          accessorFn: (item: any) => item.employees?.date_of_joining,
         },
         ...(selectedMetric === 'training' ? [
           {
@@ -766,11 +941,7 @@ export const WorkforceMetrics = () => {
           header: 'Certifications',
           cell: (item: any) => (
             <span>
-              {selectedMetric === 'available' ? 
-                ((item.certifications && item.certifications.length) || '0') : 
-              selectedMetric === 'leave' ? 
-                ((item.employees?.certifications && item.employees?.certifications.length) || '0') : 
-                ((item.employees?.certifications && item.employees?.certifications.length) || '0')}
+              {(item.employees?.certifications && item.employees?.certifications.length) || '0'}
             </span>
           ),
         },
@@ -794,8 +965,81 @@ export const WorkforceMetrics = () => {
           ),
         },
       ];
-    } else {
-      // Aircraft columns
+    } 
+    else if (selectedMetric === 'productivity') {
+      // Aircraft columns for available aircraft
+      return [
+        {
+          id: 'aircraft',
+          header: 'Aircraft',
+          cell: (item: any) => (
+            <span className="font-medium">{item.aircraft_name || 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.aircraft_name,
+        },
+        {
+          id: 'registration',
+          header: 'Registration',
+          cell: (item: any) => (
+            <span>{item.registration || 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.registration,
+        },
+        {
+          id: 'type',
+          header: 'Type',
+          cell: (item: any) => (
+            <span>{item.aircraft_types?.type_name || 'N/A'}</span>
+          ),
+        },
+        {
+          id: 'manufacturer',
+          header: 'Manufacturer',
+          cell: (item: any) => (
+            <span>{item.aircraft_types?.manufacturer || 'N/A'}</span>
+          ),
+        },
+        {
+          id: 'customer',
+          header: 'Customer',
+          cell: (item: any) => (
+            <span>{item.customer || 'N/A'}</span>
+          ),
+        },
+        {
+          id: 'totalHours',
+          header: 'Total Hours',
+          cell: (item: any) => (
+            <span>{item.total_hours || '0'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.total_hours,
+        },
+        {
+          id: 'actions',
+          header: 'Actions',
+          cell: (item: any) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>View Details</DropdownMenuItem>
+                <DropdownMenuItem>Schedule Maintenance</DropdownMenuItem>
+                <DropdownMenuItem>View History</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ),
+        },
+      ];
+    }
+    else {
+      // Aircraft in maintenance columns
       return [
         {
           id: 'aircraft',
@@ -853,7 +1097,8 @@ export const WorkforceMetrics = () => {
           header: 'Date Range',
           cell: (item: any) => (
             <span>
-              {new Date(item.date_in).toLocaleDateString()} - {new Date(item.date_out).toLocaleDateString()}
+              {item.date_in ? new Date(item.date_in).toLocaleDateString() : 'N/A'} - 
+              {item.date_out ? new Date(item.date_out).toLocaleDateString() : 'N/A'}
             </span>
           ),
           sortable: true,
@@ -935,14 +1180,14 @@ export const WorkforceMetrics = () => {
     { 
       id: 'leave', 
       label: 'On Leave', 
-      value: isLoading ? '-' : employeeMetrics?.onLeave || 0, 
+      value: isLoading ? '-' : onLeaveCount || 0, 
       icon: CalendarCheck, 
       color: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
     },
     { 
       id: 'training', 
       label: 'In Training', 
-      value: isLoading ? '-' : employeeMetrics?.inTraining || 0, 
+      value: isLoading ? '-' : inTrainingCount || 0, 
       icon: GraduationCap, 
       color: 'bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800',
     },
