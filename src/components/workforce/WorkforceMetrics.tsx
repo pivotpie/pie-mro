@@ -78,41 +78,84 @@ const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick, isLo
   </Card>
 );
 
-// Define types to prevent excessive instantiation
-type Employee = {
+// Define basic interfaces without circular references
+interface JobTitle {
+  job_description: string;
+}
+
+interface Team {
+  team_name: string;
+}
+
+interface Certification {
+  id: number;
+  [key: string]: any;
+}
+
+interface EmployeeAuthorization {
+  id: number;
+  [key: string]: any;
+}
+
+interface DateReference {
+  id: number;
+  actual_date: string;
+}
+
+interface RosterCode {
+  roster_code: string;
+}
+
+interface EmployeeBase {
   id: number;
   name: string;
   e_number: number;
-  job_titles?: { job_description: string };
-  team?: { team_name: string };
   mobile_number?: string;
   date_of_joining?: string;
-  certifications?: any[];
-  employee_authorizations?: any[];
   is_active: boolean;
-};
+}
 
-type RosterAssignment = {
+// Now define the more complex interfaces using the basic ones
+interface Employee extends EmployeeBase {
+  job_titles?: JobTitle;
+  team?: Team;
+  certifications?: Certification[];
+  employee_authorizations?: EmployeeAuthorization[];
+}
+
+interface RosterAssignment {
   id: number;
   employee_id: number;
   date_id: number;
   roster_id: number;
   employees?: Employee;
-  date?: { actual_date: string };
-  roster?: { roster_code: string };
-};
+  date?: DateReference;
+  roster?: RosterCode;
+}
 
-type AircraftType = {
+interface AircraftType {
   id: number;
   aircraft_name?: string;
   registration?: string;
-  aircraft_types?: { type_name: string; manufacturer: string };
+  aircraft_types?: { 
+    type_name: string; 
+    manufacturer: string 
+  };
   customer?: string;
   total_hours?: number;
   total_cycles?: number;
-};
+}
 
-type MaintenanceVisit = {
+interface Hangar {
+  hangar_name: string;
+}
+
+interface PersonnelRequirement {
+  id: number;
+  [key: string]: any;
+}
+
+interface MaintenanceVisit {
   id: number;
   aircraft_id: number;
   aircraft?: AircraftType;
@@ -123,10 +166,17 @@ type MaintenanceVisit = {
   date_out: string;
   remarks?: string;
   hangar_id?: number;
-  hangar?: { hangar_name: string };
+  hangar?: Hangar;
   total_hours?: number;
-  personnel_requirements?: any[];
-};
+  personnel_requirements?: PersonnelRequirement[];
+}
+
+interface EmployeeSupport {
+  id: number;
+  employee_id: number;
+  support_id: number;
+  date?: string;
+}
 
 export const WorkforceMetrics = () => {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
@@ -171,7 +221,7 @@ export const WorkforceMetrics = () => {
         .eq('date', currentDate);
       if (error) throw error;
       console.log('Employee supports fetched for today:', data?.length);
-      return data || [];
+      return data as EmployeeSupport[] || [];
     }
   });
 
@@ -189,7 +239,7 @@ export const WorkforceMetrics = () => {
         return null;
       }
       console.log('Date reference fetched:', data);
-      return data;
+      return data as DateReference | null;
     }
   });
 
