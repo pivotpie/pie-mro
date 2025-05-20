@@ -97,12 +97,12 @@ interface EmployeeAuthorization {
   [key: string]: any;
 }
 
-interface DateReference {
+interface DateReferenceType {
   id: number;
   actual_date: string;
 }
 
-interface RosterCode {
+interface RosterCodeType {
   roster_code: string;
 }
 
@@ -123,14 +123,16 @@ interface Employee extends EmployeeBase {
   employee_authorizations?: EmployeeAuthorization[];
 }
 
-interface RosterAssignment {
+interface RosterAssignmentType {
   id: number;
   employee_id: number;
   date_id: number;
   roster_id: number;
   employees?: Employee;
-  date?: DateReference;
-  roster?: RosterCode;
+  date?: {
+    actual_date: string;
+  };
+  roster?: RosterCodeType;
 }
 
 interface AircraftType {
@@ -146,7 +148,7 @@ interface AircraftType {
   total_cycles?: number;
 }
 
-interface Hangar {
+interface HangarType {
   hangar_name: string;
 }
 
@@ -155,7 +157,7 @@ interface PersonnelRequirement {
   [key: string]: any;
 }
 
-interface MaintenanceVisit {
+interface MaintenanceVisitType {
   id: number;
   aircraft_id: number;
   aircraft?: AircraftType;
@@ -166,12 +168,12 @@ interface MaintenanceVisit {
   date_out: string;
   remarks?: string;
   hangar_id?: number;
-  hangar?: Hangar;
+  hangar?: HangarType;
   total_hours?: number;
   personnel_requirements?: PersonnelRequirement[];
 }
 
-interface EmployeeSupport {
+interface EmployeeSupportType {
   id: number;
   employee_id: number;
   support_id: number;
@@ -221,7 +223,7 @@ export const WorkforceMetrics = () => {
         .eq('date', currentDate);
       if (error) throw error;
       console.log('Employee supports fetched for today:', data?.length);
-      return data as EmployeeSupport[] || [];
+      return data as EmployeeSupportType[] || [];
     }
   });
 
@@ -239,7 +241,7 @@ export const WorkforceMetrics = () => {
         return null;
       }
       console.log('Date reference fetched:', data);
-      return data as DateReference | null;
+      return data as DateReferenceType | null;
     }
   });
 
@@ -264,7 +266,7 @@ export const WorkforceMetrics = () => {
         return [];
       }
       console.log('Roster assignments fetched for today:', data?.length);
-      return data as RosterAssignment[] || [];
+      return data as unknown as RosterAssignmentType[] || [];
     },
     enabled: !!dateReference?.id
   });
@@ -311,7 +313,7 @@ export const WorkforceMetrics = () => {
           
         if (error) throw error;
         console.log('Maintenance visits fetched for today:', data?.length);
-        return data as MaintenanceVisit[] || [];
+        return data as MaintenanceVisitType[] || [];
       } catch (error: any) {
         console.error("Error fetching maintenance visits:", error);
         return [];
@@ -551,7 +553,7 @@ export const WorkforceMetrics = () => {
                 'Date Range': `${new Date(item.date_in).toLocaleDateString()} - ${new Date(item.date_out).toLocaleDateString()}`,
                 Status: item.status || 'N/A',
                 Hangar: item.hangar?.hangar_name || 'N/A',
-                'Total Hours': item.total_hours || '0',
+                'Total Hours': item.total_hours || 'N/A',
                 Remarks: item.remarks || ''
               };
             }
