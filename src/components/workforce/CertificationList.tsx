@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Filter, X } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 interface Certification {
@@ -221,12 +221,12 @@ export const CertificationList = () => {
         </div>
       </CardContent>
 
-      {/* Certification Details Panel */}
-      <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Certification Details</SheetTitle>
-          </SheetHeader>
+      {/* Certification Details Modal - Center-oriented, 80% width and height */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="w-[80vw] h-[80vh] max-w-[80vw] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Certification Details</DialogTitle>
+          </DialogHeader>
           {selectedCertification && (
             <div className="mt-6 space-y-6">
               {/* Employee Section */}
@@ -315,8 +315,8 @@ export const CertificationList = () => {
               </div>
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

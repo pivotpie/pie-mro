@@ -1,12 +1,12 @@
 
 import { useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   Users, UserCog, UsersRound, CalendarClock, 
   ClipboardCheck, FileText, ArrowUpRight, UserPlus, Calendar, AlertCircle, 
-  Briefcase, FileSpreadsheet
+  Briefcase, FileSpreadsheet, Download, Upload
 } from "lucide-react";
 
 interface ShortcutItem {
@@ -18,7 +18,7 @@ interface ShortcutItem {
 
 export const ManagementShortcuts = () => {
   const [activeShortcut, setActiveShortcut] = useState<ShortcutItem | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const shortcuts: ShortcutItem[] = [
     { id: "employee-shifts", label: "Employee Shifts", icon: CalendarClock, color: "bg-blue-100 text-blue-600" },
@@ -33,7 +33,7 @@ export const ManagementShortcuts = () => {
 
   const handleShortcutClick = (shortcut: ShortcutItem) => {
     setActiveShortcut(shortcut);
-    setSheetOpen(true);
+    setDialogOpen(true);
   };
 
   return (
@@ -62,18 +62,22 @@ export const ManagementShortcuts = () => {
         </div>
       </CardContent>
 
-      {/* Management Side Panel */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:w-[540px] md:w-[680px] lg:w-[860px] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{activeShortcut?.label}</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6">
+      {/* Management Modal - Center-oriented, 80% width and height */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="w-[80vw] h-[80vh] max-w-[80vw] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{activeShortcut?.label}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-6 h-full flex flex-col">
             <div className="mb-4 flex justify-between items-center">
               <div className="text-sm text-gray-500 dark:text-gray-400">Showing records from database</div>
               <div className="flex space-x-2">
                 <Button variant="outline" size="sm" className="flex items-center">
-                  <ArrowUpRight className="h-4 w-4 mr-1" />
+                  <Upload className="h-4 w-4 mr-1" />
+                  Import
+                </Button>
+                <Button variant="outline" size="sm" className="flex items-center">
+                  <Download className="h-4 w-4 mr-1" />
                   Export
                 </Button>
                 <Button size="sm" className="flex items-center bg-blue-600 hover:bg-blue-700">
@@ -83,42 +87,44 @@ export const ManagementShortcuts = () => {
               </div>
             </div>
 
-            <div className="rounded-md border dark:border-gray-700">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
-                    <th className="p-3 text-left font-medium dark:text-gray-200">ID</th>
-                    <th className="p-3 text-left font-medium dark:text-gray-200">Name</th>
-                    <th className="p-3 text-left font-medium dark:text-gray-200">Team</th>
-                    <th className="p-3 text-left font-medium dark:text-gray-200">Status</th>
-                    <th className="p-3 text-left font-medium dark:text-gray-200">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                      <td className="p-3 dark:text-gray-300">EMP00{i+1}</td>
-                      <td className="p-3 dark:text-gray-300">{["James Wilson", "Sarah Johnson", "Michael Brown", "Emily Davis", "Robert Miller"][i % 5]}</td>
-                      <td className="p-3 dark:text-gray-300">{["Team Alpha", "Team Beta", "Team Charlie"][i % 3]}</td>
-                      <td className="p-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          i % 3 === 0 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : 
-                          i % 3 === 1 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" : 
-                          "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                        }`}>
-                          {i % 3 === 0 ? "Active" : i % 3 === 1 ? "On Leave" : "In Training"}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" className="h-8 px-2">View</Button>
-                          <Button variant="outline" size="sm" className="h-8 px-2">Edit</Button>
-                        </div>
-                      </td>
+            <div className="flex-1 overflow-y-auto">
+              <div className="rounded-md border dark:border-gray-700">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                      <th className="p-3 text-left font-medium dark:text-gray-200">ID</th>
+                      <th className="p-3 text-left font-medium dark:text-gray-200">Name</th>
+                      <th className="p-3 text-left font-medium dark:text-gray-200">Team</th>
+                      <th className="p-3 text-left font-medium dark:text-gray-200">Status</th>
+                      <th className="p-3 text-left font-medium dark:text-gray-200">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <tr key={i} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
+                        <td className="p-3 dark:text-gray-300">EMP00{i+1}</td>
+                        <td className="p-3 dark:text-gray-300">{["James Wilson", "Sarah Johnson", "Michael Brown", "Emily Davis", "Robert Miller"][i % 5]}</td>
+                        <td className="p-3 dark:text-gray-300">{["Team Alpha", "Team Beta", "Team Charlie"][i % 3]}</td>
+                        <td className="p-3">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            i % 3 === 0 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : 
+                            i % 3 === 1 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" : 
+                            "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                          }`}>
+                            {i % 3 === 0 ? "Active" : i % 3 === 1 ? "On Leave" : "In Training"}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm" className="h-8 px-2">View</Button>
+                            <Button variant="outline" size="sm" className="h-8 px-2">Edit</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="mt-4 flex justify-between items-center">
@@ -134,8 +140,8 @@ export const ManagementShortcuts = () => {
               </div>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
