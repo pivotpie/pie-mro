@@ -21,8 +21,8 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
     const result: EmployeeBasic[] = [];
     
     if (data && Array.isArray(data)) {
+      // Use type assertion to help TypeScript understand the structure
       for (const emp of data) {
-        // Create employee object with explicit types
         const employee: EmployeeBasic = {
           id: emp.id,
           name: emp.name,
@@ -30,8 +30,9 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
           is_active: emp.is_active,
           mobile_number: emp.mobile_number || undefined,
           date_of_joining: emp.date_of_joining || undefined,
-          job_title_description: emp?.job_titles?.job_description,
-          team_name: emp?.team?.team_name,
+          // Use optional chaining with type safety
+          job_title_description: emp.job_titles ? emp.job_titles.job_description : undefined,
+          team_name: emp.team ? emp.team.team_name : undefined,
           certification_count: Array.isArray(emp.certifications) ? emp.certifications.length : 0,
           authorization_count: Array.isArray(emp.employee_authorizations) ? emp.employee_authorizations.length : 0
         };
@@ -119,19 +120,22 @@ export const fetchRosterAssignments = async (dateId: number): Promise<SimpleRost
     
     if (data && Array.isArray(data)) {
       for (const ra of data) {
-        assignments.push({
+        // Build the assignment object with explicit properties to avoid deep type instantiation
+        const assignment: SimpleRosterAssignment = {
           id: ra.id,
           employee_id: ra.employee_id,
           date_id: ra.date_id,
           roster_id: ra.roster_id,
-          employee_name: ra.employees?.name,
-          employee_number: ra.employees?.e_number,
-          employee_position: ra.employees?.job_titles?.job_description,
-          employee_team: ra.employees?.team?.team_name,
-          employee_mobile: ra.employees?.mobile_number,
-          date_value: ra.date?.actual_date,
-          roster_code: ra.roster?.roster_code
-        });
+          employee_name: ra.employees ? ra.employees.name : undefined,
+          employee_number: ra.employees ? ra.employees.e_number : undefined,
+          employee_position: ra.employees && ra.employees.job_titles ? ra.employees.job_titles.job_description : undefined,
+          employee_team: ra.employees && ra.employees.team ? ra.employees.team.team_name : undefined,
+          employee_mobile: ra.employees ? ra.employees.mobile_number : undefined,
+          date_value: ra.date ? ra.date.actual_date : undefined,
+          roster_code: ra.roster ? ra.roster.roster_code : undefined
+        };
+        
+        assignments.push(assignment);
       }
     }
     
@@ -158,16 +162,19 @@ export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
     
     if (data && Array.isArray(data)) {
       for (const ac of data) {
-        aircraft.push({
+        // Create aircraft object with explicit properties to avoid deep type instantiation
+        const aircraftItem: AircraftBasic = {
           id: ac.id,
           aircraft_name: ac.aircraft_name,
           registration: ac.registration,
-          type_name: ac.aircraft_types?.type_name,
-          manufacturer: ac.aircraft_types?.manufacturer,
+          type_name: ac.aircraft_types ? ac.aircraft_types.type_name : undefined,
+          manufacturer: ac.aircraft_types ? ac.aircraft_types.manufacturer : undefined,
           customer: ac.customer,
           total_hours: ac.total_hours,
           total_cycles: ac.total_cycles
-        });
+        };
+        
+        aircraft.push(aircraftItem);
       }
     }
     
@@ -221,12 +228,13 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
     
     if (data && Array.isArray(data)) {
       for (const mv of data) {
+        // Create visit object with explicit properties to avoid deep type instantiation
         const visit: MaintenanceVisitBasic = {
           id: mv.id,
           aircraft_id: mv.aircraft_id,
-          aircraft_name: mv.aircraft?.aircraft_name,
-          aircraft_registration: mv.aircraft?.registration,
-          aircraft_type: mv.aircraft?.aircraft_types?.type_name,
+          aircraft_name: mv.aircraft ? mv.aircraft.aircraft_name : undefined,
+          aircraft_registration: mv.aircraft ? mv.aircraft.registration : undefined,
+          aircraft_type: mv.aircraft && mv.aircraft.aircraft_types ? mv.aircraft.aircraft_types.type_name : undefined,
           visit_number: mv.visit_number,
           check_type: mv.check_type,
           status: mv.status,
@@ -234,7 +242,7 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
           date_out: mv.date_out,
           remarks: mv.remarks,
           hangar_id: mv.hangar_id,
-          hangar_name: mv.hangar?.hangar_name,
+          hangar_name: mv.hangar ? mv.hangar.hangar_name : undefined,
           total_hours: mv.total_hours,
           has_personnel_requirements: visitsWithPersonnel.has(mv.id)
         };
