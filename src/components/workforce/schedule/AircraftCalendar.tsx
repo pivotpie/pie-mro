@@ -59,97 +59,104 @@ export const AircraftCalendar = () => {
         
         if (hangarError) throw hangarError;
 
-        // Fetch aircraft
-        const { data: aircraftData, error: aircraftError } = await supabase
-          .from('aircraft')
-          .select('*')
-          .limit(10);
-        
-        if (aircraftError) throw aircraftError;
-
-        // Fetch maintenance visits for scheduling
-        const { data: visitData, error: visitError } = await supabase
+        // Fetch maintenance visits with aircraft information
+        const { data: maintenanceVisitsData, error: visitError } = await supabase
           .from('maintenance_visits')
-          .select('*')
-          .limit(20);
+          .select(`
+            id,
+            visit_number,
+            check_type,
+            date_in,
+            date_out,
+            start_date,
+            end_date,
+            status,
+            remarks,
+            hangar_id,
+            aircraft_id,
+            aircraft:aircraft_id (
+              id,
+              aircraft_code,
+              aircraft_name,
+              registration,
+              customer
+            )
+          `);
         
         if (visitError) throw visitError;
 
+        console.log("Fetched maintenance visits:", maintenanceVisitsData);
+        
         setHangars(hangarData || []);
         setFilteredHangars(hangarData || []);
 
-        // Process schedule data
-        const schedules = [];
+        // Process maintenance visit data into the format needed for display
+        const schedules: any[] = [];
+        const hangarMap: Record<string, any> = {};
 
+        // Initialize empty schedules for each hangar
         for (const hangar of hangarData || []) {
-          // Find aircraft assigned to this hangar
-          const hangarVisits = visitData?.filter(visit => visit.hangar_id === hangar.id) || [];
-          
-          const scheduleItems = [];
-
-          for (const visit of hangarVisits) {
-            const aircraft = aircraftData?.find(a => a.id === visit.aircraft_id);
-            if (!aircraft) continue;
-
-            // Use real date_in and date_out if available, or generate random dates
-            let startDay, endDay;
-
-            if (visit.date_in && visit.date_out) {
-              // Convert real dates to our May 2025 calendar for demo purposes
-              const date_in = new Date(visit.date_in);
-              const date_out = new Date(visit.date_out);
-              
-              // Map to May 2025 by using the day of month
-              startDay = Math.min(date_in.getDate(), 28);
-              endDay = Math.min(date_out.getDate(), 30);
-              
-              if (startDay > endDay) {
-                [startDay, endDay] = [endDay, startDay]; // Swap if out of order
-              }
-            } else {
-              // Generate random dates within May
-              startDay = 1 + Math.floor(Math.random() * 20);
-              endDay = startDay + 3 + Math.floor(Math.random() * 8);
-              endDay = Math.min(endDay, 31); // Ensure we don't go beyond May
-            }
-
-            // Get a random team
-            const teamNames = ["Team Alpha", "Team Beta", "Team Charlie", null];
-            const teamName = teamNames[Math.floor(Math.random() * teamNames.length)];
-
-            const colorClasses = [
-              "bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700",
-              "bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700",
-              "bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700",
-              "bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700",
-              "bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700",
-              "bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700"
-            ];
-
-            scheduleItems.push({
-              id: visit.id,
-              visit_id: visit.id,
-              aircraft_id: aircraft.id,
-              aircraft: aircraft.aircraft_name || aircraft.aircraft_code,
-              registration: aircraft.registration || 'No Reg',
-              start: { month: 4, day: startDay },
-              end: { month: 4, day: endDay },
-              team: teamName,
-              color: colorClasses[Math.floor(Math.random() * colorClasses.length)],
-              visit_type: visit.check_type || 'Maintenance'
-            });
-          }
-
-          schedules.push({
+          hangarMap[hangar.id] = {
             hangarId: hangar.id,
-            hangarName: hangar.hangar_name,
-            hangarCode: hangar.hangar_code,
-            schedules: scheduleItems
-          });
+            hangarName: hangar.hangar_name || 'Unknown Hangar',
+            hangarCode: hangar.hangar_code || 'Unknown',
+            schedules: []
+          };
         }
 
-        setAircraftSchedules(schedules);
-        setFilteredSchedules(schedules);
+        // Add maintenance visits to their respective hangars
+        const colorClasses = [
+          "bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700",
+          "bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700",
+          "bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700",
+          "bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700",
+          "bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700",
+          "bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700"
+        ];
+
+        // Handle maintenance visits
+        for (const visit of maintenanceVisitsData || []) {
+          if (!visit.hangar_id || !visit.aircraft || !visit.date_in || !visit.date_out) continue;
+
+          // Convert dates to day/month format for our calendar
+          const date_in = new Date(visit.date_in);
+          const date_out = new Date(visit.date_out);
+          
+          // Map to May 2025 calendar for consistency with UI
+          // Use actual day of month but force it to May 2025
+          const startDay = Math.min(Math.max(date_in.getDate(), 1), 31);
+          const endDay = Math.min(Math.max(date_out.getDate(), startDay), 31);
+
+          // Get team assignment (in real app, this would come from the database)
+          const teams = ["Team Alpha", "Team Beta", "Team Charlie", null];
+          const teamName = teams[Math.floor(Math.random() * teams.length)];
+
+          // Create schedule item
+          const scheduleItem = {
+            id: visit.id,
+            visit_id: visit.id,
+            aircraft_id: visit.aircraft.id,
+            aircraft: visit.aircraft.aircraft_name || visit.aircraft.aircraft_code,
+            registration: visit.aircraft.registration || 'No Reg',
+            start: { month: 4, day: startDay },
+            end: { month: 4, day: endDay },
+            team: teamName,
+            color: colorClasses[Math.floor(Math.random() * colorClasses.length)],
+            visit_type: visit.check_type || 'Maintenance'
+          };
+
+          // Add to the appropriate hangar
+          if (hangarMap[visit.hangar_id]) {
+            hangarMap[visit.hangar_id].schedules.push(scheduleItem);
+          }
+        }
+
+        // Convert hangar map to array
+        const scheduleArray = Object.values(hangarMap);
+        setAircraftSchedules(scheduleArray);
+        setFilteredSchedules(scheduleArray);
+
+        console.log("Processed schedules:", scheduleArray);
       } catch (error: any) {
         toast.error(`Error loading data: ${error.message}`);
         console.error("Error fetching data:", error);
@@ -351,10 +358,10 @@ export const AircraftCalendar = () => {
               {filteredSchedules.map((hangarSchedule) => (
                 <tr key={hangarSchedule.hangarId} className="border-b h-[40px] dark:border-gray-700">
                   <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10" style={{ width: `${columnWidths.hangar}px` }}>
-                    {hangarSchedule.hangarName.split(" ")[0] || 'Hangar'}
+                    {hangarSchedule.hangarName?.split(" ")[0] || 'Hangar'}
                   </td>
                   <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10" style={{ width: `${columnWidths.bay}px`, left: `${columnWidths.hangar}px` }}>
-                    {hangarSchedule.hangarName.split(" ")[1] || hangarSchedule.hangarCode || 'Bay'}
+                    {hangarSchedule.hangarName?.split(" ")[1] || hangarSchedule.hangarCode || 'Bay'}
                   </td>
                   
                   {/* Gantt chart container cell */}
@@ -448,7 +455,7 @@ export const AircraftCalendar = () => {
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Schedule</p>
                         <p className="font-medium dark:text-gray-200">
-                          May {selectedAircraft.start.day} - May {selectedAircraft.end.day}
+                          May {selectedAircraft.start.day} - May {selectedAircraft.end.day}, 2025
                         </p>
                       </div>
                       <div>
