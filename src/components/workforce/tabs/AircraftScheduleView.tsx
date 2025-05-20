@@ -48,10 +48,8 @@ export const AircraftScheduleView = () => {
         visit_number: visitNumber,
         check_type: formData.checkType,
         status: formData.status,
-        start_date: formData.startDate,
-        end_date: formData.endDate,
-        date_in: new Date(new Date(formData.startDate).getTime() - 86400000).toISOString().split('T')[0], // 1 day before
-        date_out: new Date(new Date(formData.endDate).getTime() + 86400000).toISOString().split('T')[0], // 1 day after
+        date_in: formData.startDate, 
+        date_out: formData.endDate,
         remarks: formData.remarks,
         total_hours: Math.floor(Math.random() * 500) + 100 // Random hours
       });

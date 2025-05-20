@@ -70,7 +70,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
           
         if (hangarsError) throw hangarsError;
         
-        // Fetch maintenance visits with aircraft info
+        // Fetch maintenance visits with aircraft info - using date_in and date_out instead of start_date and end_date
         const { data: visitsData, error: visitsError } = await supabase
           .from('maintenance_visits')
           .select(`
@@ -78,8 +78,6 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
             visit_number,
             check_type,
             status,
-            start_date,
-            end_date,
             date_in,
             date_out,
             hangar_id,
@@ -91,7 +89,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
               aircraft_type_id
             )
           `)
-          .order('start_date');
+          .order('date_in');
           
         if (visitsError) {
           console.error('Error fetching visits:', visitsError);
@@ -142,8 +140,9 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
               let startDate, endDate;
               
               try {
-                startDate = visit.start_date ? new Date(visit.start_date) : new Date(visit.date_in);
-                endDate = visit.end_date ? new Date(visit.end_date) : new Date(visit.date_out);
+                // Using date_in and date_out instead of start_date and end_date
+                startDate = visit.date_in ? new Date(visit.date_in) : new Date();
+                endDate = visit.date_out ? new Date(visit.date_out) : new Date(new Date().getTime() + 86400000);
               } catch (error) {
                 console.error('Error parsing dates for visit:', visit);
                 startDate = new Date();
