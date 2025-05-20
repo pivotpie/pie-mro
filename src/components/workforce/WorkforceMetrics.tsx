@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -79,6 +78,56 @@ const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick, isLo
   </Card>
 );
 
+// Define types to prevent excessive instantiation
+type Employee = {
+  id: number;
+  name: string;
+  e_number: number;
+  job_titles?: { job_description: string };
+  team?: { team_name: string };
+  mobile_number?: string;
+  date_of_joining?: string;
+  certifications?: any[];
+  employee_authorizations?: any[];
+  is_active: boolean;
+};
+
+type RosterAssignment = {
+  id: number;
+  employee_id: number;
+  date_id: number;
+  roster_id: number;
+  employees?: Employee;
+  date?: { actual_date: string };
+  roster?: { roster_code: string };
+};
+
+type AircraftType = {
+  id: number;
+  aircraft_name?: string;
+  registration?: string;
+  aircraft_types?: { type_name: string; manufacturer: string };
+  customer?: string;
+  total_hours?: number;
+  total_cycles?: number;
+};
+
+type MaintenanceVisit = {
+  id: number;
+  aircraft_id: number;
+  aircraft?: AircraftType;
+  visit_number: string;
+  check_type: string;
+  status?: string;
+  date_in: string;
+  date_out: string;
+  remarks?: string;
+  hangar_id?: number;
+  hangar?: { hangar_name: string };
+  total_hours?: number;
+  personnel_requirements?: any[];
+};
+
 export const WorkforceMetrics = () => {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -108,7 +157,7 @@ export const WorkforceMetrics = () => {
         
       if (error) throw error;
       console.log('Total employees fetched:', data?.length);
-      return data || [];
+      return data as Employee[] || [];
     }
   });
 
@@ -165,7 +214,7 @@ export const WorkforceMetrics = () => {
         return [];
       }
       console.log('Roster assignments fetched for today:', data?.length);
-      return data || [];
+      return data as RosterAssignment[] || [];
     },
     enabled: !!dateReference?.id
   });
@@ -184,7 +233,7 @@ export const WorkforceMetrics = () => {
           
         if (error) throw error;
         console.log('Aircraft fetched:', data?.length);
-        return data || [];
+        return data as AircraftType[] || [];
       } catch (error: any) {
         console.error("Error fetching aircraft:", error);
         return [];
@@ -212,7 +261,7 @@ export const WorkforceMetrics = () => {
           
         if (error) throw error;
         console.log('Maintenance visits fetched for today:', data?.length);
-        return data || [];
+        return data as MaintenanceVisit[] || [];
       } catch (error: any) {
         console.error("Error fetching maintenance visits:", error);
         return [];
@@ -1314,4 +1363,3 @@ export const WorkforceMetrics = () => {
     </>
   );
 };
-
