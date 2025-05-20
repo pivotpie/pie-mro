@@ -10,116 +10,157 @@ import {
 
 // Separate data fetching functions to make the code more maintainable
 export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
-  const { data, error } = await supabase
-    .from('employees')
-    .select('id, name, e_number, mobile_number, date_of_joining, is_active, job_titles(job_description), team:teams(team_name), certifications!left(*), employee_authorizations!left(*)');
+  try {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id, name, e_number, mobile_number, date_of_joining, is_active, job_titles(job_description), team:teams(team_name), certifications!left(*), employee_authorizations!left(*)');
+      
+    if (error) throw error;
+    console.log('Total employees fetched:', data?.length);
     
-  if (error) throw error;
-  console.log('Total employees fetched:', data?.length);
-  
-  // Transform the data with explicit typing
-  const result: EmployeeBasic[] = [];
-  
-  if (data && Array.isArray(data)) {
-    for (const emp of data) {
-      const certCount = emp.certifications && Array.isArray(emp.certifications) 
-        ? emp.certifications.length 
-        : 0;
-      
-      const authCount = emp.employee_authorizations && Array.isArray(emp.employee_authorizations) 
-        ? emp.employee_authorizations.length 
-        : 0;
+    // Use a simpler approach with direct mapping
+    const result: EmployeeBasic[] = [];
+    
+    if (data && Array.isArray(data)) {
+      for (const emp of data) {
+        // Handle certification count more directly
+        let certCount = 0;
+        if (emp.certifications && Array.isArray(emp.certifications)) {
+          certCount = emp.certifications.length;
+        }
         
-      // Create employee object with explicit typing
-      const employee: EmployeeBasic = {
-        id: emp.id,
-        name: emp.name,
-        e_number: emp.e_number,
-        mobile_number: emp.mobile_number,
-        date_of_joining: emp.date_of_joining,
-        is_active: emp.is_active,
-        job_title_description: emp.job_titles?.job_description,
-        team_name: emp.team?.team_name,
-        certification_count: certCount,
-        authorization_count: authCount
-      };
-      
-      result.push(employee);
+        // Handle authorization count more directly
+        let authCount = 0;
+        if (emp.employee_authorizations && Array.isArray(emp.employee_authorizations)) {
+          authCount = emp.employee_authorizations.length;
+        }
+        
+        // Create employee object with direct property assignments
+        const employee: EmployeeBasic = {
+          id: emp.id,
+          name: emp.name,
+          e_number: emp.e_number,
+          mobile_number: emp.mobile_number || undefined,
+          date_of_joining: emp.date_of_joining || undefined,
+          is_active: emp.is_active,
+          job_title_description: emp.job_titles?.job_description,
+          team_name: emp.team?.team_name,
+          certification_count: certCount,
+          authorization_count: authCount
+        };
+        
+        result.push(employee);
+      }
     }
+    
+    return result;
+  } catch (error) {
+    console.error("Error fetching employees:", error);
+    return [];
   }
-  
-  return result;
 };
 
 export const fetchEmployeeSupports = async (currentDate: string): Promise<EmployeeSupportBasic[]> => {
-  const { data, error } = await supabase
-    .from('employee_supports')
-    .select('id, employee_id, support_id')
-    .eq('date', currentDate);
+  try {
+    const { data, error } = await supabase
+      .from('employee_supports')
+      .select('id, employee_id, support_id')
+      .eq('date', currentDate);
 
-  if (error) throw error;
-  console.log('Employee supports fetched for today:', data?.length);
-  return data as EmployeeSupportBasic[] || [];
+    if (error) throw error;
+    console.log('Employee supports fetched for today:', data?.length);
+    
+    // Create a properly typed array
+    const supports: EmployeeSupportBasic[] = [];
+    
+    if (data && Array.isArray(data)) {
+      for (const support of data) {
+        supports.push({
+          id: support.id,
+          employee_id: support.employee_id,
+          support_id: support.support_id
+        });
+      }
+    }
+    
+    return supports;
+  } catch (error) {
+    console.error("Error fetching employee supports:", error);
+    return [];
+  }
 };
 
 export const fetchDateReference = async (currentDate: string): Promise<{ id: number } | null> => {
-  const { data, error } = await supabase
-    .from('date_references')
-    .select('id')
-    .eq('actual_date', currentDate)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('date_references')
+      .select('id')
+      .eq('actual_date', currentDate)
+      .single();
 
-  if (error) {
+    if (error) {
+      console.error("Error fetching date reference:", error);
+      return null;
+    }
+    console.log('Date reference fetched:', data);
+    
+    if (data) {
+      return { id: data.id };
+    }
+    
+    return null;
+  } catch (error) {
     console.error("Error fetching date reference:", error);
     return null;
   }
-  console.log('Date reference fetched:', data);
-  return data as { id: number } | null;
 };
 
 export const fetchRosterAssignments = async (dateId: number): Promise<SimpleRosterAssignment[]> => {
-  if (!dateId) return [];
-  
-  const { data, error } = await supabase
-    .from('roster_assignments')
-    .select(`
-      id, employee_id, date_id, roster_id,
-      employees(id, name, e_number, job_titles(job_description), team:teams(team_name), mobile_number),
-      date:date_references(actual_date),
-      roster:roster_codes(roster_code)
-    `)
-    .eq('date_id', dateId);
-  
-  if (error) {
+  try {
+    if (!dateId) return [];
+    
+    const { data, error } = await supabase
+      .from('roster_assignments')
+      .select(`
+        id, employee_id, date_id, roster_id,
+        employees(id, name, e_number, job_titles(job_description), team:teams(team_name), mobile_number),
+        date:date_references(actual_date),
+        roster:roster_codes(roster_code)
+      `)
+      .eq('date_id', dateId);
+    
+    if (error) {
+      console.error("Error fetching roster assignments:", error);
+      return [];
+    }
+    console.log('Roster assignments fetched for today:', data?.length);
+    
+    // Create a properly typed array with direct property assignments
+    const assignments: SimpleRosterAssignment[] = [];
+    
+    if (data && Array.isArray(data)) {
+      for (const ra of data) {
+        assignments.push({
+          id: ra.id,
+          employee_id: ra.employee_id,
+          date_id: ra.date_id,
+          roster_id: ra.roster_id,
+          employee_name: ra.employees?.name,
+          employee_number: ra.employees?.e_number,
+          employee_position: ra.employees?.job_titles?.job_description,
+          employee_team: ra.employees?.team?.team_name,
+          employee_mobile: ra.employees?.mobile_number,
+          date_value: ra.date?.actual_date,
+          roster_code: ra.roster?.roster_code
+        });
+      }
+    }
+    
+    return assignments;
+  } catch (error) {
     console.error("Error fetching roster assignments:", error);
     return [];
   }
-  console.log('Roster assignments fetched for today:', data?.length);
-  
-  // Transform to a flatter structure with manual type handling
-  const result: SimpleRosterAssignment[] = [];
-  
-  if (data && Array.isArray(data)) {
-    for (const ra of data) {
-      const assignment: SimpleRosterAssignment = {
-        id: ra.id,
-        employee_id: ra.employee_id,
-        date_id: ra.date_id,
-        roster_id: ra.roster_id,
-        employee_name: ra.employees?.name,
-        employee_number: ra.employees?.e_number,
-        employee_position: ra.employees?.job_titles?.job_description,
-        employee_team: ra.employees?.team?.team_name,
-        employee_mobile: ra.employees?.mobile_number,
-        date_value: ra.date?.actual_date,
-        roster_code: ra.roster?.roster_code
-      };
-      
-      result.push(assignment);
-    }
-  }
-  
-  return result;
 };
 
 export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
@@ -134,12 +175,12 @@ export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
     if (error) throw error;
     console.log('Aircraft fetched:', data?.length);
     
-    // Transform to a flatter structure with manual type handling
-    const result: AircraftBasic[] = [];
+    // Create a properly typed array with direct property assignments
+    const aircraft: AircraftBasic[] = [];
     
     if (data && Array.isArray(data)) {
       for (const ac of data) {
-        const aircraft: AircraftBasic = {
+        aircraft.push({
           id: ac.id,
           aircraft_name: ac.aircraft_name,
           registration: ac.registration,
@@ -148,14 +189,12 @@ export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
           customer: ac.customer,
           total_hours: ac.total_hours,
           total_cycles: ac.total_cycles
-        };
-        
-        result.push(aircraft);
+        });
       }
     }
     
-    return result;
-  } catch (error: any) {
+    return aircraft;
+  } catch (error) {
     console.error("Error fetching aircraft:", error);
     return [];
   }
@@ -163,6 +202,7 @@ export const fetchAircraft = async (): Promise<AircraftBasic[]> => {
 
 export const fetchMaintenanceVisits = async (currentDate: string): Promise<MaintenanceVisitBasic[]> => {
   try {
+    // First, fetch the maintenance visits
     const { data, error } = await supabase
       .from('maintenance_visits')
       .select(`
@@ -175,7 +215,7 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
       
     if (error) throw error;
     
-    // Separate query to get personnel requirements info
+    // Separate query to get personnel requirements info (more efficient than nested queries)
     const { data: personnelData, error: personnelError } = await supabase
       .from('personnel_requirements')
       .select('maintenance_visit_id, count')
@@ -197,12 +237,12 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
     
     console.log('Maintenance visits fetched for today:', data?.length);
     
-    // Transform to a flatter structure with manual type handling
-    const result: MaintenanceVisitBasic[] = [];
+    // Create a properly typed array with direct property assignments
+    const visits: MaintenanceVisitBasic[] = [];
     
     if (data && Array.isArray(data)) {
       for (const mv of data) {
-        const visit: MaintenanceVisitBasic = {
+        visits.push({
           id: mv.id,
           aircraft_id: mv.aircraft_id,
           aircraft_name: mv.aircraft?.aircraft_name,
@@ -218,14 +258,12 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
           hangar_name: mv.hangar?.hangar_name,
           total_hours: mv.total_hours,
           has_personnel_requirements: visitsWithPersonnel.has(mv.id)
-        };
-        
-        result.push(visit);
+        });
       }
     }
     
-    return result;
-  } catch (error: any) {
+    return visits;
+  } catch (error) {
     console.error("Error fetching maintenance visits:", error);
     return [];
   }
