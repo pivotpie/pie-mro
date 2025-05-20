@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { 
@@ -22,7 +23,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose
+  DialogClose,
+  DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -35,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SortableTable } from "@/components/ui/sortable-table";
 
 interface MetricCardProps {
   label: string;
@@ -637,6 +640,262 @@ export const WorkforceMetrics = () => {
     return filteredData;
   };
 
+  // Convert data to columns format for SortableTable
+  const getColumnsForMetric = () => {
+    if (selectedMetric === 'available' || selectedMetric === 'leave' || selectedMetric === 'training') {
+      return [
+        {
+          id: 'name',
+          header: 'Name',
+          cell: (item: any) => (
+            <span className="font-medium">
+              {selectedMetric === 'available' ? item.name : 
+              selectedMetric === 'leave' ? item.employees?.name :
+              item.employees?.name}
+            </span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => selectedMetric === 'available' ? item.name : item.employees?.name,
+        },
+        {
+          id: 'id',
+          header: 'ID',
+          cell: (item: any) => (
+            <span>
+              {selectedMetric === 'available' ? `E${item.e_number}` : 
+              selectedMetric === 'leave' ? `E${item.employees?.e_number}` : 
+              `E${item.employees?.e_number}`}
+            </span>
+          ),
+        },
+        {
+          id: 'position',
+          header: 'Position',
+          cell: (item: any) => (
+            <span>
+              {selectedMetric === 'available' ? 
+                (item.job_titles?.job_description || 'N/A') : 
+              selectedMetric === 'leave' ? 
+                (item.employees?.job_titles?.job_description || 'N/A') : 
+                (item.employees?.job_titles?.job_description || 'N/A')}
+            </span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => selectedMetric === 'available' ? 
+            item.job_titles?.job_description : 
+            item.employees?.job_titles?.job_description,
+        },
+        {
+          id: 'team',
+          header: 'Team',
+          cell: (item: any) => (
+            <span>
+              {selectedMetric === 'available' ? 
+                (item.team?.team_name || 'N/A') : 
+              selectedMetric === 'leave' ? 
+                (item.employees?.team?.team_name || 'N/A') : 
+                (item.employees?.team?.team_name || 'N/A')}
+            </span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => selectedMetric === 'available' ? 
+            item.team?.team_name : 
+            item.employees?.team?.team_name,
+        },
+        {
+          id: 'mobile',
+          header: 'Mobile',
+          cell: (item: any) => (
+            <span>
+              {selectedMetric === 'available' ? 
+                (item.mobile_number || 'N/A') : 
+              selectedMetric === 'leave' ? 
+                (item.employees?.mobile_number || 'N/A') : 
+                (item.employees?.mobile_number || 'N/A')}
+            </span>
+          ),
+        },
+        {
+          id: 'joinDate',
+          header: 'Join Date',
+          cell: (item: any) => (
+            <span>
+              {selectedMetric === 'available' ? 
+                (item.date_of_joining ? new Date(item.date_of_joining).toLocaleDateString() : 'N/A') : 
+              selectedMetric === 'leave' ? 
+                (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A') : 
+                (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A')}
+            </span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => selectedMetric === 'available' ? 
+            item.date_of_joining : 
+            item.employees?.date_of_joining,
+        },
+        ...(selectedMetric === 'training' ? [
+          {
+            id: 'training',
+            header: 'Training',
+            cell: (item: any) => (
+              <span>{item.training_types?.name || 'N/A'}</span>
+            ),
+          },
+          {
+            id: 'trainingDate',
+            header: 'Date',
+            cell: (item: any) => (
+              <span>{item.required_date ? new Date(item.required_date).toLocaleDateString() : 'N/A'}</span>
+            ),
+            sortable: true,
+            accessorFn: (item: any) => item.required_date,
+          },
+        ] : []),
+        ...(selectedMetric === 'leave' ? [
+          {
+            id: 'leaveUntil',
+            header: 'Until',
+            cell: (item: any) => (
+              <span>{item.date ? new Date(item.date).toLocaleDateString() : 'N/A'}</span>
+            ),
+            sortable: true,
+            accessorFn: (item: any) => item.date,
+          },
+        ] : []),
+        {
+          id: 'certifications',
+          header: 'Certifications',
+          cell: (item: any) => (
+            <span>
+              {selectedMetric === 'available' ? 
+                ((item.certifications && item.certifications.length) || '0') : 
+              selectedMetric === 'leave' ? 
+                ((item.employees?.certifications && item.employees?.certifications.length) || '0') : 
+                ((item.employees?.certifications && item.employees?.certifications.length) || '0')}
+            </span>
+          ),
+        },
+        {
+          id: 'actions',
+          header: 'Actions',
+          cell: (item: any) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>View Details</DropdownMenuItem>
+                <DropdownMenuItem>Contact</DropdownMenuItem>
+                <DropdownMenuItem>Edit</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ),
+        },
+      ];
+    } else {
+      // Aircraft columns
+      return [
+        {
+          id: 'aircraft',
+          header: 'Aircraft',
+          cell: (item: any) => (
+            <span className="font-medium">{item.aircraft?.aircraft_name || 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.aircraft?.aircraft_name,
+        },
+        {
+          id: 'registration',
+          header: 'Registration',
+          cell: (item: any) => (
+            <span>{item.aircraft?.registration || 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.aircraft?.registration,
+        },
+        {
+          id: 'type',
+          header: 'Type',
+          cell: (item: any) => (
+            <span>{item.aircraft?.aircraft_types?.type_name || 'N/A'}</span>
+          ),
+        },
+        {
+          id: 'checkType',
+          header: 'Check Type',
+          cell: (item: any) => (
+            <span>{item.check_type || 'N/A'}</span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.check_type,
+        },
+        {
+          id: 'status',
+          header: 'Status',
+          cell: (item: any) => (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              item.status === 'In Progress' ? 
+                'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 
+              item.status === 'Completed' ? 
+                'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
+                'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+            }`}>
+              {item.status || 'N/A'}
+            </span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.status,
+        },
+        {
+          id: 'dateRange',
+          header: 'Date Range',
+          cell: (item: any) => (
+            <span>
+              {new Date(item.date_in).toLocaleDateString()} - {new Date(item.date_out).toLocaleDateString()}
+            </span>
+          ),
+          sortable: true,
+          accessorFn: (item: any) => item.date_in,
+        },
+        {
+          id: 'totalHours',
+          header: 'Total Hours',
+          cell: (item: any) => (
+            <span>{item.total_hours || 'N/A'}</span>
+          ),
+        },
+        {
+          id: 'hangars',
+          header: 'Hangars',
+          cell: (item: any) => (
+            <span>{item.hangar_id || 'Not Assigned'}</span>
+          ),
+        },
+        {
+          id: 'actions',
+          header: 'Actions',
+          cell: (item: any) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>View Details</DropdownMenuItem>
+                <DropdownMenuItem>Edit Schedule</DropdownMenuItem>
+                <DropdownMenuItem>Assign Team</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ),
+        },
+      ];
+    }
+  };
+
   // Function to render appropriate detail content based on selected metric
   const renderDetailContent = () => {
     if (detailData.length === 0) {
@@ -644,302 +903,18 @@ export const WorkforceMetrics = () => {
     }
 
     const filteredData = filterData();
-    const isAllSelected = selectedIds.length === filteredData.length && filteredData.length > 0;
+    const columns = getColumnsForMetric();
     
-    switch (selectedMetric) {
-      case 'available':
-      case 'leave':
-      case 'training':
-        return (
-          <div className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox 
-                      checked={isAllSelected} 
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === 'name' || sortField === 'employees.name' ? sortDirection : null}
-                    onSortChange={() => handleSort(selectedMetric === 'available' ? 'name' : 'employees.name')}
-                    hasFilter
-                    onFilterClick={() => setActiveFilter("name")}
-                  >
-                    Name
-                  </TableHead>
-                  <TableHead>ID</TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === 'job_titles.job_description' || sortField === 'employees.job_titles.job_description' ? sortDirection : null}
-                    onSortChange={() => handleSort(selectedMetric === 'available' ? 'job_titles.job_description' : 'employees.job_titles.job_description')}
-                    hasFilter
-                    onFilterClick={() => setActiveFilter("position")}
-                  >
-                    Position
-                  </TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === 'team.team_name' || sortField === 'employees.team.team_name' ? sortDirection : null}
-                    onSortChange={() => handleSort(selectedMetric === 'available' ? 'team.team_name' : 'employees.team.team_name')}
-                    hasFilter
-                    onFilterClick={() => setActiveFilter("team")}
-                  >
-                    Team
-                  </TableHead>
-                  <TableHead>Mobile</TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === 'date_of_joining' || sortField === 'employees.date_of_joining' ? sortDirection : null}
-                    onSortChange={() => handleSort(selectedMetric === 'available' ? 'date_of_joining' : 'employees.date_of_joining')}
-                  >
-                    Join Date
-                  </TableHead>
-                  {selectedMetric === 'training' && <TableHead>Training</TableHead>}
-                  {selectedMetric === 'training' && (
-                    <TableHead 
-                      sortable 
-                      sorted={sortField === 'required_date' ? sortDirection : null}
-                      onSortChange={() => handleSort('required_date')}
-                    >
-                      Date
-                    </TableHead>
-                  )}
-                  {selectedMetric === 'leave' && (
-                    <TableHead 
-                      sortable 
-                      sorted={sortField === 'date' ? sortDirection : null}
-                      onSortChange={() => handleSort('date')}
-                    >
-                      Until
-                    </TableHead>
-                  )}
-                  <TableHead>Certifications</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.map((item, i) => (
-                  <TableRow 
-                    key={i}
-                    selected={selectedIds.includes(selectedMetric === 'available' ? item.id : item.employees?.id)}
-                    onSelectChange={(selected) => handleSelectRow(selectedMetric === 'available' ? item.id : item.employees?.id, selected)}
-                    selectable
-                  >
-                    <TableCell className="font-medium">
-                      {selectedMetric === 'available' ? item.name : 
-                      selectedMetric === 'leave' ? item.employees?.name :
-                      item.employees?.name}
-                    </TableCell>
-                    <TableCell>
-                      {selectedMetric === 'available' ? `E${item.e_number}` : 
-                      selectedMetric === 'leave' ? `E${item.employees?.e_number}` : 
-                      `E${item.employees?.e_number}`}
-                    </TableCell>
-                    <TableCell>
-                      {selectedMetric === 'available' ? 
-                        (item.job_titles?.job_description || 'N/A') : 
-                      selectedMetric === 'leave' ? 
-                        (item.employees?.job_titles?.job_description || 'N/A') : 
-                        (item.employees?.job_titles?.job_description || 'N/A')}
-                    </TableCell>
-                    <TableCell>
-                      {selectedMetric === 'available' ? 
-                        (item.team?.team_name || 'N/A') : 
-                      selectedMetric === 'leave' ? 
-                        (item.employees?.team?.team_name || 'N/A') : 
-                        (item.employees?.team?.team_name || 'N/A')}
-                    </TableCell>
-                    <TableCell>
-                      {selectedMetric === 'available' ? 
-                        (item.mobile_number || 'N/A') : 
-                      selectedMetric === 'leave' ? 
-                        (item.employees?.mobile_number || 'N/A') : 
-                        (item.employees?.mobile_number || 'N/A')}
-                    </TableCell>
-                    <TableCell>
-                      {selectedMetric === 'available' ? 
-                        (item.date_of_joining ? new Date(item.date_of_joining).toLocaleDateString() : 'N/A') : 
-                      selectedMetric === 'leave' ? 
-                        (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A') : 
-                        (item.employees?.date_of_joining ? new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A')}
-                    </TableCell>
-                    {selectedMetric === 'training' && (
-                      <TableCell>
-                        {item.training_types?.name || 'N/A'}
-                      </TableCell>
-                    )}
-                    {selectedMetric === 'training' && (
-                      <TableCell>
-                        {item.required_date ? new Date(item.required_date).toLocaleDateString() : 'N/A'}
-                      </TableCell>
-                    )}
-                    {selectedMetric === 'leave' && (
-                      <TableCell>
-                        {item.date ? new Date(item.date).toLocaleDateString() : 'N/A'}
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      {selectedMetric === 'available' ? 
-                        ((item.certifications && item.certifications.length) || '0') : 
-                      selectedMetric === 'leave' ? 
-                        ((item.employees?.certifications && item.employees?.certifications.length) || '0') : 
-                        ((item.employees?.certifications && item.employees?.certifications.length) || '0')}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>Contact</DropdownMenuItem>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        );
-        
-      case 'grounded':
-      case 'assigned':
-      case 'pending':
-        return (
-          <div className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox 
-                      checked={isAllSelected} 
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === "aircraft.aircraft_name" ? sortDirection : null}
-                    onSortChange={() => handleSort("aircraft.aircraft_name")}
-                    hasFilter
-                    onFilterClick={() => setActiveFilter("aircraft")}
-                  >
-                    Aircraft
-                  </TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === "aircraft.registration" ? sortDirection : null}
-                    onSortChange={() => handleSort("aircraft.registration")}
-                    hasFilter
-                    onFilterClick={() => setActiveFilter("registration")}
-                  >
-                    Registration
-                  </TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === "check_type" ? sortDirection : null}
-                    onSortChange={() => handleSort("check_type")}
-                    hasFilter
-                    onFilterClick={() => setActiveFilter("checkType")}
-                  >
-                    Check Type
-                  </TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === "status" ? sortDirection : null}
-                    onSortChange={() => handleSort("status")}
-                    hasFilter
-                    onFilterClick={() => setActiveFilter("status")}
-                  >
-                    Status
-                  </TableHead>
-                  <TableHead 
-                    sortable 
-                    sorted={sortField === "date_in" ? sortDirection : null}
-                    onSortChange={() => handleSort("date_in")}
-                  >
-                    Date Range
-                  </TableHead>
-                  <TableHead>Total Hours</TableHead>
-                  <TableHead>Hangars</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredData.map((item, i) => (
-                  <TableRow 
-                    key={i}
-                    selected={selectedIds.includes(item.id)}
-                    onSelectChange={(selected) => handleSelectRow(item.id, selected)}
-                    selectable
-                  >
-                    <TableCell className="font-medium">
-                      {item.aircraft?.aircraft_name || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {item.aircraft?.registration || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {item.aircraft?.aircraft_types?.type_name || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {item.check_type || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        item.status === 'In Progress' ? 
-                          'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 
-                        item.status === 'Completed' ? 
-                          'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                          'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                      }`}>
-                        {item.status || 'N/A'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(item.date_in).toLocaleDateString()} - {new Date(item.date_out).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {item.total_hours || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {item.hangar_id || 'Not Assigned'}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>Edit Schedule</DropdownMenuItem>
-                          <DropdownMenuItem>Assign Team</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        );
-        
-      default:
-        return <div className="p-4 text-center text-gray-500">Select a metric to view details</div>;
-    }
+    return (
+      <div className="space-y-4">
+        <SortableTable 
+          data={filteredData}
+          columns={columns}
+          defaultSortColumn={sortField}
+          className="w-full"
+        />
+      </div>
+    );
   };
   
   const metrics = [
@@ -1003,7 +978,7 @@ export const WorkforceMetrics = () => {
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-8 gap-2 mb-6">
         {metrics.map((metric) => (
           <MetricCard 
             key={metric.id}
@@ -1029,6 +1004,8 @@ export const WorkforceMetrics = () => {
               </Button>
             </DialogClose>
           </DialogHeader>
+          
+          <DialogDescription className="sr-only">Details for {getDetailTitle()}</DialogDescription>
           
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2 flex-1">

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { User2, UsersRound, Briefcase, FileText, Download, ArrowUpRight } from "lucide-react";
+import { User2, UsersRound, Briefcase, FileText, Download } from "lucide-react";
 import { EmployeeScheduleView } from "./tabs/EmployeeScheduleView";
 import { AircraftScheduleView } from "./tabs/AircraftScheduleView";
 import { TeamView } from "./tabs/TeamView";
