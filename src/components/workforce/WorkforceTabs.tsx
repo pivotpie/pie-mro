@@ -7,9 +7,16 @@ import { EmployeeScheduleView } from "./tabs/EmployeeScheduleView";
 import { AircraftScheduleView } from "./tabs/AircraftScheduleView";
 import { TeamView } from "./tabs/TeamView";
 import { CertificationView } from "./tabs/CertificationView";
+import { toast } from "sonner";
 
 export const WorkforceTabs = () => {
   const [currentView, setCurrentView] = useState("employee");
+
+  const handleExport = () => {
+    toast.success("Data export started", {
+      description: "Your export will be ready to download shortly."
+    });
+  };
 
   return (
     <Tabs 
@@ -36,7 +43,7 @@ export const WorkforceTabs = () => {
             Certification View
           </TabsTrigger>
         </TabsList>
-        <Button variant="outline" size="sm" className="flex items-center gap-1">
+        <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={handleExport}>
           <Download className="h-4 w-4" />
           Export Data
         </Button>
