@@ -1,9 +1,81 @@
 
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Filter } from "lucide-react";
+import { RefreshCw, Filter, X } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { toast } from "sonner";
+
+interface Certification {
+  id: number;
+  name: string;
+  type: string;
+  employee: {
+    name: string;
+    id: string;
+  };
+  expiryDate: string;
+  expiryStatus: "valid" | "expiring" | "expired";
+}
 
 export const CertificationList = () => {
+  const [selectedCertification, setSelectedCertification] = useState<Certification | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const certifications: Certification[] = [
+    {
+      id: 1,
+      name: "Composite Structures Specialist",
+      type: "Specialist Certification",
+      employee: { name: "Thomas Clark", id: "EMP001" },
+      expiryDate: "5/15/2023",
+      expiryStatus: "expired"
+    },
+    {
+      id: 2,
+      name: "Aircraft Systems Specialist",
+      type: "Standard Certification",
+      employee: { name: "Ryan Cooper", id: "EMP003" },
+      expiryDate: "7/10/2023",
+      expiryStatus: "expired"
+    },
+    {
+      id: 3,
+      name: "Airbus A320 Specialist",
+      type: "Type Specialist",
+      employee: { name: "Sarah Williams", id: "EMP002" },
+      expiryDate: "9/15/2023",
+      expiryStatus: "expired"
+    },
+    {
+      id: 4,
+      name: "Engine Overhaul Specialist",
+      type: "Standard Certification",
+      employee: { name: "Robert Martinez", id: "EMP007" },
+      expiryDate: "9/15/2023",
+      expiryStatus: "expired"
+    },
+    {
+      id: 5,
+      name: "Airframe and Powerplant Mechanic",
+      type: "A&P License",
+      employee: { name: "James Davis", id: "EMP005" },
+      expiryDate: "12/20/2023",
+      expiryStatus: "expired"
+    }
+  ];
+
+  const handleCertificationClick = (certification: Certification) => {
+    setSelectedCertification(certification);
+    setDetailsOpen(true);
+  };
+
+  const handleSendForTraining = (id: number, employeeName: string) => {
+    toast.success(`Training request sent for ${employeeName}`, {
+      description: "The employee will be notified about the training requirements."
+    });
+  };
+
   return (
     <Card className="shadow-sm">
       <CardContent className="p-4">
@@ -101,106 +173,43 @@ export const CertificationList = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
-              <tr>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <div className="text-sm font-medium">Composite Structures Specialist</div>
-                  <div className="text-xs text-gray-500">Specialist Certification</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div className="font-medium">Thomas Clark</div>
-                  <div className="text-xs text-gray-500">EMP001</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div>5/15/2023</div>
-                  <div className="text-xs text-gray-500">over 2 years ago</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
-                </td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <div className="text-sm font-medium">Aircraft Systems Specialist</div>
-                  <div className="text-xs text-gray-500">Standard Certification</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div className="font-medium">Ryan Cooper</div>
-                  <div className="text-xs text-gray-500">EMP003</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div>7/10/2023</div>
-                  <div className="text-xs text-gray-500">about 2 years ago</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
-                </td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <div className="text-sm font-medium">Airbus A320 Specialist</div>
-                  <div className="text-xs text-gray-500">Type Specialist</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div className="font-medium">Sarah Williams</div>
-                  <div className="text-xs text-gray-500">EMP002</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div>9/15/2023</div>
-                  <div className="text-xs text-gray-500">over 1 year ago</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
-                </td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <div className="text-sm font-medium">Engine Overhaul Specialist</div>
-                  <div className="text-xs text-gray-500">Standard Certification</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div className="font-medium">Robert Martinez</div>
-                  <div className="text-xs text-gray-500">EMP007</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div>9/15/2023</div>
-                  <div className="text-xs text-gray-500">over 1 year ago</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
-                </td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <div className="text-sm font-medium">Airframe and Powerplant Mechanic</div>
-                  <div className="text-xs text-gray-500">A&P License</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div className="font-medium">James Davis</div>
-                  <div className="text-xs text-gray-500">EMP005</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <div>12/20/2023</div>
-                  <div className="text-xs text-gray-500">over 1 year ago</div>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">Expired</span>
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap text-sm">
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 h-7 px-3">Send for Training</Button>
-                </td>
-              </tr>
+              {certifications.map(certification => (
+                <tr 
+                  key={certification.id} 
+                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                  onClick={() => handleCertificationClick(certification)}
+                >
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <div className="text-sm font-medium">{certification.name}</div>
+                    <div className="text-xs text-gray-500">{certification.type}</div>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-sm">
+                    <div className="font-medium">{certification.employee.name}</div>
+                    <div className="text-xs text-gray-500">{certification.employee.id}</div>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-sm">
+                    <div>{certification.expiryDate}</div>
+                    <div className="text-xs text-gray-500">over {Math.floor(Math.random() * 3) + 1} years ago</div>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <span className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                      Expired
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-sm">
+                    <Button 
+                      size="sm" 
+                      className="bg-blue-600 hover:bg-blue-700 h-7 px-3"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSendForTraining(certification.id, certification.employee.name);
+                      }}
+                    >
+                      Send for Training
+                    </Button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -211,6 +220,103 @@ export const CertificationList = () => {
           </Button>
         </div>
       </CardContent>
+
+      {/* Certification Details Panel */}
+      <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Certification Details</SheetTitle>
+          </SheetHeader>
+          {selectedCertification && (
+            <div className="mt-6 space-y-6">
+              {/* Employee Section */}
+              <div>
+                <h3 className="text-lg font-medium mb-2">Employee Information</h3>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Name</p>
+                      <p className="font-medium">{selectedCertification.employee.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Employee ID</p>
+                      <p className="font-medium">{selectedCertification.employee.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Department</p>
+                      <p className="font-medium">Maintenance</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Position</p>
+                      <p className="font-medium">Senior Technician</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Certification Section */}
+              <div>
+                <h3 className="text-lg font-medium mb-2">Certification Information</h3>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Certification</p>
+                      <p className="font-medium">{selectedCertification.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Type</p>
+                      <p className="font-medium">{selectedCertification.type}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Issue Date</p>
+                      <p className="font-medium">01/15/2021</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Expiry Date</p>
+                      <p className="font-medium">{selectedCertification.expiryDate}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-500">Status</p>
+                      <p className="font-medium text-red-600">Expired</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Associated Aircraft */}
+              <div>
+                <h3 className="text-lg font-medium mb-2">Associated Aircraft</h3>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Airbus A320</span>
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Primary</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Boeing 737</span>
+                      <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">Secondary</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" size="sm" onClick={() => setDetailsOpen(false)}>
+                  <X className="mr-1 h-4 w-4" /> Close
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => handleSendForTraining(selectedCertification.id, selectedCertification.employee.name)}
+                >
+                  Send for Training
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 };

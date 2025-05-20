@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
 import { WorkforceMetrics } from "@/components/workforce/WorkforceMetrics";
 import { WorkforceTabs } from "@/components/workforce/WorkforceTabs";
+import { FloatingActionMenu } from "@/components/workforce/FloatingActionMenu";
+import { ManagementShortcuts } from "@/components/workforce/ManagementShortcuts";
+import { CertificationList } from "@/components/workforce/CertificationList";
 
 const AdminWorkforce = () => {
   const { user, logout } = useAuth();
@@ -58,9 +61,22 @@ const AdminWorkforce = () => {
             
             {/* Workforce Tabs */}
             <WorkforceTabs />
+
+            {/* Management Shortcuts and Certification Lists */}
+            <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-1">
+                <ManagementShortcuts />
+              </div>
+              <div className="lg:col-span-2">
+                <CertificationList />
+              </div>
+            </div>
           </div>
         </div>
       </main>
+      
+      {/* Floating Action Menu for Quick Actions */}
+      <FloatingActionMenu />
     </div>
   );
 };

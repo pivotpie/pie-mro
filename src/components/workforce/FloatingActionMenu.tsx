@@ -55,12 +55,12 @@ export const FloatingActionMenu = () => {
   return (
     <div className="fixed bottom-6 right-6 z-40">
       {isOpen && (
-        <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-lg p-2 mb-2 w-48">
+        <div className="absolute bottom-16 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 mb-2 w-48">
           {actionItems.map((item, index) => (
             <Button
               key={index}
               variant="ghost"
-              className="w-full justify-start mb-1 hover:bg-gray-100"
+              className="w-full justify-start mb-1 hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => {
                 item.action();
                 setIsOpen(false);
