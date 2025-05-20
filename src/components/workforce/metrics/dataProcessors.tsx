@@ -20,7 +20,12 @@ export const processAvailableEmployees = (
   if (!totalEmployees || !employeeSupports || !rosterAssignments) return [];
   
   // Get IDs of employees with support assignments for today
-  const supportEmployeeIds = new Set(employeeSupports.map(es => es.employee_id));
+  const supportEmployeeIds = new Set<number>();
+  employeeSupports.forEach(es => {
+    if (es.employee_id) {
+      supportEmployeeIds.add(es.employee_id);
+    }
+  });
   
   // Get IDs of employees on leave or training from roster
   const leaveEmployeeIds = new Set<number>();
