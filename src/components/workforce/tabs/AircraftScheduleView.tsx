@@ -24,10 +24,7 @@ export const AircraftScheduleView = () => {
 
       {/* Aircraft Gantt Chart with full width */}
       <div className="w-full overflow-auto">
-        <AircraftCalendar 
-          onScroll={handleCalendarScroll} 
-          externalScrollPosition={scrollPosition} 
-        />
+        <AircraftCalendar />
       </div>
     </div>
   );

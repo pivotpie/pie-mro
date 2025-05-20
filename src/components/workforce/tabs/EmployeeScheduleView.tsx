@@ -31,10 +31,7 @@ export const EmployeeScheduleView = () => {
 
         {/* Simple container with direct overflow control and scroll position synchronization */}
         <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
-          <EmployeeCalendar 
-            onScroll={handleCalendarScroll} 
-            externalScrollPosition={scrollPosition}
-          />
+          <EmployeeCalendar />
         </div>
       </div>
       
