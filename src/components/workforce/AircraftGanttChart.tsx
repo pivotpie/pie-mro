@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addDays, eachDayOfInterval, isWeekend, isSameDay } from "date-fns";
+import { format, addDays, eachDayOfInterval, isWeekend, isSameDay, parseISO } from "date-fns";
 
 // Helper function to generate days between two dates
 const generateDaysBetween = (startDate: Date, endDate: Date) => {
@@ -36,6 +36,8 @@ interface AircraftSchedule {
   registration: string;
   customer: string;
   color: string;
+  visit_number?: string;
+  check_type?: string;
 }
 
 interface AircraftGanttChartProps {
@@ -86,6 +88,8 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
               aircraft_type_id
             )
           `)
+          .gte('date_in', format(startDate, 'yyyy-MM-dd'))
+          .lte('date_out', format(endDate, 'yyyy-MM-dd'))
           .order('date_in');
           
         if (visitsError) {
@@ -133,12 +137,22 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
           const hangarSchedules = visitsData
             .filter((visit: any) => visit.hangar_id === hangar.id)
             .map((visit: any) => {
-              // Parse dates
+              // Parse dates - ensure proper date parsing with validation
               let startDate, endDate;
               
               try {
-                startDate = visit.date_in ? new Date(visit.date_in) : new Date();
-                endDate = visit.date_out ? new Date(visit.date_out) : new Date(new Date().getTime() + 86400000);
+                // Ensure we're working with proper date strings
+                startDate = visit.date_in ? (
+                  typeof visit.date_in === 'string' ? 
+                  parseISO(visit.date_in) : 
+                  new Date(visit.date_in)
+                ) : new Date();
+                
+                endDate = visit.date_out ? (
+                  typeof visit.date_out === 'string' ? 
+                  parseISO(visit.date_out) : 
+                  new Date(visit.date_out)
+                ) : new Date(new Date().getTime() + 86400000);
               } catch (error) {
                 console.error('Error parsing dates for visit:', visit);
                 startDate = new Date();
@@ -165,7 +179,9 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 status: visit.status || 'Scheduled',
                 registration: visit.aircraft?.registration || 'UNKNOWN',
                 customer: visit.aircraft?.customer || 'Unknown Operator',
-                color
+                color,
+                visit_number: visit.visit_number,
+                check_type: visit.check_type
               };
             });
             
@@ -492,12 +508,17 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                                   }}
                                   onClick={() => handleAircraftClick(schedule)}
                                 >
-                                  <span className="truncate px-1">{schedule.registration}</span>
+                                  <span className="truncate px-1">
+                                    {schedule.visit_number ? `${schedule.visit_number}: ` : ''}{schedule.registration}
+                                  </span>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="text-sm font-medium">{schedule.aircraft}</div>
                                 <div className="text-xs">{schedule.registration} - {schedule.customer}</div>
+                                {schedule.check_type && (
+                                  <div className="text-xs">Check Type: {schedule.check_type}</div>
+                                )}
                                 <div className="text-xs">
                                   {format(schedule.start, 'dd MMM yyyy')} - {format(schedule.end, 'dd MMM yyyy')}
                                 </div>
@@ -539,6 +560,18 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                         <p className="text-sm text-gray-500 dark:text-gray-400">Registration</p>
                         <p className="font-medium dark:text-gray-200">{selectedAircraft.registration}</p>
                       </div>
+                      {selectedAircraft.visit_number && (
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Visit Number</p>
+                          <p className="font-medium dark:text-gray-200">{selectedAircraft.visit_number}</p>
+                        </div>
+                      )}
+                      {selectedAircraft.check_type && (
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Check Type</p>
+                          <p className="font-medium dark:text-gray-200">{selectedAircraft.check_type}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Schedule</p>
                         <p className="font-medium dark:text-gray-200">
