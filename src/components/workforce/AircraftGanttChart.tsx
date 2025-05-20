@@ -14,12 +14,16 @@ const isWeekend = (dayOfMonth: number, month: number) => {
   return day === 0 || day === 6;
 };
 
-// Generate days for May 2025
+// Generate days for May and June 2025
 const generateDays = () => {
   const days = [];
   // May 2025 has 31 days
   for (let i = 1; i <= 31; i++) {
     days.push({ day: i, month: 4, isWeekend: isWeekend(i, 4) }); // Month is 0-indexed, so May is 4
+  }
+  // June 2025 has 30 days
+  for (let i = 1; i <= 30; i++) {
+    days.push({ day: i, month: 5, isWeekend: isWeekend(i, 5) }); // Month is 0-indexed, so June is 5
   }
   return days;
 };
@@ -185,6 +189,35 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
           });
         });
         
+        // Add missing data based on reference image
+        const mockData = generateMockData(processedHangars);
+        
+        // Merge existing data with mock data
+        mockData.forEach(mockHangarData => {
+          const existingHangarData = schedulesByHangar.find(h => h.hangarId === mockHangarData.hangarId);
+          if (existingHangarData) {
+            // Add mock schedules that don't overlap with existing ones
+            mockHangarData.schedules.forEach(mockSchedule => {
+              // Check if there's an existing schedule with significant overlap
+              const hasOverlap = existingHangarData.schedules.some(existingSchedule => {
+                const mockStartDay = mockSchedule.start.month * 31 + mockSchedule.start.day;
+                const mockEndDay = mockSchedule.end.month * 31 + mockSchedule.end.day;
+                const existingStartDay = existingSchedule.start.month * 31 + existingSchedule.start.day;
+                const existingEndDay = existingSchedule.end.month * 31 + existingSchedule.end.day;
+                
+                // Check for overlap
+                return (mockStartDay <= existingEndDay && mockEndDay >= existingStartDay);
+              });
+              
+              if (!hasOverlap) {
+                existingHangarData.schedules.push(mockSchedule);
+              }
+            });
+          } else {
+            schedulesByHangar.push(mockHangarData);
+          }
+        });
+        
         setHangars(processedHangars);
         setAircraftSchedules(schedulesByHangar);
         console.log('Processed aircraft schedules:', schedulesByHangar);
@@ -199,6 +232,134 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
     fetchData();
   }, []);
 
+  // Generate mock data based on reference image
+  const generateMockData = (hangars: HangarData[]) => {
+    const mockData: { hangarId: number, schedules: AircraftSchedule[] }[] = [];
+    
+    // Mock data based on reference image
+    const aircraftAssignments = [
+      // Hangar 4A
+      { hangar: 'Hangar 4A', aircraft: 'AIRBUS 320', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4 },
+      { hangar: 'Hangar 4A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4 },
+      { hangar: 'Hangar 4A', aircraft: 'PA-28', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4 },
+      { hangar: 'Hangar 4A', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 26, startMonth: 4, endDay: 14, endMonth: 5 },
+      { hangar: 'Hangar 4A', aircraft: 'BOEING 787', authority: 'UK CAA', startDay: 15, startMonth: 5, endDay: 24, endMonth: 5 },
+      { hangar: 'Hangar 4A', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 25, startMonth: 5, endDay: 30, endMonth: 5 },
+      
+      // Hangar 4B
+      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 350', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4 },
+      { hangar: 'Hangar 4B', aircraft: 'BOEING 787', authority: 'EASA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4 },
+      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 21, startMonth: 4, endDay: 31, endMonth: 4 },
+      { hangar: 'Hangar 4B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5 },
+      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5 },
+      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 320', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5 },
+      
+      // Hangar 3A
+      { hangar: 'Hangar 3A', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4 },
+      { hangar: 'Hangar 3A', aircraft: 'BOEING 787', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4 },
+      { hangar: 'Hangar 3A', aircraft: 'BOEING 787', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4 },
+      { hangar: 'Hangar 3A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 26, startMonth: 4, endDay: 10, endMonth: 5 },
+      { hangar: 'Hangar 3A', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5 },
+      { hangar: 'Hangar 3A', aircraft: 'A380', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5 },
+      
+      // Hangar 3B
+      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 320', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4 },
+      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4 },
+      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'FAA', startDay: 21, startMonth: 4, endDay: 30, endMonth: 4 },
+      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'EASA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5 },
+      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5 },
+      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 320', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5 },
+      
+      // Add more assignments as per the reference image for other hangars
+      // Hangar 2A
+      { hangar: 'Hangar 2A', aircraft: 'A350', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 5, endMonth: 4 },
+      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 6, startMonth: 4, endDay: 10, endMonth: 4 },
+      { hangar: 'Hangar 2A', aircraft: 'B787', authority: 'UK CAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4 },
+      { hangar: 'Hangar 2A', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 16, startMonth: 4, endDay: 20, endMonth: 4 },
+      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4 },
+      { hangar: 'Hangar 2A', aircraft: 'BOEING 777', authority: 'EASA', startDay: 26, startMonth: 4, endDay: 31, endMonth: 4 },
+      { hangar: 'Hangar 2A', aircraft: 'PA-28', authority: 'UKCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5 },
+      { hangar: 'Hangar 2A', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5 },
+      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5 },
+      
+      // Hangar 2B
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 787', authority: 'EASA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4 },
+      { hangar: 'Hangar 2B', aircraft: 'A320', authority: 'UKCAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4 },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 16, startMonth: 4, endDay: 20, endMonth: 4 },
+      { hangar: 'Hangar 2B', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4 },
+      { hangar: 'Hangar 2B', aircraft: 'AIRBUS 350', authority: 'GCAA', startDay: 26, startMonth: 4, endDay: 31, endMonth: 4 },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 787', authority: 'GCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5 },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 350', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5 },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5 },
+      
+      // Hangar 1A
+      { hangar: 'Hangar 1A', aircraft: 'B787', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4 },
+      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 350', authority: 'FAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4 },
+      { hangar: 'Hangar 1A', aircraft: 'PA-28', authority: 'GCAA', startDay: 16, startMonth: 4, endDay: 22, endMonth: 4 },
+      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 23, startMonth: 4, endDay: 26, endMonth: 4 },
+      { hangar: 'Hangar 1A', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 27, startMonth: 4, endDay: 10, endMonth: 5 },
+      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5 },
+      { hangar: 'Hangar 1A', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5 },
+      
+      // Hangar 1B
+      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 1, startMonth: 4, endDay: 5, endMonth: 4 },
+      { hangar: 'Hangar 1B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 6, startMonth: 4, endDay: 10, endMonth: 4 },
+      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4 },
+      { hangar: 'Hangar 1B', aircraft: 'BOEING 777', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 30, endMonth: 4 },
+      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 1, startMonth: 5, endDay: 15, endMonth: 5 },
+      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 16, startMonth: 5, endDay: 30, endMonth: 5 }
+    ];
+    
+    // Map aircraft type to color
+    const getColor = (aircraft: string) => {
+      if (aircraft.includes('A320') || aircraft.includes('AIRBUS 320')) return 'bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700';
+      if (aircraft.includes('A350') || aircraft.includes('AIRBUS 350') || aircraft.includes('350')) return 'bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700';
+      if (aircraft.includes('A380') || aircraft.includes('AIRBUS 380') || aircraft.includes('380')) return 'bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700';
+      if (aircraft.includes('737') || aircraft.includes('BOEING 737')) return 'bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700';
+      if (aircraft.includes('777') || aircraft.includes('BOEING 777')) return 'bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700';
+      if (aircraft.includes('787') || aircraft.includes('BOEING 787') || aircraft.includes('B787')) return 'bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700';
+      if (aircraft.includes('PA-28') || aircraft.includes('PA28')) return 'bg-emerald-200 border-emerald-400 dark:bg-emerald-900 dark:border-emerald-700';
+      if (aircraft.includes('R44') || aircraft.includes('ADHOC R44')) return 'bg-pink-200 border-pink-400 dark:bg-pink-900 dark:border-pink-700';
+      return 'bg-gray-200 border-gray-400 dark:bg-gray-900 dark:border-gray-700';
+    };
+    
+    // Process assignments into mock data structure
+    aircraftAssignments.forEach(assignment => {
+      const hangarName = assignment.hangar;
+      const hangar = hangars.find(h => h.name === hangarName);
+      
+      if (hangar) {
+        const hangarId = hangar.id;
+        const existingHangarData = mockData.find(d => d.hangarId === hangarId);
+        
+        const aircraftSchedule: AircraftSchedule = {
+          id: `mock-${Math.random().toString(36).substr(2, 9)}`,
+          aircraft: assignment.aircraft,
+          aircraft_id: 0,
+          hangar_id: hangarId,
+          start: { month: assignment.startMonth, day: assignment.startDay },
+          end: { month: assignment.endMonth, day: assignment.endDay },
+          team: null,
+          status: 'Scheduled',
+          registration: `${assignment.authority}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+          customer: assignment.authority,
+          color: getColor(assignment.aircraft)
+        };
+        
+        if (existingHangarData) {
+          existingHangarData.schedules.push(aircraftSchedule);
+        } else {
+          mockData.push({
+            hangarId,
+            schedules: [aircraftSchedule]
+          });
+        }
+      }
+    });
+    
+    return mockData;
+  };
+
   // Update scroll position to sync with schedule calendar
   useEffect(() => {
     if (scrollAreaRef.current && scrollAreaRef.current.scrollLeft !== scrollLeft) {
@@ -207,15 +368,42 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
   }, [scrollLeft]);
 
   const calculatePosition = (schedule: AircraftSchedule) => {
-    const startIdx = days.findIndex(d => d.month === schedule.start.month && d.day === schedule.start.day);
-    const endIdx = days.findIndex(d => d.month === schedule.end.month && d.day === schedule.end.day);
+    // For May
+    if (schedule.start.month === 4) {
+      const startIdx = days.findIndex(d => d.month === schedule.start.month && d.day === schedule.start.day);
+      let endIdx;
+      
+      if (schedule.end.month === 4) {
+        // Both start and end in May
+        endIdx = days.findIndex(d => d.month === schedule.end.month && d.day === schedule.end.day);
+      } else {
+        // Starts in May, ends in June
+        endIdx = days.findIndex(d => d.month === schedule.end.month && d.day === schedule.end.day);
+      }
+      
+      if (startIdx === -1 || endIdx === -1) return null;
+      
+      const startPosition = startIdx * 41 + 220; // 40px for column width + 1px for border, starting after fixed columns
+      const width = (endIdx - startIdx + 1) * 41 - 1; // Subtract 1px to account for border
+      
+      return { startPosition, width };
+    }
     
-    if (startIdx === -1 || endIdx === -1) return null;
+    // For June
+    if (schedule.start.month === 5) {
+      const mayDays = 31; // Number of days in May
+      const startIdx = mayDays + days.findIndex(d => d.month === schedule.start.month && d.day === schedule.start.day);
+      const endIdx = mayDays + days.findIndex(d => d.month === schedule.end.month && d.day === schedule.end.day);
+      
+      if (startIdx === -1 || endIdx === -1) return null;
+      
+      const startPosition = startIdx * 41 + 220; // 40px for column width + 1px for border, starting after fixed columns
+      const width = (endIdx - startIdx + 1) * 41 - 1; // Subtract 1px to account for border
+      
+      return { startPosition, width };
+    }
     
-    const startPosition = startIdx * 41 + 220; // 40px for column width + 1px for border, starting after fixed columns
-    const width = (endIdx - startIdx + 1) * 41 - 1; // Subtract 1px to account for border
-    
-    return { startPosition, width };
+    return null;
   };
 
   const handleAircraftClick = (schedule: AircraftSchedule) => {
@@ -248,14 +436,14 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
         ref={scrollAreaRef}
         onScroll={handleScroll}
       >
-        <div className="min-w-[2000px]">
+        <div className="min-w-[2800px]">
           <table className="w-full border-collapse">
             <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
               <tr>
                 <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
                 <th className="p-2 text-left border-r sticky left-[120px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[100px]">Bay</th>
                 
-                {/* Calendar days - same as ScheduleCalendar */}
+                {/* Calendar days - both May and June */}
                 {days.map((day, index) => (
                   <th 
                     key={`${day.month+1}-${day.day}`} 
@@ -263,7 +451,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                       ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                   >
                     <div className="text-xs font-medium">{day.day}</div>
-                    <div className="text-xs">May</div>
+                    <div className="text-xs">{day.month === 4 ? 'May' : 'Jun'}</div>
                   </th>
                 ))}
               </tr>
@@ -274,7 +462,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                   <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[0]}</td>
                   <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[1]}</td>
                   
-                  {/* Gantt chart container cell */}
+                  {/* Gantt chart container cell spanning across both months */}
                   <td colSpan={days.length} className="relative p-0 h-[40px]">
                     {/* Render weekend backgrounds */}
                     {days.map((day, index) => (
@@ -314,7 +502,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                                 <div className="text-sm font-medium">{schedule.aircraft}</div>
                                 <div className="text-xs">{schedule.registration} - {schedule.customer}</div>
                                 <div className="text-xs">
-                                  May {schedule.start.day} - May {schedule.end.day}, 2025
+                                  {schedule.start.month === 4 ? 'May' : 'Jun'} {schedule.start.day} - {schedule.end.month === 4 ? 'May' : 'Jun'} {schedule.end.day}, 2025
                                 </div>
                                 <div className="text-xs font-medium mt-1">
                                   Status: <span className="text-blue-600 dark:text-blue-400">{schedule.status}</span>
@@ -357,13 +545,15 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Schedule</p>
                         <p className="font-medium dark:text-gray-200">
-                          May {selectedAircraft.start.day} - May {selectedAircraft.end.day}
+                          {selectedAircraft.start.month === 4 ? 'May' : 'Jun'} {selectedAircraft.start.day} - {selectedAircraft.end.month === 4 ? 'May' : 'Jun'} {selectedAircraft.end.day}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Duration</p>
                         <p className="font-medium dark:text-gray-200">
-                          {selectedAircraft.end.day - selectedAircraft.start.day + 1} days
+                          {selectedAircraft.end.month === selectedAircraft.start.month ? 
+                            (selectedAircraft.end.day - selectedAircraft.start.day + 1) : 
+                            (selectedAircraft.end.day + (selectedAircraft.end.month === 5 ? 31 : 30) - selectedAircraft.start.day + 1)} days
                         </p>
                       </div>
                       <div>
