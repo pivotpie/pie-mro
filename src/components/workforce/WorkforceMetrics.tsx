@@ -102,128 +102,67 @@ export const WorkforceMetrics = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('*')
+        .select('*, job_titles(*), team:teams(*), certifications(*), employee_authorizations(*)')
         .eq('is_active', true);
         
       if (error) throw error;
+      console.log('Total employees fetched:', data?.length);
       return data || [];
     }
   });
 
-  // Fetch available employees (those without roster assignments for today)
-  const { data: availableEmployees, isLoading: loadingAvailableEmployees } = useQuery({
-    queryKey: ['availableEmployees', currentDate],
+  // Fetch employee supports for available calculation
+  const { data: employeeSupports, isLoading: loadingEmployeeSupports } = useQuery({
+    queryKey: ['employeeSupports'],
     queryFn: async () => {
-      try {
-        // First get all employees
-        const { data: allEmployees, error: employeesError } = await supabase
-          .from('employees')
-          .select('*')
-          .eq('is_active', true);
-          
-        if (employeesError) throw employeesError;
-        
-        if (!allEmployees || allEmployees.length === 0) {
-          return [];
-        }
-        
-        // Get date_id for current date
-        const { data: dateRef, error: dateError } = await supabase
-          .from('date_references')
-          .select('id')
-          .eq('actual_date', currentDate);
-          
-        if (dateError) throw dateError;
-        
-        if (dateRef && dateRef.length > 0) {
-          const dateId = dateRef[0].id;
-          
-          // Get employees with roster assignments today
-          const { data: assignedEmployees, error: assignedError } = await supabase
-            .from('roster_assignments')
-            .select('employee_id')
-            .eq('date_id', dateId);
-            
-          if (assignedError) throw assignedError;
-          
-          // Filter out the assigned employees
-          const assignedIds = new Set(assignedEmployees?.map(e => e.employee_id) || []);
-          return allEmployees.filter(e => !assignedIds.has(e.id)) || [];
-        } else {
-          // If no date record found, assume all employees are available
-          return allEmployees || [];
-        }
-      } catch (error: any) {
-        console.error("Error fetching available employees:", error);
-        return [];
-      }
+      const { data, error } = await supabase
+        .from('employee_supports')
+        .select('*');
+      if (error) throw error;
+      console.log('Employee supports fetched:', data?.length);
+      return data || [];
     }
   });
 
-  // Fetch on leave employees
-  const { data: onLeave, isLoading: loadingOnLeave } = useQuery({
-    queryKey: ['onLeave', currentDate],
+  // Get roster date ID for current date
+  const { data: dateReference, isLoading: loadingDateReference } = useQuery({
+    queryKey: ['dateReference', currentDate],
     queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('attendance')
-          .select(`
-            *, 
-            employees(
-              *,
-              job_titles(job_description),
-              team:teams(team_name),
-              certifications(*),
-              employee_authorizations(*)
-            )
-          `)
-          .eq('status', 'Annual Leave')
-          .gt('date', currentDate);
-          
-        if (error) throw error;
-        return data || [];
-      } catch (error: any) {
-        console.error("Error fetching on leave employees:", error);
-        return [];
-      }
+      const { data, error } = await supabase
+        .from('date_references')
+        .select('id')
+        .eq('actual_date', currentDate)
+        .single();
+      if (error) throw error;
+      console.log('Date reference fetched:', data);
+      return data || null;
     }
   });
 
-  // Fetch employees in training
-  const { data: inTraining, isLoading: loadingInTraining } = useQuery({
-    queryKey: ['inTraining', currentDate],
+  // Fetch roster assignments for today to determine leave and training
+  const { data: rosterAssignments, isLoading: loadingRosterAssignments } = useQuery({
+    queryKey: ['rosterAssignments', currentDate, dateReference?.id],
     queryFn: async () => {
-      try {
-        const sevenDaysLater = new Date();
-        sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-        const sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0];
-        
-        const { data, error } = await supabase
-          .from('employee_training_schedules')
-          .select(`
-            *, 
-            employees(
-              *,
-              job_titles(job_description),
-              team:teams(team_name),
-              certifications(*),
-              employee_authorizations(*)
-            ), 
-            training_types(*)
-          `)
-          .gt('required_date', currentDate)
-          .lt('required_date', sevenDaysLaterStr);
-          
-        if (error) throw error;
-        return data || [];
-      } catch (error: any) {
-        console.error("Error fetching employees in training:", error);
-        return [];
-      }
-    }
+      if (!dateReference?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('roster_assignments')
+        .select(`
+          *,
+          employees(*, job_titles(*), team:teams(*), certifications(*), employee_authorizations(*)),
+          date:date_references(actual_date),
+          roster:roster_codes(*)
+        `)
+        .eq('date_id', dateReference.id);
+      
+      if (error) throw error;
+      console.log('Roster assignments fetched:', data?.length);
+      return data || [];
+    },
+    enabled: !!dateReference?.id
   });
 
-  // Fetch aircraft metrics
+  // Fetch aircraft data
   const { data: aircraft, isLoading: loadingAircraft } = useQuery({
     queryKey: ['allAircraft'],
     queryFn: async () => {
@@ -236,6 +175,7 @@ export const WorkforceMetrics = () => {
           `);
           
         if (error) throw error;
+        console.log('Aircraft fetched:', data?.length);
         return data || [];
       } catch (error: any) {
         console.error("Error fetching aircraft:", error);
@@ -253,14 +193,15 @@ export const WorkforceMetrics = () => {
           .from('maintenance_visits')
           .select(`
             *, 
-            aircraft(
-              *,
+            aircraft(*,
               aircraft_types(*)
             ),
+            hangar:hangars(*),
             personnel_requirements(*)
           `);
           
         if (error) throw error;
+        console.log('Maintenance visits fetched:', data?.length);
         return data || [];
       } catch (error: any) {
         console.error("Error fetching maintenance visits:", error);
@@ -268,6 +209,52 @@ export const WorkforceMetrics = () => {
       }
     }
   });
+
+  // Calculate available employees (excluding those with support assignments)
+  const availableEmployees = React.useMemo(() => {
+    if (!totalEmployees || !employeeSupports || !rosterAssignments) return [];
+    
+    // Get IDs of employees with support assignments
+    const supportEmployeeIds = new Set(employeeSupports.map(es => es.employee_id));
+    
+    // Get IDs of employees on leave or training from roster
+    const leaveEmployeeIds = new Set();
+    const trainingEmployeeIds = new Set();
+    
+    rosterAssignments.forEach(ra => {
+      // Check roster code: 2 for Annual Leave, 7 for Sick Leave, 9 for Training
+      if (ra.roster_id === 2 || ra.roster_id === 7) {
+        leaveEmployeeIds.add(ra.employee_id);
+      } else if (ra.roster_id === 9) {
+        trainingEmployeeIds.add(ra.employee_id);
+      }
+    });
+    
+    // Filter out employees who have support, are on leave or in training
+    return totalEmployees.filter(emp => 
+      !supportEmployeeIds.has(emp.id) && 
+      !leaveEmployeeIds.has(emp.id) &&
+      !trainingEmployeeIds.has(emp.id)
+    );
+  }, [totalEmployees, employeeSupports, rosterAssignments]);
+
+  // Extract employees on leave from roster assignments
+  const onLeaveEmployees = React.useMemo(() => {
+    if (!rosterAssignments) return [];
+    
+    // Filter roster assignments for leave codes (2 for Annual Leave, 7 for Sick Leave)
+    return rosterAssignments.filter(ra => 
+      ra.roster_id === 2 || ra.roster_id === 7
+    );
+  }, [rosterAssignments]);
+
+  // Extract employees in training from roster assignments
+  const inTrainingEmployees = React.useMemo(() => {
+    if (!rosterAssignments) return [];
+    
+    // Filter roster assignments for training code (9)
+    return rosterAssignments.filter(ra => ra.roster_id === 9);
+  }, [rosterAssignments]);
 
   // Calculate aircraft metrics
   const aircraftMetrics = React.useMemo(() => {
@@ -290,7 +277,7 @@ export const WorkforceMetrics = () => {
     };
   }, [aircraft, maintenanceVisits]);
 
-  const isLoading = loadingTotalEmployees || loadingAvailableEmployees || loadingOnLeave || loadingInTraining || loadingAircraft || loadingMaintenanceVisits;
+  const isLoading = loadingTotalEmployees || loadingEmployeeSupports || loadingDateReference || loadingRosterAssignments || loadingAircraft || loadingMaintenanceVisits;
 
   // Set detail data when selecting a metric
   useEffect(() => {
@@ -306,10 +293,10 @@ export const WorkforceMetrics = () => {
         data = availableEmployees || [];
         break;
       case 'leave':
-        data = onLeave || [];
+        data = onLeaveEmployees || [];
         break;
       case 'training':
-        data = inTraining || [];
+        data = inTrainingEmployees || [];
         break;
       case 'grounded':
         data = maintenanceVisits?.filter(v => v.status === 'In Progress') || [];
@@ -336,7 +323,7 @@ export const WorkforceMetrics = () => {
     
     setDetailData(data);
     console.log(`Setting detail data for ${selectedMetric}:`, data);
-  }, [selectedMetric, isDialogOpen, totalEmployees, availableEmployees, onLeave, inTraining, aircraft, maintenanceVisits]);
+  }, [selectedMetric, isDialogOpen, totalEmployees, availableEmployees, onLeaveEmployees, inTrainingEmployees, aircraft, maintenanceVisits]);
 
   const handleMetricClick = (metricId: string) => {
     console.log(`Metric clicked: ${metricId}`);
@@ -397,7 +384,8 @@ export const WorkforceMetrics = () => {
             Position: item.employees?.job_titles?.job_description || 'N/A',
             Team: item.employees?.team?.team_name || 'N/A',
             Mobile: item.employees?.mobile_number || 'N/A',
-            'Leave Until': item.date ? new Date(item.date).toLocaleDateString() : 'N/A'
+            'Leave Type': item.roster_id === 2 ? 'Annual Leave' : 'Sick Leave',
+            'Leave Date': item.date?.actual_date ? new Date(item.date.actual_date).toLocaleDateString() : 'N/A'
           }));
           filename = 'employees-on-leave.csv';
           break;
@@ -409,8 +397,7 @@ export const WorkforceMetrics = () => {
             Position: item.employees?.job_titles?.job_description || 'N/A',
             Team: item.employees?.team?.team_name || 'N/A',
             Mobile: item.employees?.mobile_number || 'N/A',
-            Training: item.training_types?.name || 'N/A',
-            'Training Date': item.required_date ? new Date(item.required_date).toLocaleDateString() : 'N/A'
+            'Training Date': item.date?.actual_date ? new Date(item.date.actual_date).toLocaleDateString() : 'N/A'
           }));
           filename = 'employees-in-training.csv';
           break;
@@ -438,6 +425,7 @@ export const WorkforceMetrics = () => {
                 'Check Type': item.check_type || 'N/A',
                 'Date Range': `${new Date(item.date_in).toLocaleDateString()} - ${new Date(item.date_out).toLocaleDateString()}`,
                 Status: item.status || 'N/A',
+                Hangar: item.hangar?.hangar_name || 'N/A',
                 'Total Hours': item.total_hours || '0',
                 Remarks: item.remarks || ''
               };
@@ -617,6 +605,9 @@ export const WorkforceMetrics = () => {
             case 'status':
               return item.status && 
                 item.status.toLowerCase().includes(value.toLowerCase());
+            case 'hangar':
+              return item.hangar?.hangar_name && 
+                item.hangar.hangar_name.toLowerCase().includes(value.toLowerCase());
             default:
               return true;
           }
@@ -794,44 +785,21 @@ export const WorkforceMetrics = () => {
           ),
         },
         {
-          id: 'joinDate',
-          header: 'Join Date',
+          id: 'date',
+          header: selectedMetric === 'leave' ? 'Leave Date' : 'Training Date',
           cell: (item: any) => (
-            <span>
-              {item.employees?.date_of_joining ? 
-                new Date(item.employees?.date_of_joining).toLocaleDateString() : 'N/A'}
-            </span>
+            <span>{item.date?.actual_date ? new Date(item.date.actual_date).toLocaleDateString() : 'N/A'}</span>
           ),
           sortable: true,
-          accessorFn: (item: any) => item.employees?.date_of_joining,
+          accessorFn: (item: any) => item.date?.actual_date,
         },
-        ...(selectedMetric === 'training' ? [
-          {
-            id: 'training',
-            header: 'Training',
-            cell: (item: any) => (
-              <span>{item.training_types?.name || 'N/A'}</span>
-            ),
-          },
-          {
-            id: 'trainingDate',
-            header: 'Date',
-            cell: (item: any) => (
-              <span>{item.required_date ? new Date(item.required_date).toLocaleDateString() : 'N/A'}</span>
-            ),
-            sortable: true,
-            accessorFn: (item: any) => item.required_date,
-          },
-        ] : []),
         ...(selectedMetric === 'leave' ? [
           {
-            id: 'leaveUntil',
-            header: 'Until',
+            id: 'leaveType',
+            header: 'Leave Type',
             cell: (item: any) => (
-              <span>{item.date ? new Date(item.date).toLocaleDateString() : 'N/A'}</span>
+              <span>{item.roster_id === 2 ? 'Annual Leave' : 'Sick Leave'}</span>
             ),
-            sortable: true,
-            accessorFn: (item: any) => item.date,
           },
         ] : []),
         {
@@ -1010,10 +978,10 @@ export const WorkforceMetrics = () => {
           ),
         },
         {
-          id: 'hangars',
-          header: 'Hangars',
+          id: 'hangar',
+          header: 'Hangar',
           cell: (item: any) => (
-            <span>{item.hangar_id || 'Not Assigned'}</span>
+            <span>{item.hangar?.hangar_name || 'Not Assigned'}</span>
           ),
         },
         {
@@ -1078,14 +1046,14 @@ export const WorkforceMetrics = () => {
     { 
       id: 'leave', 
       label: 'On Leave', 
-      value: isLoading ? '-' : onLeave?.length || 0, 
+      value: isLoading ? '-' : onLeaveEmployees?.length || 0, 
       icon: CalendarCheck, 
       color: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
     },
     { 
       id: 'training', 
       label: 'In Training', 
-      value: isLoading ? '-' : inTraining?.length || 0, 
+      value: isLoading ? '-' : inTrainingEmployees?.length || 0, 
       icon: GraduationCap, 
       color: 'bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800',
     },
@@ -1297,6 +1265,20 @@ export const WorkforceMetrics = () => {
                   className="border-0 focus-visible:ring-0"
                   value={filters.status || ''}
                   onChange={(e) => handleFilterChange('status', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          {activeFilter === "hangar" && (
+            <div className="space-y-2">
+              <h3 className="font-medium">Filter by Hangar</h3>
+              <div className="flex items-center border rounded-md">
+                <Search className="h-4 w-4 ml-2 text-gray-500" />
+                <Input 
+                  placeholder="Search hangar..." 
+                  className="border-0 focus-visible:ring-0"
+                  value={filters.hangar || ''}
+                  onChange={(e) => handleFilterChange('hangar', e.target.value)}
                 />
               </div>
             </div>
