@@ -48,8 +48,8 @@ export const AircraftScheduleView = () => {
         visit_number: visitNumber,
         check_type: formData.checkType,
         status: formData.status,
-        date_in: formData.startDate, 
-        date_out: formData.endDate,
+        date_in: formData.startDate,  // Using date_in field
+        date_out: formData.endDate,   // Using date_out field
         remarks: formData.remarks,
         total_hours: Math.floor(Math.random() * 500) + 100 // Random hours
       });

@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { AircraftGanttChart } from "../AircraftGanttChart";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { FileDownIcon } from "lucide-react";
+import { FileDownIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth } from "date-fns";
 
 export const AircraftCalendar = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 4, 1)); // May 2025
 
   // Handler to receive scroll position updates from the calendar
   const handleCalendarScroll = (position: number) => {
@@ -19,18 +21,28 @@ export const AircraftCalendar = () => {
     });
   };
 
+  const handlePrevious = () => {
+    setCurrentDate(prevDate => subMonths(prevDate, 1));
+  };
+
+  const handleNext = () => {
+    setCurrentDate(prevDate => addMonths(prevDate, 1));
+  };
+
+  const handleToday = () => {
+    setCurrentDate(new Date(2025, 4, 1)); // Reset to May 2025
+  };
+
+  // Format the current month and year for display
+  const monthYearDisplay = format(currentDate, 'MMMM yyyy');
+  
+  // Calculate start and end dates for the view
+  const viewStartDate = startOfMonth(currentDate);
+  const viewEndDate = endOfMonth(addMonths(currentDate, 1)); // Show two months
+
   return (
     <div className="w-full">
-      <div className="mb-4">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="float-right flex items-center gap-1"
-          onClick={handleExportSchedule}
-        >
-          <FileDownIcon className="h-4 w-4" />
-          Export Schedule
-        </Button>
+      <div className="flex items-center justify-between mb-4">
         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center">
             <span className="w-3 h-3 mr-1 rounded-sm bg-blue-200 dark:bg-blue-900 border border-blue-400 dark:border-blue-700"></span>
@@ -65,9 +77,39 @@ export const AircraftCalendar = () => {
             <span>R44</span>
           </div>
         </div>
+        
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handlePrevious}>
+            <ChevronLeft className="h-4 w-4" />
+            <span className="sr-only md:not-sr-only md:ml-1">Previous</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleToday}>
+            Today
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleNext}>
+            <span className="sr-only md:not-sr-only md:mr-1">Next</span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <div className="hidden md:block min-w-[150px] text-center font-medium">
+            {monthYearDisplay} - {format(addMonths(currentDate, 1), 'MMMM yyyy')}
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1 ml-2"
+            onClick={handleExportSchedule}
+          >
+            <FileDownIcon className="h-4 w-4" />
+            Export Schedule
+          </Button>
+        </div>
       </div>
       
-      <AircraftGanttChart scrollLeft={scrollPosition} />
+      <AircraftGanttChart 
+        scrollLeft={scrollPosition} 
+        startDate={viewStartDate} 
+        endDate={viewEndDate}
+      />
     </div>
   );
 };
