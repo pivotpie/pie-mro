@@ -115,6 +115,16 @@ interface EmployeeBase {
   is_active: boolean;
 }
 
+// Break the circular reference by making these simpler interfaces
+interface EmployeeBasicInfo {
+  id: number;
+  name: string;
+  e_number: number;
+  job_titles?: { job_description: string };
+  team?: { team_name: string };
+  mobile_number?: string;
+}
+
 // Now define the more complex interfaces using the basic ones
 interface Employee extends EmployeeBase {
   job_titles?: JobTitle;
@@ -128,7 +138,7 @@ interface RosterAssignmentType {
   employee_id: number;
   date_id: number;
   roster_id: number;
-  employees?: Employee;
+  employees?: EmployeeBasicInfo; // Use simplified employee type to avoid deep nesting
   date?: {
     actual_date: string;
   };
@@ -255,7 +265,7 @@ export const WorkforceMetrics = () => {
         .from('roster_assignments')
         .select(`
           *,
-          employees(*, job_titles(*), team:teams(*), certifications(*), employee_authorizations(*)),
+          employees(id, name, e_number, job_titles(*), team:teams(*), mobile_number),
           date:date_references(actual_date),
           roster:roster_codes(*)
         `)
