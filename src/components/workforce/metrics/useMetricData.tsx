@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -16,10 +15,86 @@ import {
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { EmployeeBasic, SimpleRosterAssignment, AircraftBasic, MaintenanceVisitBasic, EmployeeSupportBasic, MetricInfo, MetricType } from "../WorkforceMetrics";
+
+// Simplified base types to avoid deep nesting
+export interface EmployeeBasic {
+  id: number;
+  name: string;
+  e_number: number;
+  is_active: boolean;
+  mobile_number?: string;
+  date_of_joining?: string;
+  job_title_description?: string;
+  team_name?: string;
+  certification_count?: number;
+  authorization_count?: number;
+}
+
+export interface SimpleRosterAssignment {
+  id: number;
+  employee_id: number;
+  date_id: number;
+  roster_id: number;
+  employee_name?: string;
+  employee_number?: number;
+  employee_position?: string;
+  employee_team?: string;
+  employee_mobile?: string;
+  date_value?: string;
+  roster_code?: string;
+}
+
+export interface AircraftBasic {
+  id: number;
+  aircraft_name?: string;
+  registration?: string;
+  type_name?: string;
+  manufacturer?: string;
+  customer?: string;
+  total_hours?: number;
+  total_cycles?: number;
+}
+
+export interface MaintenanceVisitBasic {
+  id: number;
+  aircraft_id: number;
+  aircraft_name?: string;
+  aircraft_registration?: string;
+  aircraft_type?: string;
+  visit_number: string;
+  check_type: string;
+  status?: string;
+  date_in: string;
+  date_out: string;
+  remarks?: string;
+  hangar_id?: number;
+  hangar_name?: string;
+  total_hours?: number;
+  has_personnel_requirements?: boolean;
+}
+
+export interface EmployeeSupportBasic {
+  id: number;
+  employee_id: number;
+  support_id: number;
+}
+
+export type MetricType = 'total-employees' | 'available' | 'leave' | 'training' | 
+  'grounded' | 'assigned' | 'pending' | 'productivity';
+
+export interface MetricInfo {
+  id: MetricType;
+  label: string;
+  value: number | string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+// Generic type for all detail data to avoid deep type instantiation
+export type DetailDataType = EmployeeBasic | SimpleRosterAssignment | MaintenanceVisitBasic | AircraftBasic;
 
 export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: boolean) => {
-  const [detailData, setDetailData] = useState<any[]>([]);
+  const [detailData, setDetailData] = useState<DetailDataType[]>([]);
   const [sortField, setSortField] = useState<string>("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -304,7 +379,7 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
   useEffect(() => {
     if (!selectedMetric || !isDialogOpen) return;
     
-    let data: any[] = [];
+    let data: DetailDataType[] = [];
     
     switch (selectedMetric) {
       case 'total-employees':
@@ -361,10 +436,23 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
       let csvData: any[] = [];
       let filename = '';
 
+      // Use type guards to handle different data types
+      const isEmployeeData = (item: any): item is EmployeeBasic => 
+        'job_title_description' in item && 'e_number' in item;
+      
+      const isRosterAssignment = (item: any): item is SimpleRosterAssignment => 
+        'employee_name' in item && 'roster_id' in item;
+      
+      const isAircraftData = (item: any): item is AircraftBasic => 
+        'registration' in item && 'type_name' in item && !('check_type' in item);
+      
+      const isMaintenanceVisit = (item: any): item is MaintenanceVisitBasic => 
+        'aircraft_registration' in item && 'check_type' in item;
+
       switch (selectedMetric) {
         case 'available':
         case 'total-employees':
-          csvData = detailData.map(item => ({
+          csvData = detailData.filter(isEmployeeData).map(item => ({
             Name: item.name,
             'Employee ID': `E${item.e_number}`,
             Position: item.job_title_description || 'N/A',
@@ -376,65 +464,68 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
           break;
         
         case 'leave':
-          csvData = detailData.map(item => ({
-            Name: item.employee_name || 'N/A',
-            'Employee ID': `E${item.employee_number}` || 'N/A',
-            Position: item.employee_position || 'N/A',
-            Team: item.employee_team || 'N/A',
-            Mobile: item.employee_mobile || 'N/A',
-            'Leave Type': item.roster_id === 2 ? 'Annual Leave' : 'Sick Leave',
-            'Leave Date': item.date_value ? new Date(item.date_value).toLocaleDateString() : 'N/A'
-          }));
-          filename = 'employees-on-leave.csv';
-          break;
-          
         case 'training':
-          csvData = detailData.map(item => ({
-            Name: item.employee_name || 'N/A',
-            'Employee ID': `E${item.employee_number}` || 'N/A',
-            Position: item.employee_position || 'N/A',
-            Team: item.employee_team || 'N/A',
-            Mobile: item.employee_mobile || 'N/A',
-            'Training Date': item.date_value ? new Date(item.date_value).toLocaleDateString() : 'N/A'
-          }));
-          filename = 'employees-in-training.csv';
+          csvData = detailData.filter(isRosterAssignment).map(item => {
+            const base = {
+              Name: item.employee_name || 'N/A',
+              'Employee ID': `E${item.employee_number}` || 'N/A',
+              Position: item.employee_position || 'N/A',
+              Team: item.employee_team || 'N/A',
+              Mobile: item.employee_mobile || 'N/A',
+              'Date': item.date_value ? new Date(item.date_value).toLocaleDateString() : 'N/A'
+            };
+            
+            // Add leave type only for leave metric
+            if (selectedMetric === 'leave') {
+              return {
+                ...base,
+                'Leave Type': item.roster_id === 2 ? 'Annual Leave' : 'Sick Leave'
+              };
+            }
+            return base;
+          });
+          filename = selectedMetric === 'leave' ? 'employees-on-leave.csv' : 'employees-in-training.csv';
           break;
           
         case 'grounded':
         case 'assigned':
         case 'pending':
-        case 'productivity':
-          csvData = detailData.map(item => {
-            if (selectedMetric === 'productivity') {
-              return {
-                Aircraft: item.aircraft_name || 'N/A',
-                Registration: item.registration || 'N/A',
-                Type: item.type_name || 'N/A',
-                Manufacturer: item.manufacturer || 'N/A',
-                Customer: item.customer || 'N/A',
-                'Total Hours': item.total_hours || '0',
-                'Total Cycles': item.total_cycles || '0'
-              };
-            } else {
-              return {
-                Aircraft: item.aircraft_name || 'N/A',
-                Registration: item.aircraft_registration || 'N/A',
-                Type: item.aircraft_type || 'N/A',
-                'Check Type': item.check_type || 'N/A',
-                'Date Range': `${new Date(item.date_in).toLocaleDateString()} - ${new Date(item.date_out).toLocaleDateString()}`,
-                Status: item.status || 'N/A',
-                Hangar: item.hangar_name || 'N/A',
-                'Total Hours': item.total_hours || 'N/A',
-                Remarks: item.remarks || ''
-              };
-            }
-          });
+          csvData = detailData.filter(isMaintenanceVisit).map(item => ({
+            Aircraft: item.aircraft_name || 'N/A',
+            Registration: item.aircraft_registration || 'N/A',
+            Type: item.aircraft_type || 'N/A',
+            'Check Type': item.check_type || 'N/A',
+            'Date Range': `${new Date(item.date_in).toLocaleDateString()} - ${new Date(item.date_out).toLocaleDateString()}`,
+            Status: item.status || 'N/A',
+            Hangar: item.hangar_name || 'N/A',
+            'Total Hours': item.total_hours || 'N/A',
+            Remarks: item.remarks || ''
+          }));
           filename = `${selectedMetric}-aircraft.csv`;
           break;
           
+        case 'productivity':
+          csvData = detailData.filter(isAircraftData).map(item => ({
+            Aircraft: item.aircraft_name || 'N/A',
+            Registration: item.registration || 'N/A',
+            Type: item.type_name || 'N/A',
+            Manufacturer: item.manufacturer || 'N/A',
+            Customer: item.customer || 'N/A',
+            'Total Hours': item.total_hours || '0',
+            'Total Cycles': item.total_cycles || '0'
+          }));
+          filename = 'available-aircraft.csv';
+          break;
+          
         default:
-          csvData = detailData;
+          csvData = [];
           filename = 'export.csv';
+      }
+
+      // Handle empty data case
+      if (csvData.length === 0) {
+        toast.error("No data to export after filtering");
+        return;
       }
 
       // Convert to CSV
@@ -477,9 +568,23 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
     // Apply search term if exists
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
+      
+      // Use type guards to handle different data types
+      const isEmployeeData = (item: any): item is EmployeeBasic => 
+        'job_title_description' in item && 'e_number' in item;
+      
+      const isRosterAssignment = (item: any): item is SimpleRosterAssignment => 
+        'employee_name' in item && 'roster_id' in item;
+      
+      const isAircraftData = (item: any): item is AircraftBasic => 
+        'registration' in item && 'type_name' in item && !('check_type' in item);
+      
+      const isMaintenanceVisit = (item: any): item is MaintenanceVisitBasic => 
+        'aircraft_registration' in item && 'check_type' in item;
+      
       filteredData = filteredData.filter(item => {
-        // For employee data
-        if (selectedMetric === 'available' || selectedMetric === 'total-employees') {
+        // Search based on item type
+        if (isEmployeeData(item)) {
           return (
             (item?.name && item.name.toLowerCase().includes(term)) ||
             (item?.e_number && `e${item.e_number}`.toLowerCase().includes(term)) ||
@@ -487,7 +592,7 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
             (item?.team_name && item.team_name.toLowerCase().includes(term))
           );
         } 
-        else if (selectedMetric === 'leave' || selectedMetric === 'training') {
+        else if (isRosterAssignment(item)) {
           return (
             (item?.employee_name && item.employee_name.toLowerCase().includes(term)) ||
             (item?.employee_number && `e${item.employee_number}`.toLowerCase().includes(term)) ||
@@ -495,101 +600,121 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
             (item?.employee_team && item.employee_team.toLowerCase().includes(term))
           );
         }
-        // For aircraft data
-        else if (selectedMetric === 'productivity') {
+        else if (isAircraftData(item)) {
           return (
             (item?.aircraft_name && item.aircraft_name.toLowerCase().includes(term)) ||
             (item?.registration && item.registration.toLowerCase().includes(term)) ||
             (item?.type_name && item.type_name.toLowerCase().includes(term))
           );
         }
-        else {
+        else if (isMaintenanceVisit(item)) {
           return (
             (item.aircraft_name && item.aircraft_name.toLowerCase().includes(term)) ||
             (item.aircraft_registration && item.aircraft_registration.toLowerCase().includes(term)) ||
             (item.check_type && item.check_type.toLowerCase().includes(term))
           );
         }
+        
+        // Default case for any other data type
+        return false;
       });
     }
     
     // Apply field-specific filters
-    Object.entries(filters).forEach(([field, value]) => {
-      if (!value) return;
+    if (Object.keys(filters).length > 0) {
+      // Use type guards to handle different data types
+      const isEmployeeData = (item: any): item is EmployeeBasic => 
+        'job_title_description' in item && 'e_number' in item;
       
+      const isRosterAssignment = (item: any): item is SimpleRosterAssignment => 
+        'employee_name' in item && 'roster_id' in item;
+      
+      const isAircraftData = (item: any): item is AircraftBasic => 
+        'registration' in item && 'type_name' in item && !('check_type' in item);
+      
+      const isMaintenanceVisit = (item: any): item is MaintenanceVisitBasic => 
+        'aircraft_registration' in item && 'check_type' in item;
+        
       filteredData = filteredData.filter(item => {
-        if (selectedMetric === 'available' || selectedMetric === 'total-employees') {
-          switch (field) {
-            case 'name':
-              return item?.name && item.name.toLowerCase().includes(value.toLowerCase());
-            case 'position':
-              return item?.job_title_description && 
-                item.job_title_description.toLowerCase().includes(value.toLowerCase());
-            case 'team':
-              return item?.team_name && 
-                item.team_name.toLowerCase().includes(value.toLowerCase());
-            default:
-              return true;
+        return Object.entries(filters).every(([field, value]) => {
+          if (!value) return true;
+          
+          // Filter based on item type
+          if (isEmployeeData(item)) {
+            switch (field) {
+              case 'name':
+                return item?.name && item.name.toLowerCase().includes(value.toLowerCase());
+              case 'position':
+                return item?.job_title_description && 
+                  item.job_title_description.toLowerCase().includes(value.toLowerCase());
+              case 'team':
+                return item?.team_name && 
+                  item.team_name.toLowerCase().includes(value.toLowerCase());
+              default:
+                return true;
+            }
+          } 
+          else if (isRosterAssignment(item)) {
+            switch (field) {
+              case 'name':
+                return item?.employee_name && item.employee_name.toLowerCase().includes(value.toLowerCase());
+              case 'position':
+                return item?.employee_position && 
+                  item.employee_position.toLowerCase().includes(value.toLowerCase());
+              case 'team':
+                return item?.employee_team && 
+                  item.employee_team.toLowerCase().includes(value.toLowerCase());
+              default:
+                return true;
+            }
           }
-        } 
-        else if (selectedMetric === 'leave' || selectedMetric === 'training') {
-          switch (field) {
-            case 'name':
-              return item?.employee_name && item.employee_name.toLowerCase().includes(value.toLowerCase());
-            case 'position':
-              return item?.employee_position && 
-                item.employee_position.toLowerCase().includes(value.toLowerCase());
-            case 'team':
-              return item?.employee_team && 
-                item.employee_team.toLowerCase().includes(value.toLowerCase());
-            default:
-              return true;
+          else if (isAircraftData(item)) {
+            switch (field) {
+              case 'aircraft':
+                return item?.aircraft_name && 
+                  item.aircraft_name.toLowerCase().includes(value.toLowerCase());
+              case 'registration':
+                return item?.registration && 
+                  item.registration.toLowerCase().includes(value.toLowerCase());
+              case 'type':
+                return item?.type_name && 
+                  item.type_name.toLowerCase().includes(value.toLowerCase());
+              default:
+                return true;
+            }
           }
-        }
-        else if (selectedMetric === 'productivity') {
-          switch (field) {
-            case 'aircraft':
-              return item?.aircraft_name && 
-                item.aircraft_name.toLowerCase().includes(value.toLowerCase());
-            case 'registration':
-              return item?.registration && 
-                item.registration.toLowerCase().includes(value.toLowerCase());
-            case 'type':
-              return item?.type_name && 
-                item.type_name.toLowerCase().includes(value.toLowerCase());
-            default:
-              return true;
+          else if (isMaintenanceVisit(item)) {
+            switch (field) {
+              case 'aircraft':
+                return item.aircraft_name && 
+                  item.aircraft_name.toLowerCase().includes(value.toLowerCase());
+              case 'registration':
+                return item.aircraft_registration && 
+                  item.aircraft_registration.toLowerCase().includes(value.toLowerCase());
+              case 'checkType':
+                return item.check_type && 
+                  item.check_type.toLowerCase().includes(value.toLowerCase());
+              case 'status':
+                return item.status && 
+                  item.status.toLowerCase().includes(value.toLowerCase());
+              case 'hangar':
+                return item.hangar_name && 
+                  item.hangar_name.toLowerCase().includes(value.toLowerCase());
+              default:
+                return true;
+            }
           }
-        }
-        else {
-          switch (field) {
-            case 'aircraft':
-              return item.aircraft_name && 
-                item.aircraft_name.toLowerCase().includes(value.toLowerCase());
-            case 'registration':
-              return item.aircraft_registration && 
-                item.aircraft_registration.toLowerCase().includes(value.toLowerCase());
-            case 'checkType':
-              return item.check_type && 
-                item.check_type.toLowerCase().includes(value.toLowerCase());
-            case 'status':
-              return item.status && 
-                item.status.toLowerCase().includes(value.toLowerCase());
-            case 'hangar':
-              return item.hangar_name && 
-                item.hangar_name.toLowerCase().includes(value.toLowerCase());
-            default:
-              return true;
-          }
-        }
+          
+          return true;
+        });
       });
-    });
+    }
     
     // Apply sorting if field is specified
     if (sortField) {
       filteredData.sort((a, b) => {
-        let valueA = a[sortField];
-        let valueB = b[sortField];
+        const valueA = a[sortField as keyof typeof a];
+        const valueB = b[sortField as keyof typeof b];
         
         // Handle string comparison
         if (typeof valueA === 'string' && typeof valueB === 'string') {
@@ -777,7 +902,6 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
       ];
     } 
     else if (selectedMetric === 'productivity') {
-      // Aircraft columns for available aircraft
       return [
         {
           id: 'aircraft',
@@ -849,7 +973,6 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
       ];
     }
     else {
-      // Aircraft in maintenance columns
       return [
         {
           id: 'aircraft',

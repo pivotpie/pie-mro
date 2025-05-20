@@ -51,4 +51,3 @@ export const MetricCard = React.memo(({ label, value, icon: Icon, color, percent
     </Tooltip>
   </TooltipProvider>
 ));
-
