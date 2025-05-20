@@ -23,30 +23,18 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
     
     if (data && Array.isArray(data)) {
       for (const emp of data) {
-        // Handle certification count more directly
-        let certCount = 0;
-        if (emp.certifications && Array.isArray(emp.certifications)) {
-          certCount = emp.certifications.length;
-        }
-        
-        // Handle authorization count more directly
-        let authCount = 0;
-        if (emp.employee_authorizations && Array.isArray(emp.employee_authorizations)) {
-          authCount = emp.employee_authorizations.length;
-        }
-        
         // Create employee object with direct property assignments
         const employee: EmployeeBasic = {
           id: emp.id,
           name: emp.name,
           e_number: emp.e_number,
+          is_active: emp.is_active,
           mobile_number: emp.mobile_number || undefined,
           date_of_joining: emp.date_of_joining || undefined,
-          is_active: emp.is_active,
           job_title_description: emp.job_titles?.job_description,
           team_name: emp.team?.team_name,
-          certification_count: certCount,
-          authorization_count: authCount
+          certification_count: Array.isArray(emp.certifications) ? emp.certifications.length : 0,
+          authorization_count: Array.isArray(emp.employee_authorizations) ? emp.employee_authorizations.length : 0
         };
         
         result.push(employee);
@@ -96,7 +84,7 @@ export const fetchDateReference = async (currentDate: string): Promise<{ id: num
       .from('date_references')
       .select('id')
       .eq('actual_date', currentDate)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error fetching date reference:", error);
