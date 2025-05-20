@@ -4,6 +4,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // Helper function to check if a date is a weekend
 const isWeekend = (dayOfMonth: number, month: number) => {
@@ -22,112 +24,153 @@ const generateDays = () => {
   return days;
 };
 
-// Sample hangar data
-const hangars = [
-  { id: "H1", name: "Hangar 1A" },
-  { id: "H2", name: "Hangar 1B" },
-  { id: "H3", name: "Hangar 2A" },
-  { id: "H4", name: "Hangar 2B" },
-  { id: "H5", name: "Hangar 3A" },
-  { id: "H6", name: "Hangar 3B" },
-];
+interface HangarData {
+  id: number;
+  name: string;
+}
+
+interface AircraftSchedule {
+  id: string;
+  aircraft: string;
+  aircraft_id: number;
+  hangar_id: number;
+  start: { month: number, day: number };
+  end: { month: number, day: number };
+  team: string | null;
+  status: string;
+  registration: string;
+  customer: string;
+  color: string;
+}
 
 interface AircraftGanttChartProps {
   scrollLeft: number;
 }
 
 export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
-  const [aircraftSchedules, setAircraftSchedules] = useState<any[]>([]);
+  const [hangars, setHangars] = useState<HangarData[]>([]);
+  const [aircraftSchedules, setAircraftSchedules] = useState<{ hangarId: number, schedules: AircraftSchedule[] }[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   const days = generateDays();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [selectedAircraft, setSelectedAircraft] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  // Fetch hangars and maintenance visits from Supabase
   useEffect(() => {
-    // In a real app, fetch from database
-    // For now, use sample data
-    const sampleSchedules = [
-      {
-        hangarId: "H1",
-        schedules: [
-          {
-            id: "A1",
-            aircraft: "AIRBUS 320 GCAA",
-            start: { month: 4, day: 1 },
-            end: { month: 4, day: 9 },
-            team: "Team Alpha",
-            color: "bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700"
-          }
-        ]
-      },
-      {
-        hangarId: "H2",
-        schedules: [
-          {
-            id: "A2",
-            aircraft: "AIRBUS 320 FAA",
-            start: { month: 4, day: 10 },
-            end: { month: 4, day: 20 },
-            team: "Team Beta",
-            color: "bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700"
-          }
-        ]
-      },
-      {
-        hangarId: "H3",
-        schedules: [
-          {
-            id: "A3",
-            aircraft: "AIRBUS 350 EASA",
-            start: { month: 4, day: 15 },
-            end: { month: 4, day: 25 },
-            team: null,
-            color: "bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700"
-          }
-        ]
-      },
-      {
-        hangarId: "H4",
-        schedules: [
-          {
-            id: "A4",
-            aircraft: "BOEING 787 GCAA",
-            start: { month: 4, day: 5 },
-            end: { month: 4, day: 15 },
-            team: "Team Charlie",
-            color: "bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700"
-          }
-        ]
-      },
-      {
-        hangarId: "H5",
-        schedules: [
-          {
-            id: "A5",
-            aircraft: "BOEING 737 FAA",
-            start: { month: 4, day: 20 },
-            end: { month: 4, day: 30 },
-            team: null,
-            color: "bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700"
-          }
-        ]
-      },
-      {
-        hangarId: "H6",
-        schedules: [
-          {
-            id: "A6",
-            aircraft: "AIRBUS 380 EASA",
-            start: { month: 4, day: 8 },
-            end: { month: 4, day: 18 },
-            team: "Team Alpha",
-            color: "bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700"
-          }
-        ]
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch hangars
+        const { data: hangarsData, error: hangarsError } = await supabase
+          .from('hangars')
+          .select('id, hangar_name')
+          .order('hangar_code');
+          
+        if (hangarsError) throw hangarsError;
+        
+        // Fetch maintenance visits with aircraft info
+        const { data: visitsData, error: visitsError } = await supabase
+          .from('maintenance_visits')
+          .select(`
+            id, 
+            visit_number,
+            check_type,
+            status,
+            start_date,
+            end_date,
+            hangar_id,
+            aircraft:aircraft_id (
+              id, 
+              registration, 
+              customer,
+              aircraft_name
+            )
+          `)
+          .order('start_date');
+          
+        if (visitsError) throw visitsError;
+        
+        // Process hangars
+        const processedHangars = hangarsData.map((hangar: any) => ({
+          id: hangar.id,
+          name: hangar.hangar_name
+        }));
+        
+        // Process maintenance visits
+        const schedulesByHangar: { hangarId: number, schedules: AircraftSchedule[] }[] = [];
+        
+        // Color mapping for aircraft
+        const colorMap: Record<string, string> = {
+          'A320': 'bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700',
+          'A350': 'bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700',
+          'A380': 'bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700',
+          'B737': 'bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700',
+          'B777': 'bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700',
+          'B787': 'bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700',
+          'PA28': 'bg-emerald-200 border-emerald-400 dark:bg-emerald-900 dark:border-emerald-700',
+          'R44': 'bg-pink-200 border-pink-400 dark:bg-pink-900 dark:border-pink-700'
+        };
+        
+        // Group by hangar
+        processedHangars.forEach(hangar => {
+          const hangarSchedules = visitsData
+            .filter((visit: any) => visit.hangar_id === hangar.id)
+            .map((visit: any) => {
+              // Parse dates
+              const startDate = new Date(visit.start_date);
+              const endDate = new Date(visit.end_date);
+              
+              // Determine color based on aircraft type
+              let color = 'bg-gray-200 border-gray-400 dark:bg-gray-900 dark:border-gray-700';
+              if (visit.aircraft && visit.aircraft.aircraft_name) {
+                // Extract type code from name (e.g., "Airbus A320" -> "A320")
+                const typeMatch = visit.aircraft.aircraft_name.match(/(A\d{3}|B\d{3}|PA-?\d{2}|R\d{2})/i);
+                if (typeMatch) {
+                  const typeCode = typeMatch[0].replace('-', '').toUpperCase();
+                  color = colorMap[typeCode] || color;
+                }
+              }
+              
+              return {
+                id: visit.id,
+                aircraft: visit.aircraft?.aircraft_name || 'Unknown Aircraft',
+                aircraft_id: visit.aircraft?.id,
+                hangar_id: visit.hangar_id,
+                start: { 
+                  month: startDate.getMonth(), 
+                  day: startDate.getDate() 
+                },
+                end: { 
+                  month: endDate.getMonth(), 
+                  day: endDate.getDate() 
+                },
+                team: null, // We don't have team data yet
+                status: visit.status,
+                registration: visit.aircraft?.registration || 'UNKNOWN',
+                customer: visit.aircraft?.customer || 'Unknown Operator',
+                color
+              };
+            });
+            
+          schedulesByHangar.push({
+            hangarId: hangar.id,
+            schedules: hangarSchedules
+          });
+        });
+        
+        setHangars(processedHangars);
+        setAircraftSchedules(schedulesByHangar);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load aircraft schedule data');
+      } finally {
+        setLoading(false);
       }
-    ];
+    };
     
-    setAircraftSchedules(sampleSchedules);
+    fetchData();
   }, []);
 
   // Update scroll position to sync with schedule calendar
@@ -137,7 +180,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
     }
   }, [scrollLeft]);
 
-  const calculatePosition = (schedule: any) => {
+  const calculatePosition = (schedule: AircraftSchedule) => {
     const startIdx = days.findIndex(d => d.month === schedule.start.month && d.day === schedule.start.day);
     const endIdx = days.findIndex(d => d.month === schedule.end.month && d.day === schedule.end.day);
     
@@ -149,7 +192,7 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
     return { startPosition, width };
   };
 
-  const handleAircraftClick = (schedule: any) => {
+  const handleAircraftClick = (schedule: AircraftSchedule) => {
     setSelectedAircraft(schedule);
     setModalOpen(true);
   };
@@ -165,6 +208,17 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
   const onScroll = (_scrollLeft: number) => {
     // This would normally send the scroll position back up to the parent
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[300px] border rounded-lg dark:border-gray-700">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400">Loading aircraft schedule data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border rounded-lg dark:border-gray-700">
@@ -232,19 +286,18 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                                   }}
                                   onClick={() => handleAircraftClick(schedule)}
                                 >
-                                  <span className="truncate px-1">{schedule.aircraft}</span>
+                                  <span className="truncate px-1">{schedule.registration}</span>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="text-sm font-medium">{schedule.aircraft}</div>
+                                <div className="text-xs">{schedule.registration} - {schedule.customer}</div>
                                 <div className="text-xs">
                                   May {schedule.start.day} - May {schedule.end.day}, 2025
                                 </div>
-                                {schedule.team ? (
-                                  <div className="text-green-600">Assigned to {schedule.team}</div>
-                                ) : (
-                                  <div className="text-amber-600">Not assigned to a team</div>
-                                )}
+                                <div className="text-xs font-medium mt-1">
+                                  Status: <span className="text-blue-600 dark:text-blue-400">{schedule.status}</span>
+                                </div>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -277,6 +330,10 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                         <p className="font-medium dark:text-gray-200">{selectedAircraft.aircraft}</p>
                       </div>
                       <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Registration</p>
+                        <p className="font-medium dark:text-gray-200">{selectedAircraft.registration}</p>
+                      </div>
+                      <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Schedule</p>
                         <p className="font-medium dark:text-gray-200">
                           May {selectedAircraft.start.day} - May {selectedAircraft.end.day}
@@ -290,7 +347,11 @@ export const AircraftGanttChart = ({ scrollLeft }: AircraftGanttChartProps) => {
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-                        <p className="font-medium dark:text-gray-200">Scheduled</p>
+                        <p className="font-medium dark:text-gray-200">{selectedAircraft.status}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Customer</p>
+                        <p className="font-medium dark:text-gray-200">{selectedAircraft.customer}</p>
                       </div>
                     </div>
                   </div>
