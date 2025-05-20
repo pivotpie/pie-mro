@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Filter, Search } from "lucide-react";
-import { MetricType } from "../WorkforceMetrics";
+import { MetricType } from "./types";
 
 interface FilterPopoverProps {
   metric: MetricType;

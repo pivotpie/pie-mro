@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { SortableTable } from "@/components/ui/sortable-table";
 import { Download, Filter, X, Search } from "lucide-react";
 import { FilterPopover } from "./FilterPopover";
-import { MetricType } from "../WorkforceMetrics";
+import { MetricType } from "./types";
 
 interface MetricDetailDialogProps {
   isOpen: boolean;
