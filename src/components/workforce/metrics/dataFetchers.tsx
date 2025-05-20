@@ -22,7 +22,7 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
     
     if (data && Array.isArray(data)) {
       for (const emp of data) {
-        // Create employee object with direct property assignments
+        // Create employee object with explicit types
         const employee: EmployeeBasic = {
           id: emp.id,
           name: emp.name,
@@ -30,8 +30,8 @@ export const fetchTotalEmployees = async (): Promise<EmployeeBasic[]> => {
           is_active: emp.is_active,
           mobile_number: emp.mobile_number || undefined,
           date_of_joining: emp.date_of_joining || undefined,
-          job_title_description: emp.job_titles?.job_description,
-          team_name: emp.team?.team_name,
+          job_title_description: emp?.job_titles?.job_description,
+          team_name: emp?.team?.team_name,
           certification_count: Array.isArray(emp.certifications) ? emp.certifications.length : 0,
           authorization_count: Array.isArray(emp.employee_authorizations) ? emp.employee_authorizations.length : 0
         };
@@ -84,10 +84,7 @@ export const fetchDateReference = async (currentDate: string): Promise<{ id: num
       .eq('actual_date', currentDate)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error fetching date reference:", error);
-      return null;
-    }
+    if (error) throw error;
     console.log('Date reference fetched:', data);
     
     if (data) {
@@ -115,10 +112,7 @@ export const fetchRosterAssignments = async (dateId: number): Promise<SimpleRost
       `)
       .eq('date_id', dateId);
     
-    if (error) {
-      console.error("Error fetching roster assignments:", error);
-      return [];
-    }
+    if (error) throw error;
     console.log('Roster assignments fetched for today:', data?.length);
     
     const assignments: SimpleRosterAssignment[] = [];
@@ -199,7 +193,7 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
       
     if (error) throw error;
     
-    // Separate query to get personnel requirements info (more efficient than nested queries)
+    // Separate query to get personnel requirements info
     const { data: personnelData, error: personnelError } = await supabase
       .from('personnel_requirements')
       .select('maintenance_visit_id, count')
@@ -209,7 +203,7 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
       console.error("Error fetching personnel requirements:", personnelError);
     }
     
-    // Create a Set of maintenance visit IDs that have personnel requirements
+    // Create a set of visit IDs with personnel requirements
     const visitsWithPersonnel = new Set<number>();
     
     if (personnelData && Array.isArray(personnelData)) {
@@ -222,12 +216,12 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
     
     console.log('Maintenance visits fetched for today:', data?.length);
     
-    // Create a properly typed array with direct property assignments
+    // Process the data with explicit typing
     const visits: MaintenanceVisitBasic[] = [];
     
     if (data && Array.isArray(data)) {
       for (const mv of data) {
-        visits.push({
+        const visit: MaintenanceVisitBasic = {
           id: mv.id,
           aircraft_id: mv.aircraft_id,
           aircraft_name: mv.aircraft?.aircraft_name,
@@ -243,7 +237,8 @@ export const fetchMaintenanceVisits = async (currentDate: string): Promise<Maint
           hangar_name: mv.hangar?.hangar_name,
           total_hours: mv.total_hours,
           has_personnel_requirements: visitsWithPersonnel.has(mv.id)
-        });
+        };
+        visits.push(visit);
       }
     }
     
