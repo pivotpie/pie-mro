@@ -1,9 +1,17 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
 import { AircraftCalendar } from "../schedule/AircraftCalendar";
 
 export const AircraftScheduleView = () => {
+  const [scrollPosition, setScrollPosition] = useState(0);
+
+  // Handler to receive scroll position updates from the calendar
+  const handleCalendarScroll = (position: number) => {
+    setScrollPosition(position);
+  };
+
   return (
     <div className="mt-8 w-full">
       <div className="flex items-center justify-between mb-4">
@@ -16,7 +24,10 @@ export const AircraftScheduleView = () => {
 
       {/* Aircraft Gantt Chart with full width */}
       <div className="w-full overflow-auto">
-        <AircraftCalendar />
+        <AircraftCalendar 
+          onScroll={handleCalendarScroll} 
+          externalScrollPosition={scrollPosition} 
+        />
       </div>
     </div>
   );

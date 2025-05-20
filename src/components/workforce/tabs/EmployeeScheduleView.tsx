@@ -6,6 +6,13 @@ import { EmployeeCalendar } from "../schedule/EmployeeCalendar";
 import { AircraftScheduleView } from "./AircraftScheduleView";
 
 export const EmployeeScheduleView = () => {
+  const [scrollPosition, setScrollPosition] = useState(0);
+
+  // Handler to receive scroll position updates from the employee calendar
+  const handleCalendarScroll = (position: number) => {
+    setScrollPosition(position);
+  };
+
   return (
     <div className="space-y-6 w-full">
       <div>
@@ -22,13 +29,16 @@ export const EmployeeScheduleView = () => {
           </div>
         </div>
 
-        {/* Simple container with direct overflow control */}
+        {/* Simple container with direct overflow control and scroll position synchronization */}
         <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
-          <EmployeeCalendar />
+          <EmployeeCalendar 
+            onScroll={handleCalendarScroll} 
+            externalScrollPosition={scrollPosition}
+          />
         </div>
       </div>
       
-      {/* Aircraft Schedule View (Now positioned below) */}
+      {/* Aircraft Schedule View with scroll position synchronization */}
       <AircraftScheduleView />
     </div>
   );
