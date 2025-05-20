@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FileDownIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const AircraftCalendar = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -105,11 +106,18 @@ export const AircraftCalendar = () => {
         </div>
       </div>
       
-      <AircraftGanttChart 
-        scrollLeft={scrollPosition} 
-        startDate={viewStartDate} 
-        endDate={viewEndDate}
-      />
+      {/* Added ScrollArea with horizontal scrollbar and increased height to 50vh */}
+      <div className="w-full h-[50vh] border rounded-lg dark:border-gray-700">
+        <ScrollArea className="h-full" orientation="horizontal">
+          <div className="min-w-full h-full">
+            <AircraftGanttChart 
+              scrollLeft={scrollPosition} 
+              startDate={viewStartDate} 
+              endDate={viewEndDate}
+            />
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   );
 };

@@ -385,7 +385,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[300px] border rounded-lg dark:border-gray-700">
+      <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-4"></div>
           <p className="text-gray-500 dark:text-gray-400">Loading aircraft schedule data...</p>
@@ -395,14 +395,14 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
   }
 
   return (
-    <div className="border rounded-lg dark:border-gray-700">
+    <div className="h-full border rounded-lg dark:border-gray-700">
       <ScrollArea 
-        className="h-[300px] rounded-lg"
+        className="h-full rounded-lg"
         ref={scrollAreaRef}
         onScroll={handleScroll}
       >
-        <div className="min-w-[2800px]">
-          <table className="w-full border-collapse">
+        <div className="min-w-[2800px] h-full">
+          <table className="w-full border-collapse h-full">
             <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
               <tr>
                 <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
@@ -421,7 +421,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="h-full">
               {hangars.map((hangar) => (
                 <tr key={hangar.id} className="border-b h-[40px] dark:border-gray-700">
                   <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[0]}</td>
