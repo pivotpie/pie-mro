@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addDays, eachDayOfInterval, isWeekend } from "date-fns";
+import { format, addDays, eachDayOfInterval, isWeekend, isSameDay } from "date-fns";
 
 // Helper function to generate days between two dates
 const generateDaysBetween = (startDate: Date, endDate: Date) => {
@@ -350,20 +351,51 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
   }, [scrollLeft]);
 
   const calculatePosition = (schedule: AircraftSchedule) => {
-    // Find the day indexes
-    const startIdx = days.findIndex(d => 
-      d.day === schedule.start.getDate() && 
-      d.month === schedule.start.getMonth() && 
-      d.year === schedule.start.getFullYear()
-    );
+    // Find the day indexes by matching the exact dates
+    let startIdx = -1;
+    let endIdx = -1;
     
-    const endIdx = days.findIndex(d => 
-      d.day === schedule.end.getDate() && 
-      d.month === schedule.end.getMonth() && 
-      d.year === schedule.end.getFullYear()
-    );
+    // Find the exact matching dates in the days array
+    for (let i = 0; i < days.length; i++) {
+      const dayDate = days[i].date;
+      
+      if (startIdx === -1 && isSameDay(dayDate, schedule.start)) {
+        startIdx = i;
+      }
+      
+      if (endIdx === -1 && isSameDay(dayDate, schedule.end)) {
+        endIdx = i;
+      }
+      
+      if (startIdx !== -1 && endIdx !== -1) break;
+    }
     
-    if (startIdx === -1 || endIdx === -1) return null;
+    // If start date wasn't found, find the closest date
+    if (startIdx === -1) {
+      for (let i = 0; i < days.length; i++) {
+        if (days[i].date >= schedule.start) {
+          startIdx = i;
+          break;
+        }
+      }
+      // If still not found, use the first day
+      if (startIdx === -1) startIdx = 0;
+    }
+    
+    // If end date wasn't found, find the closest date
+    if (endIdx === -1) {
+      for (let i = days.length - 1; i >= 0; i--) {
+        if (days[i].date <= schedule.end) {
+          endIdx = i;
+          break;
+        }
+      }
+      // If still not found, use the last day
+      if (endIdx === -1) endIdx = days.length - 1;
+    }
+    
+    // Ensure endIdx is not before startIdx
+    if (endIdx < startIdx) endIdx = startIdx;
     
     const startPosition = startIdx * 41 + 220; // 40px for column width + 1px for border, starting after fixed columns
     const width = (endIdx - startIdx + 1) * 41 - 1; // Subtract 1px to account for border
