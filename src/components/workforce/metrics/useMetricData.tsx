@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -90,8 +91,21 @@ export interface MetricInfo {
   color: string;
 }
 
-// Generic type for all detail data to avoid deep type instantiation
+// Define a union type for all possible detail data types
 export type DetailDataType = EmployeeBasic | SimpleRosterAssignment | MaintenanceVisitBasic | AircraftBasic;
+
+// Type guards to check which type of data we're dealing with
+const isEmployeeData = (item: DetailDataType): item is EmployeeBasic => 
+  'job_title_description' in item && 'e_number' in item;
+
+const isRosterAssignment = (item: DetailDataType): item is SimpleRosterAssignment => 
+  'employee_name' in item && 'roster_id' in item;
+
+const isAircraftData = (item: DetailDataType): item is AircraftBasic => 
+  'registration' in item && 'type_name' in item && !('check_type' in item);
+
+const isMaintenanceVisit = (item: DetailDataType): item is MaintenanceVisitBasic => 
+  'aircraft_registration' in item && 'check_type' in item;
 
 export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: boolean) => {
   const [detailData, setDetailData] = useState<DetailDataType[]>([]);
@@ -436,19 +450,6 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
       let csvData: any[] = [];
       let filename = '';
 
-      // Use type guards to handle different data types
-      const isEmployeeData = (item: any): item is EmployeeBasic => 
-        'job_title_description' in item && 'e_number' in item;
-      
-      const isRosterAssignment = (item: any): item is SimpleRosterAssignment => 
-        'employee_name' in item && 'roster_id' in item;
-      
-      const isAircraftData = (item: any): item is AircraftBasic => 
-        'registration' in item && 'type_name' in item && !('check_type' in item);
-      
-      const isMaintenanceVisit = (item: any): item is MaintenanceVisitBasic => 
-        'aircraft_registration' in item && 'check_type' in item;
-
       switch (selectedMetric) {
         case 'available':
         case 'total-employees':
@@ -569,19 +570,6 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       
-      // Use type guards to handle different data types
-      const isEmployeeData = (item: any): item is EmployeeBasic => 
-        'job_title_description' in item && 'e_number' in item;
-      
-      const isRosterAssignment = (item: any): item is SimpleRosterAssignment => 
-        'employee_name' in item && 'roster_id' in item;
-      
-      const isAircraftData = (item: any): item is AircraftBasic => 
-        'registration' in item && 'type_name' in item && !('check_type' in item);
-      
-      const isMaintenanceVisit = (item: any): item is MaintenanceVisitBasic => 
-        'aircraft_registration' in item && 'check_type' in item;
-      
       filteredData = filteredData.filter(item => {
         // Search based on item type
         if (isEmployeeData(item)) {
@@ -622,19 +610,6 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
     
     // Apply field-specific filters
     if (Object.keys(filters).length > 0) {
-      // Use type guards to handle different data types
-      const isEmployeeData = (item: any): item is EmployeeBasic => 
-        'job_title_description' in item && 'e_number' in item;
-      
-      const isRosterAssignment = (item: any): item is SimpleRosterAssignment => 
-        'employee_name' in item && 'roster_id' in item;
-      
-      const isAircraftData = (item: any): item is AircraftBasic => 
-        'registration' in item && 'type_name' in item && !('check_type' in item);
-      
-      const isMaintenanceVisit = (item: any): item is MaintenanceVisitBasic => 
-        'aircraft_registration' in item && 'check_type' in item;
-        
       filteredData = filteredData.filter(item => {
         return Object.entries(filters).every(([field, value]) => {
           if (!value) return true;
@@ -713,8 +688,26 @@ export const useMetricData = (selectedMetric: MetricType | null, isDialogOpen: b
     // Apply sorting if field is specified
     if (sortField) {
       filteredData.sort((a, b) => {
-        const valueA = a[sortField as keyof typeof a];
-        const valueB = b[sortField as keyof typeof b];
+        let valueA: any = undefined;
+        let valueB: any = undefined;
+
+        // Handle different data types appropriately
+        if (isEmployeeData(a) && isEmployeeData(b)) {
+          valueA = a[sortField as keyof EmployeeBasic];
+          valueB = b[sortField as keyof EmployeeBasic];
+        }
+        else if (isRosterAssignment(a) && isRosterAssignment(b)) {
+          valueA = a[sortField as keyof SimpleRosterAssignment];
+          valueB = b[sortField as keyof SimpleRosterAssignment];
+        }
+        else if (isAircraftData(a) && isAircraftData(b)) {
+          valueA = a[sortField as keyof AircraftBasic];
+          valueB = b[sortField as keyof AircraftBasic];
+        }
+        else if (isMaintenanceVisit(a) && isMaintenanceVisit(b)) {
+          valueA = a[sortField as keyof MaintenanceVisitBasic];
+          valueB = b[sortField as keyof MaintenanceVisitBasic];
+        }
         
         // Handle string comparison
         if (typeof valueA === 'string' && typeof valueB === 'string') {
