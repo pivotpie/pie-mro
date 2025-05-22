@@ -1099,7 +1099,7 @@ export const WorkforceMetrics = () => {
     },
     { 
       id: 'assigned', 
-      label: 'Aircraft w/ Teams', 
+      label: 'Assigned Aircrafts', 
       value: isLoading ? '-' : aircraftMetrics?.inMaintenance || 0, 
       icon: PlaneTakeoff, 
       color: 'bg-white dark:bg-gray-900',
@@ -1118,34 +1118,12 @@ export const WorkforceMetrics = () => {
       textColor: 'text-indigo-500',
       percentage: '33%',
       percentageType: 'decrease' as const,
-    },
-    { 
-      id: 'productivity', 
-      label: 'Available Aircraft', 
-      value: isLoading ? '-' : aircraftMetrics?.available || 0, 
-      icon: Activity, 
-      color: 'bg-white dark:bg-gray-900',
-      borderColor: 'bg-purple-500',
-      textColor: 'text-purple-500',
-      percentage: '12%',
-      percentageType: 'increase' as const,
-    },
-    { 
-      id: 'total-employees', 
-      label: 'Total Employees', 
-      value: isLoading ? '-' : (totalEmployees?.length || 0), 
-      icon: Users, 
-      color: 'bg-white dark:bg-gray-900',
-      borderColor: 'bg-gray-500',
-      textColor: 'text-gray-500',
-      percentage: '1%',
-      percentageType: 'increase' as const,
     }
   ];
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         {metrics.map((metric) => (
           <MetricCard 
             key={metric.id}
