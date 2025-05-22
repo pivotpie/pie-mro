@@ -1161,8 +1161,8 @@ export type Database = {
       get_employee_roster: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          employee_id: string
+          id: number
+          employee_id: number
           date: string
           status_code: string
           notes: string

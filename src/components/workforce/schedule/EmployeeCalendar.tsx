@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -299,7 +300,6 @@ export const EmployeeCalendar = () => {
           setFilteredEmployees(employeesWithSchedule);
         } else {
           console.log("No roster data returned from function");
-          // Just return employees without schedule data
           setEmployees(typedEmployees);
           setFilteredEmployees(typedEmployees);
         }
@@ -486,6 +486,155 @@ export const EmployeeCalendar = () => {
     { status: "Day Off", code: "O", color: "bg-gray-100 border border-gray-300 dark:bg-gray-800 dark:border-gray-600" },
     { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
   ];
+
+  // Filter unique values from a column with search term support
+  const getUniqueValuesForColumn = (columnName: string) => {
+    const searchTerm = searchTerms[columnName]?.toLowerCase() || '';
+    const values = employees.map(emp => {
+      if (columnName === 'team') return emp.team?.team_name || '';
+      if (columnName === 'job_title') return emp.job_title?.job_description || '';
+      if (columnName === 'core') {
+        return emp.cores && emp.cores.length > 0 ? emp.cores.join(', ') : '';
+      }
+      if (columnName === 'support') {
+        return emp.supports && emp.supports.length > 0 ? emp.supports.join(', ') : '';
+      }
+      if (columnName === 'night_shift') {
+        return emp.night_shift_ok ? 'Yes' : 'No';
+      }
+      return (emp[columnName as keyof Employee]?.toString() || '');
+    }).filter(Boolean);
+    
+    const uniqueValues = [...new Set(values)].sort();
+    
+    // Apply search filter if present
+    if (searchTerm) {
+      return uniqueValues.filter(value => 
+        value.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    return uniqueValues;
+  };
+
+  // Apply filters to employees
+  useEffect(() => {
+    let result = [...employees];
+    
+    // Apply regular column filters
+    Object.entries(columnFilters).forEach(([column, values]) => {
+      if (values.length > 0) {
+        result = result.filter(emp => {
+          if (column === 'team') {
+            return values.includes(emp.team?.team_name || '');
+          }
+          if (column === 'job_title') {
+            return values.includes(emp.job_title?.job_description || '');
+          }
+          if (column === 'core') {
+            return values.some(value => emp.cores?.includes(value));
+          }
+          if (column === 'support') {
+            return values.some(value => emp.supports?.includes(value));
+          }
+          if (column === 'night_shift') {
+            const nightShiftValue = emp.night_shift_ok ? 'Yes' : 'No';
+            return values.includes(nightShiftValue);
+          }
+          const empValue = emp[column as keyof Employee];
+          return values.includes(String(empValue || ''));
+        });
+      }
+    });
+    
+    // Apply date column filters
+    Object.entries(dateColumnFilters).forEach(([dateKey, values]) => {
+      if (values.length > 0) {
+        result = result.filter(emp => {
+          const status = emp.schedule?.[dateKey] || '';
+          return values.includes(status);
+        });
+      }
+    });
+    
+    setFilteredEmployees(result);
+  }, [columnFilters, dateColumnFilters, employees]);
+
+  // Handle column filter changes
+  const handleFilterChange = (column: string, value: string) => {
+    setColumnFilters(prev => {
+      const currentValues = prev[column] || [];
+      if (currentValues.includes(value)) {
+        return {
+          ...prev,
+          [column]: currentValues.filter(v => v !== value)
+        };
+      } else {
+        return {
+          ...prev,
+          [column]: [...currentValues, value]
+        };
+      }
+    });
+  };
+
+  // Handle date column filter changes
+  const handleDateFilterChange = (dateKey: string, value: string) => {
+    setDateColumnFilters(prev => {
+      const currentValues = prev[dateKey] || [];
+      if (currentValues.includes(value)) {
+        return {
+          ...prev,
+          [dateKey]: currentValues.filter(v => v !== value)
+        };
+      } else {
+        return {
+          ...prev,
+          [dateKey]: [...currentValues, value]
+        };
+      }
+    });
+  };
+
+  // Clear filters for a column
+  const clearColumnFilter = (column: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [column]: []
+    }));
+  };
+
+  // Clear filters for a date column
+  const clearDateColumnFilter = (dateKey: string) => {
+    setDateColumnFilters(prev => ({
+      ...prev,
+      [dateKey]: []
+    }));
+  };
+
+  // Clear search term
+  const clearSearchTerm = (column: string) => {
+    setSearchTerms(prev => {
+      const newTerms = { ...prev };
+      delete newTerms[column];
+      return newTerms;
+    });
+  };
+
+  // Handle search term changes
+  const handleSearchTermChange = (column: string, value: string) => {
+    setSearchTerms(prev => ({
+      ...prev,
+      [column]: value
+    }));
+  };
+
+  // Cell click handler
+  const handleCellClick = (employee: Employee, date: string) => {
+    setSelectedEmployee(employee);
+    setSelectedDate(date);
+    setIsDetailOpen(true);
+  };
 
   // Column filter component with search
   const ColumnFilter = ({ column, label }: { column: string, label: string }) => {
@@ -872,7 +1021,7 @@ export const EmployeeCalendar = () => {
                                 ${hasStatus ? statusColors[status] || '' : ''}
                                 ${day.isToday ? 'today-highlight' : ''}`}
                               style={{ width: `${columnWidths.date}px` }}
-                              onClick={() => hasStatus && handleCellClick(employee, dateKey)}
+                              onClick={() => handleCellClick(employee, dateKey)}
                             >
                               {status}
                             </td>
