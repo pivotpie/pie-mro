@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -135,21 +134,21 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     // This would open the right-side details pane
   };
 
-  // Status color mapping
+  // Status color mapping - updated to make "O" darker
   const statusColors: Record<string, string> = {
     "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+    "O": "bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-300", // Darker shade for day off
   };
 
-  // Legend for status colors
+  // Legend for status colors - updated for "O"
   const statusLegend = [
     { status: "Available", color: "bg-gray-100 border border-gray-300 dark:bg-gray-700 dark:border-gray-600" },
     { status: "Assigned", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
     { status: "Training", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
     { status: "Leave", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
-    { status: "Off", color: "bg-gray-300 border border-gray-400 dark:bg-gray-600 dark:border-gray-500" },
+    { status: "Off", color: "bg-gray-300 border border-gray-400 dark:bg-gray-700 dark:border-gray-600" },
   ];
 
   return (

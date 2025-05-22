@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -510,12 +509,12 @@ export const EmployeeCalendar = () => {
     setIsDetailOpen(true);
   };
 
-  // Status color mapping
+  // Status color mapping - updated to make "O" darker
   const statusColors: Record<string, string> = {
     "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+    "O": "bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-300", // Darker shade for day off
     "B1": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
     "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
@@ -523,14 +522,14 @@ export const EmployeeCalendar = () => {
     "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
   };
 
-  // Legend for status codes
+  // Legend for status codes - also updated for "O"
   const statusLegend = [
     { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
     { status: "Half Day", code: "B1", color: "bg-blue-100 border border-blue-300 dark:bg-blue-900 dark:border-blue-700" },
     { status: "Annual Leave", code: "AL", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
     { status: "Sick Leave", code: "SK", color: "bg-orange-100 border border-orange-300 dark:bg-orange-900 dark:border-orange-700" },
     { status: "Training", code: "TR", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
-    { status: "Day Off", code: "O", color: "bg-gray-100 border border-gray-300 dark:bg-gray-800 dark:border-gray-600" },
+    { status: "Day Off", code: "O", color: "bg-gray-300 border border-gray-400 dark:bg-gray-700 dark:border-gray-600" },
     { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
   ];
 
@@ -621,6 +620,22 @@ export const EmployeeCalendar = () => {
     const uniqueValues = useMemo(() => getUniqueStatusValues(dateKey), [dateKey]);
     const selectedValues = dateColumnFilters[dateKey] || [];
     
+    // Map status codes to descriptions
+    const getStatusDescription = (code: string) => {
+      switch(code) {
+        case "D": return "On Duty";
+        case "AL": return "Annual Leave";
+        case "SK": return "Sick Leave";
+        case "TR": return "Training";
+        case "O": return "Day Off";
+        case "B1": return "Half Day";
+        case "DO": return "Overtime";
+        case "L": return "Leave";
+        case "T": return "Training";
+        default: return code;
+      }
+    };
+    
     return (
       <Popover open={dateFilterOpen[dateKey]} onOpenChange={(open) => setDateFilterOpen(prev => ({ ...prev, [dateKey]: open }))}>
         <PopoverTrigger asChild>
@@ -664,10 +679,7 @@ export const EmployeeCalendar = () => {
                     )}
                   </div>
                   <span className="flex-grow truncate text-xs">
-                    {value === "D" && "On Duty"}
-                    {value === "L" && "Leave"}
-                    {value === "T" && "Training"}
-                    {value === "O" && "Off"}
+                    {getStatusDescription(value)}
                   </span>
                 </button>
               </div>
