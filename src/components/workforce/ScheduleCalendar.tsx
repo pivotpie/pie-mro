@@ -40,6 +40,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     night_shift: string;
     fte: string;
     ttl: string;
+    e_number: number; // Added e_number field for sorting
     schedule: Record<string, string>;
   }[]>([]);
 
@@ -51,16 +52,16 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     // In a real app, fetch this data from the database
     // For now, we'll use sample data
     const sampleEmployees = [
-      { id: "EMP001", name: "Michael Johnson", alias: "MJ", mobile: "+971 52 123 4567", team: "Team Alpha", core: "A320", support: "Available", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "07:30 AM" },
-      { id: "EMP002", name: "Sarah Williams", alias: "SW", mobile: "+971 52 234 5678", team: "Team Beta", core: "A380", support: "Maintenance", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "07:30 AM" },
-      { id: "EMP003", name: "David Brown", alias: "DB", mobile: "+971 55 345 6789", team: "Team Charlie", core: "B787", support: "Leave", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM" },
-      { id: "EMP004", name: "Emily Taylor", alias: "ET", mobile: "+971 54 456 7890", team: "Team Alpha", core: "A320", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "07:30 AM" },
-      { id: "EMP005", name: "James Davis", alias: "JD", mobile: "+971 50 567 8901", team: "Team Beta", core: "B777", support: "Training", title: "Manager", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM" },
-      { id: "EMP006", name: "Jennifer Wilson", alias: "JW", mobile: "+971 52 678 9012", team: "Team Charlie", core: "A380", support: "Maintenance", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "08:30 AM" },
-      { id: "EMP007", name: "Robert Martinez", alias: "RM", mobile: "+971 55 789 0123", team: "Team Alpha", core: "A320", support: "Maintenance", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "07:25 AM" },
-      { id: "EMP008", name: "Lisa Anderson", alias: "LA", mobile: "+971 54 890 1234", team: "Team Beta", core: "A380", support: "Available", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "07:00 AM" },
-      { id: "EMP009", name: "Thomas Clark", alias: "TC", mobile: "+971 55 901 2345", team: "Team Alpha", core: "A380", support: "Training", title: "Engineer", night_shift: "Yes", fte: "Valid", ttl: "08:45 AM" },
-      { id: "EMP010", name: "Michelle Rodriguez", alias: "MR", mobile: "+971 52 012 3456", team: "Team Alpha", core: "A380", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "08:17 AM" },
+      { id: "EMP001", name: "Michael Johnson", alias: "MJ", mobile: "+971 52 123 4567", team: "Team Alpha", core: "A320", support: "Available", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "07:30 AM", e_number: 1001 },
+      { id: "EMP002", name: "Sarah Williams", alias: "SW", mobile: "+971 52 234 5678", team: "Team Beta", core: "A380", support: "Maintenance", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "07:30 AM", e_number: 1002 },
+      { id: "EMP003", name: "David Brown", alias: "DB", mobile: "+971 55 345 6789", team: "Team Charlie", core: "B787", support: "Leave", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM", e_number: 1003 },
+      { id: "EMP004", name: "Emily Taylor", alias: "ET", mobile: "+971 54 456 7890", team: "Team Alpha", core: "A320", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "07:30 AM", e_number: 1004 },
+      { id: "EMP005", name: "James Davis", alias: "JD", mobile: "+971 50 567 8901", team: "Team Beta", core: "B777", support: "Training", title: "Manager", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM", e_number: 1005 },
+      { id: "EMP006", name: "Jennifer Wilson", alias: "JW", mobile: "+971 52 678 9012", team: "Team Charlie", core: "A380", support: "Maintenance", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "08:30 AM", e_number: 1006 },
+      { id: "EMP007", name: "Robert Martinez", alias: "RM", mobile: "+971 55 789 0123", team: "Team Alpha", core: "A320", support: "Maintenance", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "07:25 AM", e_number: 1007 },
+      { id: "EMP008", name: "Lisa Anderson", alias: "LA", mobile: "+971 54 890 1234", team: "Team Beta", core: "A380", support: "Available", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "07:00 AM", e_number: 1008 },
+      { id: "EMP009", name: "Thomas Clark", alias: "TC", mobile: "+971 55 901 2345", team: "Team Alpha", core: "A380", support: "Training", title: "Engineer", night_shift: "Yes", fte: "Valid", ttl: "08:45 AM", e_number: 1009 },
+      { id: "EMP010", name: "Michelle Rodriguez", alias: "MR", mobile: "+971 52 012 3456", team: "Team Alpha", core: "A380", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "08:17 AM", e_number: 1010 },
     ];
 
     const employeesWithSchedule = sampleEmployees.map(emp => {
@@ -87,7 +88,10 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
       };
     });
     
-    setColumns(employeesWithSchedule);
+    // Sort employees by e_number
+    const sortedEmployees = employeesWithSchedule.sort((a, b) => a.e_number - b.e_number);
+    
+    setColumns(sortedEmployees);
   }, []);
 
   // Handle scroll events

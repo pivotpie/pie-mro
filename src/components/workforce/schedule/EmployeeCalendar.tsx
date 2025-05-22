@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -142,7 +143,8 @@ export const EmployeeCalendar = () => {
             team:team_id(team_name),
             job_title:job_title_id(job_code, job_description),
             employee_status
-          `);
+          `)
+          .order('e_number'); // Sort by e_number in ascending order
         
         if (employeesError) {
           throw employeesError;
@@ -265,11 +267,19 @@ export const EmployeeCalendar = () => {
           });
         }
 
-        // Get employee roster data using the updated RPC function with no limits
+        // Get employee roster data using direct query instead of RPC to avoid limits
         console.log("Fetching roster data...");
+        
         const { data: rosterData, error: rosterError } = await supabase
-          .rpc('get_employee_roster')
-          .order('employee_id');
+          .from('roster_assignments')
+          .select(`
+            id,
+            employee_id,
+            date_references!inner(actual_date),
+            roster_codes!inner(roster_code)
+          `)
+          .order('employee_id')
+          .order('date_references.actual_date');
         
         if (rosterError) {
           console.error("Error fetching roster data:", rosterError);
@@ -296,14 +306,14 @@ export const EmployeeCalendar = () => {
           rosterData.forEach((roster: any) => {
             // Convert numbers to strings for keys
             const employeeId = String(roster.employee_id);
-            const date = new Date(roster.date);
+            const date = new Date(roster.date_references.actual_date);
             const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
             
             if (!scheduleMap[employeeId]) {
               scheduleMap[employeeId] = {};
             }
             
-            scheduleMap[employeeId][dateKey] = roster.status_code;
+            scheduleMap[employeeId][dateKey] = roster.roster_codes.roster_code;
           });
           
           console.log("Processed schedule map:", scheduleMap);
