@@ -5,7 +5,7 @@ RETURNS TABLE (
     id uuid,
     employee_id uuid,
     date date,
-    status_code varchar(10),
+    status_code varchar(1),
     notes text
 )
 LANGUAGE plpgsql
@@ -15,7 +15,7 @@ BEGIN
     RETURN QUERY
     SELECT 
         er.id,
-        er.employee_id,
+        er.employee_id::uuid,
         er.date,
         er.status_code,
         er.notes
