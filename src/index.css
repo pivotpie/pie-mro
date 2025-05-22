@@ -146,11 +146,11 @@ html, body {
 
 /* Update status colors with darker Off day (O) shade */
 .status-day-off {
-  background-color: rgba(107, 114, 128, 0.8) !important;
+  background-color: rgba(75, 85, 99, 0.9) !important;
   color: white !important;
 }
 
 .dark .status-day-off {
-  background-color: rgba(75, 85, 99, 0.9) !important;
+  background-color: rgba(55, 65, 81, 0.95) !important;
   color: rgba(229, 231, 235, 1) !important;
 }

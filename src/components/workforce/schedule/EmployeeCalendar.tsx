@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -560,7 +561,7 @@ export const EmployeeCalendar = () => {
             roster_codes!inner(roster_code)
           `)
           .order('employee_id', { ascending: true })
-          .order('date_references.actual_date', { ascending: true });
+          .order('date_references(actual_date)', { ascending: true });
         
         if (rosterError) {
           console.error("Error fetching roster data:", rosterError);
