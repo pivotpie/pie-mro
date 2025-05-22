@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -120,8 +119,8 @@ export const EmployeeCalendar = () => {
 
   // Get unique status values for a specific date
   const getUniqueStatusValues = (dateKey: string) => {
-    const statuses = employees.map(emp => emp.schedule?.[dateKey] || 'O');
-    return [...new Set(statuses)].sort();
+    const statuses = employees.map(emp => emp.schedule?.[dateKey] || '');
+    return [...new Set(statuses)].filter(Boolean).sort();
   };
 
   useEffect(() => {
@@ -262,70 +261,32 @@ export const EmployeeCalendar = () => {
           });
         }
 
-        try {
-          // Get employee roster data using the updated RPC function
-          const { data, error } = await supabase.rpc('get_employee_roster');
-          
-          if (error) {
-            console.error("Error fetching roster data:", error);
-            throw error;
-          }
+        // Get employee roster data using the updated RPC function
+        const { data: rosterData, error: rosterError } = await supabase.rpc('get_employee_roster');
+        
+        if (rosterError) {
+          console.error("Error fetching roster data:", rosterError);
+          toast.error(`Error fetching roster assignments: ${rosterError.message}`);
+          setEmployees(typedEmployees);
+          setFilteredEmployees(typedEmployees);
+          setLoading(false);
+          return;
+        }
 
-          // Process employees with the roster data
-          if (data && data.length > 0) {
-            const employeesWithSchedule = typedEmployees.map(emp => {
-              const schedule: Record<string, string> = {};
-              
-              // Initialize all days with default 'O' (Off)
-              days.forEach(day => {
-                const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                schedule[dateKey] = "O";
-              });
-              
-              // Update with actual roster data
-              data.forEach((roster: EmployeeRoster) => {
-                if (roster.employee_id === emp.id) {
-                  if (roster.date) {
-                    const rosterDate = new Date(roster.date);
-                    const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
-                    schedule[dateKey] = roster.status_code || "D";
-                  }
-                }
-              });
-              
-              return {
-                ...emp,
-                schedule
-              };
-            });
-            
-            setEmployees(employeesWithSchedule);
-            setFilteredEmployees(employeesWithSchedule);
-            setLoading(false);
-            return;
-          } else {
-            console.log("No roster data returned from function");
-            throw new Error("No roster data found");
-          }
-        } catch (rosterError) {
-          console.log("Fallback to local roster data generation");
-          
-          // Fallback: Create dummy roster data locally
-          const processedEmployees = typedEmployees.map(emp => {
-            // Initialize empty schedule
+        // Process employees with the roster data if available
+        if (rosterData && rosterData.length > 0) {
+          const employeesWithSchedule = typedEmployees.map(emp => {
             const schedule: Record<string, string> = {};
             
-            // Populate with default "O" (Off) for all days
-            days.forEach(day => {
-              const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-              // Generate random status for demo purposes
-              const rand = Math.random();
-              let status = 'O'; // Default to Off
-              if (rand < 0.6) status = 'D'; // 60% Duty
-              else if (rand < 0.7) status = 'L'; // 10% Leave
-              else if (rand < 0.8) status = 'T'; // 10% Training
-              
-              schedule[dateKey] = status;
+            // Update with actual roster data
+            rosterData.forEach((roster: EmployeeRoster) => {
+              if (roster.employee_id === emp.id) {
+                if (roster.date) {
+                  const rosterDate = new Date(roster.date);
+                  const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
+                  schedule[dateKey] = roster.status_code || "";
+                }
+              }
             });
             
             return {
@@ -334,8 +295,13 @@ export const EmployeeCalendar = () => {
             };
           });
           
-          setEmployees(processedEmployees);
-          setFilteredEmployees(processedEmployees);
+          setEmployees(employeesWithSchedule);
+          setFilteredEmployees(employeesWithSchedule);
+        } else {
+          console.log("No roster data returned from function");
+          // Just return employees without schedule data
+          setEmployees(typedEmployees);
+          setFilteredEmployees(typedEmployees);
         }
       } catch (error: any) {
         toast.error(`Error loading employees: ${error.message}`);
@@ -412,7 +378,7 @@ export const EmployeeCalendar = () => {
     Object.entries(dateColumnFilters).forEach(([dateKey, values]) => {
       if (values.length > 0) {
         result = result.filter(emp => {
-          const status = emp.schedule?.[dateKey] || 'O';
+          const status = emp.schedule?.[dateKey] || '';
           return values.includes(status);
         });
       }
@@ -503,14 +469,22 @@ export const EmployeeCalendar = () => {
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
     "O": "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+    "B1": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+    "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+    "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+    "DO": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+    "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
   };
 
-  // Legend for status colors
+  // Legend for status codes
   const statusLegend = [
     { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
-    { status: "On Leave", code: "L", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
-    { status: "Training", code: "T", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
+    { status: "Half Day", code: "B1", color: "bg-blue-100 border border-blue-300 dark:bg-blue-900 dark:border-blue-700" },
+    { status: "Annual Leave", code: "AL", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
+    { status: "Sick Leave", code: "SK", color: "bg-orange-100 border border-orange-300 dark:bg-orange-900 dark:border-orange-700" },
+    { status: "Training", code: "TR", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
     { status: "Day Off", code: "O", color: "bg-gray-100 border border-gray-300 dark:bg-gray-800 dark:border-gray-600" },
+    { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
   ];
 
   // Column filter component with search
@@ -686,7 +660,7 @@ export const EmployeeCalendar = () => {
   return (
     <div>
       {/* Status Legend */}
-      <div className="flex items-center gap-4 mb-2 px-2">
+      <div className="flex items-center gap-4 mb-2 px-2 flex-wrap">
         {statusLegend.map((item) => (
           <div key={item.status} className="flex items-center">
             <span className={`inline-block w-3 h-3 rounded-full mr-1 ${item.color}`}></span>
@@ -885,7 +859,8 @@ export const EmployeeCalendar = () => {
                   {/* Calendar days */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                    const status = employee.schedule?.[dateKey] || 'O';
+                    const status = employee.schedule?.[dateKey] || '';
+                    const hasStatus = status !== '';
                     
                     return (
                       <TooltipProvider key={dateKey}>
@@ -894,22 +869,29 @@ export const EmployeeCalendar = () => {
                             <td 
                               className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
                                 ${day.isWeekend ? 'weekend-shade' : ''} 
-                                ${status ? statusColors[status] : ''}
+                                ${hasStatus ? statusColors[status] || '' : ''}
                                 ${day.isToday ? 'today-highlight' : ''}`}
                               style={{ width: `${columnWidths.date}px` }}
-                              onClick={() => handleCellClick(employee, dateKey)}
+                              onClick={() => hasStatus && handleCellClick(employee, dateKey)}
                             >
                               {status}
                             </td>
                           </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-sm font-medium">{employee.name}</div>
-                            <div className="text-xs">{format(day.date, 'MMMM d, yyyy')}</div>
-                            {status === 'D' && <div className="text-green-600">On Duty</div>}
-                            {status === 'L' && <div className="text-red-600">On Leave</div>}
-                            {status === 'T' && <div className="text-purple-600">In Training</div>}
-                            {status === 'O' && <div className="text-gray-600">Day Off</div>}
-                          </TooltipContent>
+                          {hasStatus && (
+                            <TooltipContent>
+                              <div className="text-sm font-medium">{employee.name}</div>
+                              <div className="text-xs">{format(day.date, 'MMMM d, yyyy')}</div>
+                              {status === 'D' && <div className="text-green-600">On Duty</div>}
+                              {status === 'AL' && <div className="text-red-600">Annual Leave</div>}
+                              {status === 'L' && <div className="text-red-600">On Leave</div>}
+                              {status === 'TR' && <div className="text-purple-600">Training</div>}
+                              {status === 'T' && <div className="text-purple-600">Training</div>}
+                              {status === 'O' && <div className="text-gray-600">Day Off</div>}
+                              {status === 'B1' && <div className="text-blue-600">Half Day</div>}
+                              {status === 'SK' && <div className="text-orange-600">Sick Leave</div>}
+                              {status === 'DO' && <div className="text-yellow-600">Overtime</div>}
+                            </TooltipContent>
+                          )}
                         </Tooltip>
                       </TooltipProvider>
                     );
@@ -989,7 +971,7 @@ export const EmployeeCalendar = () => {
                   </dl>
                 </div>
 
-                {selectedDate && (
+                {selectedDate && selectedEmployee.schedule?.[selectedDate] && (
                   <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                     <h3 className="text-lg font-medium mb-2">Schedule for {selectedDate}</h3>
                     <div className="space-y-3">
@@ -997,9 +979,14 @@ export const EmployeeCalendar = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
                         <p className="font-medium dark:text-gray-200">
                           {selectedEmployee.schedule?.[selectedDate] === 'D' && 'On Duty'}
+                          {selectedEmployee.schedule?.[selectedDate] === 'AL' && 'Annual Leave'}
                           {selectedEmployee.schedule?.[selectedDate] === 'L' && 'On Leave'}
+                          {selectedEmployee.schedule?.[selectedDate] === 'TR' && 'Training'}
                           {selectedEmployee.schedule?.[selectedDate] === 'T' && 'Training'}
                           {selectedEmployee.schedule?.[selectedDate] === 'O' && 'Day Off'}
+                          {selectedEmployee.schedule?.[selectedDate] === 'B1' && 'Half Day'}
+                          {selectedEmployee.schedule?.[selectedDate] === 'SK' && 'Sick Leave'}
+                          {selectedEmployee.schedule?.[selectedDate] === 'DO' && 'Overtime'}
                         </p>
                       </div>
                       
