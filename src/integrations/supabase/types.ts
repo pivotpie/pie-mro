@@ -1146,6 +1146,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      generate_realistic_roster_may_june_2025: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       generate_roster_may_june_2025: {
         Args: Record<PropertyKey, never>
         Returns: undefined

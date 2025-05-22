@@ -263,7 +263,7 @@ export const EmployeeCalendar = () => {
         }
 
         try {
-          // Get employee roster data using RPC function
+          // Get employee roster data using the updated RPC function
           const { data, error } = await supabase.rpc('get_employee_roster');
           
           if (error) {
@@ -304,6 +304,7 @@ export const EmployeeCalendar = () => {
             setLoading(false);
             return;
           } else {
+            console.log("No roster data returned from function");
             throw new Error("No roster data found");
           }
         } catch (rosterError) {
