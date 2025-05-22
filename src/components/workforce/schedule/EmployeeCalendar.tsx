@@ -159,6 +159,7 @@ export const EmployeeCalendar = () => {
         }));
 
         console.log("Fetched employees:", typedEmployees);
+        console.log("Total employee count:", typedEmployees.length);
 
         // Fetch employee cores
         const { data: coresData, error: coresError } = await supabase
@@ -264,8 +265,8 @@ export const EmployeeCalendar = () => {
           });
         }
 
-        // Get employee roster data using the updated RPC function
-        // Remove any limit to get all records
+        // Get employee roster data using the updated RPC function with increased limit
+        console.log("Fetching roster data...");
         const { data: rosterData, error: rosterError } = await supabase
           .rpc('get_employee_roster')
           .order('employee_id');
@@ -302,6 +303,12 @@ export const EmployeeCalendar = () => {
           
           console.log("Processed schedule map:", scheduleMap);
           console.log("Number of employees with schedules:", Object.keys(scheduleMap).length);
+          console.log("Employee IDs with schedules:", Object.keys(scheduleMap).join(', '));
+          
+          // Compare with all employee IDs to see which ones are missing schedules
+          const allEmployeeIds = typedEmployees.map(emp => emp.id);
+          const missingScheduleIds = allEmployeeIds.filter(id => !scheduleMap[id]);
+          console.log("Missing schedule for employee IDs:", missingScheduleIds.length > 0 ? missingScheduleIds.join(', ') : "None");
           
           // Update employees with their schedules
           const employeesWithSchedule = typedEmployees.map(emp => {
