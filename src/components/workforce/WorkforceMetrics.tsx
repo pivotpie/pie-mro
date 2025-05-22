@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
-import { Clock, User, Briefcase, Award, AlertTriangle, CalendarDays } from 'lucide-react';
+import { Clock, User, Briefcase, Award, AlertTriangle, CalendarDays, PlaneTakeoff, PlaneLanding, Timer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
@@ -19,10 +19,9 @@ export default function WorkforceMetrics() {
     { title: "Available Employees", value: 0, icon: <User className="h-6 w-6" />, colorClass: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
     { title: "On Leave", value: 0, icon: <CalendarDays className="h-6 w-6" />, colorClass: "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400" },
     { title: "In Training", value: 0, icon: <Award className="h-6 w-6" />, colorClass: "bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" },
-    { title: "A320", value: 0, icon: <Briefcase className="h-6 w-6" />, colorClass: "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400" },
-    { title: "B777", value: 0, icon: <Briefcase className="h-6 w-6" />, colorClass: "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400" },
-    { title: "A380", value: 0, icon: <Briefcase className="h-6 w-6" />, colorClass: "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400" },
-    { title: "B787", value: 0, icon: <Briefcase className="h-6 w-6" />, colorClass: "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400" },
+    { title: "Grounded Aircrafts", value: 0, icon: <PlaneLanding className="h-6 w-6" />, colorClass: "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" },
+    { title: "Assigned Aircrafts", value: 0, icon: <PlaneTakeoff className="h-6 w-6" />, colorClass: "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400" },
+    { title: "Pending Assignment", value: 0, icon: <Timer className="h-6 w-6" />, colorClass: "bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" },
     { title: "On Time", value: 0, icon: <Clock className="h-6 w-6" />, colorClass: "bg-yellow-50 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400", change: 2, changeType: 'increase' },
     { title: "Late Arrivals", value: 0, icon: <AlertTriangle className="h-6 w-6" />, colorClass: "bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400", change: 1, changeType: 'decrease' },
   ]);
@@ -93,20 +92,43 @@ export default function WorkforceMetrics() {
           }
         }
 
-        // 4. Fetch aircraft-specific metrics
-        const aircraftTypes = ["A320", "B777", "A380", "B787"];
+        // 4. Fetch aircraft metrics
+        // Grounded Aircrafts (status = "Grounded")
+        const { data: groundedData, error: groundedError } = await supabase
+          .from('maintenance_visits')
+          .select('id')
+          .eq('status', 'Grounded');
         
-        for (const type of aircraftTypes) {
-          const { data: aircraftData, error: aircraftError } = await supabase
-            .from('employee_cores')
-            .select('id, core:core_id(core_code)')
-            .eq('core.core_code', type);
-          
-          if (!aircraftError && aircraftData) {
-            const typeIndex = updatedMetrics.findIndex(m => m.title === type);
-            if (typeIndex !== -1) {
-              updatedMetrics[typeIndex].value = aircraftData.length;
-            }
+        if (!groundedError && groundedData) {
+          const groundedIndex = updatedMetrics.findIndex(m => m.title === "Grounded Aircrafts");
+          if (groundedIndex !== -1) {
+            updatedMetrics[groundedIndex].value = groundedData.length;
+          }
+        }
+
+        // Assigned Aircrafts (status = "In Service" or "Assigned")
+        const { data: assignedData, error: assignedError } = await supabase
+          .from('maintenance_visits')
+          .select('id')
+          .in('status', ['In Service', 'Assigned']);
+        
+        if (!assignedError && assignedData) {
+          const assignedIndex = updatedMetrics.findIndex(m => m.title === "Assigned Aircrafts");
+          if (assignedIndex !== -1) {
+            updatedMetrics[assignedIndex].value = assignedData.length;
+          }
+        }
+
+        // Pending Assignment (status = "Scheduled" or "Pending")
+        const { data: pendingData, error: pendingError } = await supabase
+          .from('maintenance_visits')
+          .select('id')
+          .in('status', ['Scheduled', 'Pending']);
+        
+        if (!pendingError && pendingData) {
+          const pendingIndex = updatedMetrics.findIndex(m => m.title === "Pending Assignment");
+          if (pendingIndex !== -1) {
+            updatedMetrics[pendingIndex].value = pendingData.length;
           }
         }
 
@@ -146,7 +168,7 @@ export default function WorkforceMetrics() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4">
       {metrics.map((metric, index) => (
         <Card key={index} className="p-4 shadow-sm">
           <div className="flex items-center gap-4">
