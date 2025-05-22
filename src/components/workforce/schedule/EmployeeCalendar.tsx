@@ -270,6 +270,7 @@ export const EmployeeCalendar = () => {
         // Get employee roster data using direct query instead of RPC to avoid limits
         console.log("Fetching roster data...");
         
+        // Fix the order syntax - we need to use separate order() calls
         const { data: rosterData, error: rosterError } = await supabase
           .from('roster_assignments')
           .select(`
@@ -279,7 +280,7 @@ export const EmployeeCalendar = () => {
             roster_codes!inner(roster_code)
           `)
           .order('employee_id')
-          .order('date_references.actual_date');
+          .order('date_references(actual_date)');
         
         if (rosterError) {
           console.error("Error fetching roster data:", rosterError);
