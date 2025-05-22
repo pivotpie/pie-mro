@@ -12,10 +12,10 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    -- This function is modified to return all rows without limits
-    -- In PostgreSQL, there's a default limit of 1000 rows for result sets
-    -- Setting a very high limit to ensure we get all records
-    SET LOCAL statement_timeout = '60s'; -- Ensure query doesn't timeout
+    -- This function returns all roster data with no limits
+    -- Set a more generous timeout to handle large result sets
+    SET LOCAL statement_timeout = '120s';
+    
     RETURN QUERY
     SELECT 
         ra.id,
@@ -29,7 +29,8 @@ BEGIN
         public.date_references dr ON ra.date_id = dr.id
     JOIN
         public.roster_codes rc ON ra.roster_id = rc.id
-    LIMIT 1000000; -- Set a very high limit to effectively get all records
+    ORDER BY ra.employee_id, dr.actual_date;
+    -- No LIMIT clause to ensure all records are returned
 END;
 $$;
 

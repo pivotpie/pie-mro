@@ -265,7 +265,7 @@ export const EmployeeCalendar = () => {
           });
         }
 
-        // Get employee roster data using the updated RPC function with increased limit
+        // Get employee roster data using the updated RPC function with no limits
         console.log("Fetching roster data...");
         const { data: rosterData, error: rosterError } = await supabase
           .rpc('get_employee_roster')
@@ -282,6 +282,11 @@ export const EmployeeCalendar = () => {
 
         console.log("Raw roster data:", rosterData);
         console.log("Total roster records fetched:", rosterData ? rosterData.length : 0);
+        
+        // Calculate expected number of records for verification
+        const expectedRecords = typedEmployees.length * 61; // 61 days for May-June
+        console.log("Expected records (101 employees × 61 days):", expectedRecords);
+        console.log("Received vs Expected:", (rosterData?.length || 0) / expectedRecords * 100, "%");
 
         // Process employees with the roster data if available
         if (rosterData && rosterData.length > 0) {
@@ -309,6 +314,7 @@ export const EmployeeCalendar = () => {
           const allEmployeeIds = typedEmployees.map(emp => emp.id);
           const missingScheduleIds = allEmployeeIds.filter(id => !scheduleMap[id]);
           console.log("Missing schedule for employee IDs:", missingScheduleIds.length > 0 ? missingScheduleIds.join(', ') : "None");
+          console.log("Percentage of employees with schedules:", (Object.keys(scheduleMap).length / typedEmployees.length * 100).toFixed(2), "%");
           
           // Update employees with their schedules
           const employeesWithSchedule = typedEmployees.map(emp => {
