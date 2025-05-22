@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,8 +12,8 @@ import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeeke
 
 // Define interfaces for better type safety
 interface EmployeeRoster {
-  id: bigint; // Updated type to match database
-  employee_id: bigint; // Updated type to match database
+  id: string;
+  employee_id: string;
   date: string;
   status_code: string;
   notes: string | null;
@@ -151,11 +152,14 @@ export const EmployeeCalendar = () => {
         // Convert the employee data to match our Employee interface
         const typedEmployees: Employee[] = employeesData.map(emp => ({
           ...emp,
-          id: emp.id.toString(), // Convert id to string
+          id: String(emp.id), // Convert id to string
           e_number: emp.e_number?.toString(), // Convert e_number to string
           cores: [],
-          supports: []
+          supports: [],
+          schedule: {}
         }));
+
+        console.log("Fetched employees:", typedEmployees);
 
         // Fetch employee cores
         const { data: coresData, error: coresError } = await supabase
@@ -173,7 +177,7 @@ export const EmployeeCalendar = () => {
           const employeesCoreMap: Record<string, string[]> = {};
           
           coresData.forEach((coreData: any) => {
-            const employeeId = coreData.employee_id?.toString();
+            const employeeId = String(coreData.employee_id);
             if (employeeId) {
               if (!employeesCoreMap[employeeId]) {
                 employeesCoreMap[employeeId] = [];
@@ -208,7 +212,7 @@ export const EmployeeCalendar = () => {
           const employeesSupportsMap: Record<string, string[]> = {};
           
           supportsData.forEach((supportData: any) => {
-            const employeeId = supportData.employee_id?.toString();
+            const employeeId = String(supportData.employee_id);
             if (employeeId) {
               if (!employeesSupportsMap[employeeId]) {
                 employeesSupportsMap[employeeId] = [];
@@ -246,7 +250,7 @@ export const EmployeeCalendar = () => {
           const checkInMap: Record<string, string> = {};
           
           attendanceData.forEach((attendance: any) => {
-            const employeeId = attendance.employee_id?.toString();
+            const employeeId = String(attendance.employee_id);
             if (employeeId && attendance.check_in_time) {
               const checkInTime = new Date(attendance.check_in_time);
               checkInMap[employeeId] = format(checkInTime, 'hh:mm a');
@@ -273,34 +277,49 @@ export const EmployeeCalendar = () => {
           return;
         }
 
+        console.log("Raw roster data:", rosterData);
+
         // Process employees with the roster data if available
         if (rosterData && rosterData.length > 0) {
+          const scheduleMap: Record<string, Record<string, string>> = {};
+          
+          // Process roster data to create a map of employee schedules
+          rosterData.forEach((roster: EmployeeRoster) => {
+            const employeeId = roster.employee_id;
+            const date = new Date(roster.date);
+            const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
+            
+            if (!scheduleMap[employeeId]) {
+              scheduleMap[employeeId] = {};
+            }
+            
+            scheduleMap[employeeId][dateKey] = roster.status_code;
+          });
+          
+          console.log("Processed schedule map:", scheduleMap);
+          
+          // Update employees with their schedules
           const employeesWithSchedule = typedEmployees.map(emp => {
-            const schedule: Record<string, string> = {};
-            
-            // Update with actual roster data
-            rosterData.forEach((roster: any) => {
-              if (roster.employee_id.toString() === emp.id) {
-                if (roster.date) {
-                  const rosterDate = new Date(roster.date);
-                  const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
-                  schedule[dateKey] = roster.status_code || "";
-                }
-              }
-            });
-            
             return {
               ...emp,
-              schedule
+              schedule: scheduleMap[emp.id] || {}
             };
           });
           
           setEmployees(employeesWithSchedule);
           setFilteredEmployees(employeesWithSchedule);
         } else {
-          console.log("No roster data returned from function");
-          setEmployees(typedEmployees);
-          setFilteredEmployees(typedEmployees);
+          console.log("No roster data returned or empty array");
+          // If no roster data, create empty schedules
+          const employeesWithEmptySchedule = typedEmployees.map(emp => {
+            return {
+              ...emp,
+              schedule: {}
+            };
+          });
+          
+          setEmployees(employeesWithEmptySchedule);
+          setFilteredEmployees(employeesWithEmptySchedule);
         }
       } catch (error: any) {
         toast.error(`Error loading employees: ${error.message}`);
@@ -328,7 +347,7 @@ export const EmployeeCalendar = () => {
       if (columnName === 'night_shift') {
         return emp.night_shift_ok ? 'Yes' : 'No';
       }
-      return (emp[columnName as keyof Employee]?.toString() || '');
+      return (String(emp[columnName as keyof Employee] || ''));
     }).filter(Boolean);
     
     const uniqueValues = [...new Set(values)].sort();
@@ -603,15 +622,15 @@ export const EmployeeCalendar = () => {
           </div>
           <div className="p-2 max-h-40 overflow-auto">
             {uniqueValues.map((value) => (
-              <div key={value as string} className="flex items-center space-x-2 py-1">
+              <div key={value} className="flex items-center space-x-2 py-1">
                 <button
                   className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded text-left"
-                  onClick={() => handleDateFilterChange(dateKey, value as string)}
+                  onClick={() => handleDateFilterChange(dateKey, value)}
                 >
                   <div className={`w-3 h-3 border rounded mr-1 flex items-center justify-center ${
-                    selectedValues.includes(value as string) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
                   }`}>
-                    {selectedValues.includes(value as string) && (
+                    {selectedValues.includes(value) && (
                       <Check className="h-2 w-2 text-white" />
                     )}
                   </div>
@@ -862,37 +881,17 @@ export const EmployeeCalendar = () => {
                     const hasStatus = status !== '';
                     
                     return (
-                      <TooltipProvider key={dateKey}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <td 
-                              className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
-                                ${day.isWeekend ? 'weekend-shade' : ''} 
-                                ${hasStatus ? statusColors[status] || '' : ''}
-                                ${day.isToday ? 'today-highlight' : ''}`}
-                              style={{ width: `${columnWidths.date}px` }}
-                              onClick={() => handleCellClick(employee, dateKey)}
-                            >
-                              {status}
-                            </td>
-                          </TooltipTrigger>
-                          {hasStatus && (
-                            <TooltipContent>
-                              <div className="text-sm font-medium">{employee.name}</div>
-                              <div className="text-xs">{format(day.date, 'MMMM d, yyyy')}</div>
-                              {status === 'D' && <div className="text-green-600">On Duty</div>}
-                              {status === 'AL' && <div className="text-red-600">Annual Leave</div>}
-                              {status === 'L' && <div className="text-red-600">On Leave</div>}
-                              {status === 'TR' && <div className="text-purple-600">Training</div>}
-                              {status === 'T' && <div className="text-purple-600">Training</div>}
-                              {status === 'O' && <div className="text-gray-600">Day Off</div>}
-                              {status === 'B1' && <div className="text-blue-600">Half Day</div>}
-                              {status === 'SK' && <div className="text-orange-600">Sick Leave</div>}
-                              {status === 'DO' && <div className="text-yellow-600">Overtime</div>}
-                            </TooltipContent>
-                          )}
-                        </Tooltip>
-                      </TooltipProvider>
+                      <td 
+                        key={dateKey}
+                        className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
+                          ${day.isWeekend ? 'weekend-shade' : ''} 
+                          ${hasStatus ? statusColors[status] || '' : ''}
+                          ${day.isToday ? 'today-highlight' : ''}`}
+                        style={{ width: `${columnWidths.date}px` }}
+                        onClick={() => handleCellClick(employee, dateKey)}
+                      >
+                        {status}
+                      </td>
                     );
                   })}
                 </tr>
