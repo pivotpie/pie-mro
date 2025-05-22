@@ -2,8 +2,8 @@
 -- Create function to retrieve employee roster data
 CREATE OR REPLACE FUNCTION public.get_employee_roster()
 RETURNS TABLE (
-    id uuid,
-    employee_id uuid,
+    id bigint,
+    employee_id bigint,
     date date,
     status_code varchar(1),
     notes text
@@ -14,13 +14,17 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-        er.id,
-        er.employee_id::uuid,
-        er.date,
-        er.status_code,
-        er.notes
+        ra.id,
+        ra.employee_id,
+        dr.actual_date as date,
+        rc.roster_code as status_code,
+        null::text as notes
     FROM 
-        public.employee_roster er;
+        public.roster_assignments ra
+    JOIN
+        public.date_references dr ON ra.date_id = dr.id
+    JOIN
+        public.roster_codes rc ON ra.roster_id = rc.id;
 END;
 $$;
 

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -10,10 +9,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
 
-// Define interfaces for better type safety
+// Define interfaces for better type safety - updated to match DB types
 interface EmployeeRoster {
-  id: string;
-  employee_id: string;
+  id: number; // Changed from string to number to match bigint from database
+  employee_id: number; // Changed from string to number to match bigint
   date: string;
   status_code: string;
   notes: string | null;
@@ -284,8 +283,9 @@ export const EmployeeCalendar = () => {
           const scheduleMap: Record<string, Record<string, string>> = {};
           
           // Process roster data to create a map of employee schedules
-          rosterData.forEach((roster: EmployeeRoster) => {
-            const employeeId = roster.employee_id;
+          rosterData.forEach((roster: any) => {
+            // Convert numbers to strings for keys
+            const employeeId = String(roster.employee_id);
             const date = new Date(roster.date);
             const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
             
