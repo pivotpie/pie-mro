@@ -265,7 +265,10 @@ export const EmployeeCalendar = () => {
         }
 
         // Get employee roster data using the updated RPC function
-        const { data: rosterData, error: rosterError } = await supabase.rpc('get_employee_roster');
+        // Remove any limit to get all records
+        const { data: rosterData, error: rosterError } = await supabase
+          .rpc('get_employee_roster')
+          .order('employee_id');
         
         if (rosterError) {
           console.error("Error fetching roster data:", rosterError);
@@ -277,6 +280,7 @@ export const EmployeeCalendar = () => {
         }
 
         console.log("Raw roster data:", rosterData);
+        console.log("Total roster records fetched:", rosterData ? rosterData.length : 0);
 
         // Process employees with the roster data if available
         if (rosterData && rosterData.length > 0) {
@@ -297,6 +301,7 @@ export const EmployeeCalendar = () => {
           });
           
           console.log("Processed schedule map:", scheduleMap);
+          console.log("Number of employees with schedules:", Object.keys(scheduleMap).length);
           
           // Update employees with their schedules
           const employeesWithSchedule = typedEmployees.map(emp => {
