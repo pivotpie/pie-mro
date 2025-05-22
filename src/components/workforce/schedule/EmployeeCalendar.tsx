@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -311,7 +312,7 @@ export const EmployeeCalendar = () => {
               // Convert BigInt to string for comparison
               const employeeIdStr = typeof roster.employee_id === 'bigint' 
                 ? roster.employee_id.toString() 
-                : roster.employee_id;
+                : roster.employee_id.toString();
                 
               if (employeeIdStr === emp.id) {
                 if (roster.date) {
@@ -349,32 +350,33 @@ export const EmployeeCalendar = () => {
   // Filter unique values from a column with search term support
   const getUniqueValuesForColumn = (columnName: string) => {
     const searchTerm = searchTerms[columnName]?.toLowerCase() || '';
-    const values = employees.map(emp => {
-      if (columnName === 'team') return emp.team?.team_name || '';
-      if (columnName === 'job_title') return emp.job_title?.job_description || '';
-      if (columnName === 'core') {
-        return emp.cores && emp.cores.length > 0 ? emp.cores.join(', ') : '';
+    const uniqueValues: string[] = [];
+
+    employees.forEach(emp => {
+      let value: string = '';
+      
+      if (columnName === 'team') {
+        value = emp.team?.team_name || '';
+      } else if (columnName === 'job_title') {
+        value = emp.job_title?.job_description || '';
+      } else if (columnName === 'core') {
+        value = emp.cores && emp.cores.length > 0 ? emp.cores.join(', ') : '';
+      } else if (columnName === 'support') {
+        value = emp.supports && emp.supports.length > 0 ? emp.supports.join(', ') : '';
+      } else if (columnName === 'night_shift') {
+        value = emp.night_shift_ok ? 'Yes' : 'No';
+      } else {
+        value = (emp[columnName as keyof Employee]?.toString() || '');
       }
-      if (columnName === 'support') {
-        return emp.supports && emp.supports.length > 0 ? emp.supports.join(', ') : '';
+      
+      if (value && (!searchTerm || value.toLowerCase().includes(searchTerm))) {
+        if (!uniqueValues.includes(value)) {
+          uniqueValues.push(value);
+        }
       }
-      if (columnName === 'night_shift') {
-        const nightShiftValue = emp.night_shift_ok ? 'Yes' : 'No';
-        return values.includes(nightShiftValue);
-      }
-      return (emp[columnName as keyof Employee]?.toString() || '');
-    }).filter(Boolean);
+    });
     
-    const uniqueValues = [...new Set(values)].sort();
-    
-    // Apply search filter if present
-    if (searchTerm) {
-      return uniqueValues.filter(value => 
-        value.toLowerCase().includes(searchTerm)
-      );
-    }
-    
-    return uniqueValues;
+    return uniqueValues.sort();
   };
 
   // Apply filters to employees
@@ -677,15 +679,15 @@ export const EmployeeCalendar = () => {
           </div>
           <div className="p-2 max-h-40 overflow-auto">
             {uniqueValues.map((value) => (
-              <div key={value as string} className="flex items-center space-x-2 py-1">
+              <div key={value} className="flex items-center space-x-2 py-1">
                 <button
                   className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded text-left"
-                  onClick={() => handleDateFilterChange(dateKey, value as string)}
+                  onClick={() => handleDateFilterChange(dateKey, value)}
                 >
                   <div className={`w-3 h-3 border rounded mr-1 flex items-center justify-center ${
-                    selectedValues.includes(value as string) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
+                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
                   }`}>
-                    {selectedValues.includes(value as string) && (
+                    {selectedValues.includes(value) && (
                       <Check className="h-2 w-2 text-white" />
                     )}
                   </div>
@@ -1097,3 +1099,4 @@ export const EmployeeCalendar = () => {
     </div>
   );
 };
+
