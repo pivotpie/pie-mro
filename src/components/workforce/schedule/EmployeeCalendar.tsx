@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -267,10 +266,10 @@ export const EmployeeCalendar = () => {
           });
         }
 
-        // Get employee roster data using direct query instead of RPC to avoid limits
+        // Get employee roster data using direct query
         console.log("Fetching roster data...");
         
-        // Fix the order syntax - we need to use separate order() calls
+        // Fix the order syntax - we need to separate order() calls
         const { data: rosterData, error: rosterError } = await supabase
           .from('roster_assignments')
           .select(`
@@ -279,8 +278,8 @@ export const EmployeeCalendar = () => {
             date_references!inner(actual_date),
             roster_codes!inner(roster_code)
           `)
-          .order('employee_id')
-          .order('date_references(actual_date)');
+          .order('employee_id', { ascending: true })
+          .order('date_references.actual_date', { ascending: true });
         
         if (rosterError) {
           console.error("Error fetching roster data:", rosterError);
@@ -294,11 +293,6 @@ export const EmployeeCalendar = () => {
         console.log("Raw roster data:", rosterData);
         console.log("Total roster records fetched:", rosterData ? rosterData.length : 0);
         
-        // Calculate expected number of records for verification
-        const expectedRecords = typedEmployees.length * 61; // 61 days for May-June
-        console.log("Expected records (101 employees × 61 days):", expectedRecords);
-        console.log("Received vs Expected:", (rosterData?.length || 0) / expectedRecords * 100, "%");
-
         // Process employees with the roster data if available
         if (rosterData && rosterData.length > 0) {
           const scheduleMap: Record<string, Record<string, string>> = {};
@@ -318,14 +312,6 @@ export const EmployeeCalendar = () => {
           });
           
           console.log("Processed schedule map:", scheduleMap);
-          console.log("Number of employees with schedules:", Object.keys(scheduleMap).length);
-          console.log("Employee IDs with schedules:", Object.keys(scheduleMap).join(', '));
-          
-          // Compare with all employee IDs to see which ones are missing schedules
-          const allEmployeeIds = typedEmployees.map(emp => emp.id);
-          const missingScheduleIds = allEmployeeIds.filter(id => !scheduleMap[id]);
-          console.log("Missing schedule for employee IDs:", missingScheduleIds.length > 0 ? missingScheduleIds.join(', ') : "None");
-          console.log("Percentage of employees with schedules:", (Object.keys(scheduleMap).length / typedEmployees.length * 100).toFixed(2), "%");
           
           // Update employees with their schedules
           const employeesWithSchedule = typedEmployees.map(emp => {
@@ -360,7 +346,7 @@ export const EmployeeCalendar = () => {
 
     fetchEmployees();
   }, []);
-  
+
   // Filter unique values from a column with search term support
   const getUniqueValuesForColumn = (columnName: string) => {
     const searchTerm = searchTerms[columnName]?.toLowerCase() || '';
@@ -510,12 +496,12 @@ export const EmployeeCalendar = () => {
     setIsDetailOpen(true);
   };
 
-  // Status color mapping
+  // Status color mapping - Updated with darker shade for O
   const statusColors: Record<string, string> = {
     "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+    "O": "status-day-off", // Using the new custom class for darker shade
     "B1": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
     "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
@@ -523,186 +509,16 @@ export const EmployeeCalendar = () => {
     "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
   };
 
-  // Legend for status codes
+  // Legend for status codes - Updated with darker shade for Off day
   const statusLegend = [
     { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
     { status: "Half Day", code: "B1", color: "bg-blue-100 border border-blue-300 dark:bg-blue-900 dark:border-blue-700" },
     { status: "Annual Leave", code: "AL", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
     { status: "Sick Leave", code: "SK", color: "bg-orange-100 border border-orange-300 dark:bg-orange-900 dark:border-orange-700" },
     { status: "Training", code: "TR", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
-    { status: "Day Off", code: "O", color: "bg-gray-100 border border-gray-300 dark:bg-gray-800 dark:border-gray-600" },
+    { status: "Day Off", code: "O", color: "bg-gray-600 border border-gray-700 text-white dark:bg-gray-700 dark:border-gray-800 dark:text-gray-200" },
     { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
   ];
-
-  // Column filter component with search
-  const ColumnFilter = ({ column, label }: { column: string, label: string }) => {
-    const searchTerm = searchTerms[column] || '';
-    const uniqueValues = useMemo(() => getUniqueValuesForColumn(column), [column, searchTerm]);
-    const selectedValues = columnFilters[column] || [];
-    
-    return (
-      <Popover open={filterOpen[column]} onOpenChange={(open) => setFilterOpen(prev => ({ ...prev, [column]: open }))}>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-6 w-6 relative">
-            <Filter className={`h-3 w-3 ${selectedValues.length ? 'text-blue-500' : ''}`} />
-            {selectedValues.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">
-                {selectedValues.length}
-              </span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-60 p-0 popover-content">
-          <div className="p-2 border-b">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium">Filter {label}</h4>
-              {selectedValues.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 px-2 text-xs"
-                  onClick={() => clearColumnFilter(column)}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input 
-                placeholder={`Search ${label}...`}
-                className="pl-8 pr-8 h-8 text-sm"
-                value={searchTerm}
-                onChange={(e) => handleSearchTermChange(column, e.target.value)}
-              />
-              {searchTerm && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6"
-                  onClick={() => clearSearchTerm(column)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-          <div className="p-2 max-h-60 overflow-auto">
-            {uniqueValues.map((value) => (
-              <div key={value} className="flex items-center space-x-2 py-1">
-                <button
-                  className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1.5 rounded text-left"
-                  onClick={() => handleFilterChange(column, value)}
-                >
-                  <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${
-                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                  }`}>
-                    {selectedValues.includes(value) && (
-                      <Check className="h-3 w-3 text-white" />
-                    )}
-                  </div>
-                  <span className="flex-grow truncate">{value}</span>
-                </button>
-              </div>
-            ))}
-            {uniqueValues.length === 0 && (
-              <div className="text-center py-2 text-gray-500 dark:text-gray-400">
-                No matching values found
-              </div>
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  };
-
-  // Date column filter component
-  const DateColumnFilter = ({ dateKey }: { dateKey: string }) => {
-    const uniqueValues = useMemo(() => getUniqueStatusValues(dateKey), [dateKey]);
-    const selectedValues = dateColumnFilters[dateKey] || [];
-    
-    return (
-      <Popover open={dateFilterOpen[dateKey]} onOpenChange={(open) => setDateFilterOpen(prev => ({ ...prev, [dateKey]: open }))}>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-4 w-4 relative">
-            <Filter className={`h-2 w-2 ${selectedValues.length ? 'text-blue-500' : ''}`} />
-            {selectedValues.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-3 h-3 text-[8px] flex items-center justify-center">
-                {selectedValues.length}
-              </span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-48 p-0">
-          <div className="p-2 border-b">
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium text-xs">Filter Status</h4>
-              {selectedValues.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-6 px-2 text-xs"
-                  onClick={() => clearDateColumnFilter(dateKey)}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-          <div className="p-2 max-h-40 overflow-auto">
-            {uniqueValues.map((value) => (
-              <div key={value} className="flex items-center space-x-2 py-1">
-                <button
-                  className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded text-left"
-                  onClick={() => handleDateFilterChange(dateKey, value)}
-                >
-                  <div className={`w-3 h-3 border rounded mr-1 flex items-center justify-center ${
-                    selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'
-                  }`}>
-                    {selectedValues.includes(value) && (
-                      <Check className="h-2 w-2 text-white" />
-                    )}
-                  </div>
-                  <span className="flex-grow truncate text-xs">
-                    {value === "D" && "On Duty"}
-                    {value === "L" && "Leave"}
-                    {value === "T" && "Training"}
-                    {value === "O" && "Off"}
-                  </span>
-                </button>
-              </div>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  };
-
-  // Calculate left positions for sticky columns
-  const getLeftPositionStyle = (index: number) => {
-    let left = 0;
-    const columnOrder = ['id', 'name', 'alias', 'mobile', 'team', 'core', 'support', 'title', 'night_shift', 'fte', 'ttl'];
-    
-    for (let i = 0; i < index; i++) {
-      left += columnWidths[columnOrder[i] as keyof typeof columnWidths];
-    }
-    
-    return `${left}px`;
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  // Calculate total width for columns to ensure proper horizontal scrolling
-  const totalWidth = columnWidths.id + columnWidths.name + columnWidths.alias + 
-    columnWidths.mobile + columnWidths.team + columnWidths.core + 
-    columnWidths.support + columnWidths.title + columnWidths.night_shift + 
-    columnWidths.fte + columnWidths.ttl + (days.length * columnWidths.date);
 
   return (
     <div>
@@ -805,7 +621,7 @@ export const EmployeeCalendar = () => {
                 <th 
                   key={`${day.month+1}-${day.day}-${day.year}`} 
                   className={`p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200
-                    ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-800'}`}
+                    ${day.isWeekend ? 'weekend-shade' : ''}`}
                   style={{ width: `${columnWidths.date}px` }}
                 >
                   <div className="flex flex-col items-center">
@@ -1040,7 +856,7 @@ export const EmployeeCalendar = () => {
             background-color: #1f2937;
           }
           .today-highlight {
-            border: 2px solid #3b82f6 !important;
+            border: 2px solid #3b82f6;
           }
         `}
       </style>

@@ -135,21 +135,21 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     // This would open the right-side details pane
   };
 
-  // Status color mapping
+  // Status color mapping - Updated with darker shade for O
   const statusColors: Record<string, string> = {
     "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+    "O": "status-day-off", // Using the new custom class for darker shade
   };
 
-  // Legend for status colors
+  // Legend for status colors - Updated with darker shade for Off
   const statusLegend = [
     { status: "Available", color: "bg-gray-100 border border-gray-300 dark:bg-gray-700 dark:border-gray-600" },
     { status: "Assigned", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
     { status: "Training", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
     { status: "Leave", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
-    { status: "Off", color: "bg-gray-300 border border-gray-400 dark:bg-gray-600 dark:border-gray-500" },
+    { status: "Off", color: "bg-gray-600 border border-gray-700 text-gray-100 dark:bg-gray-700 dark:border-gray-800 dark:text-gray-300" },
   ];
 
   return (
@@ -305,7 +305,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                             <TooltipTrigger asChild>
                               <td 
                                 className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
-                                  ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''} 
+                                  ${day.isWeekend ? 'weekend-shade' : ''} 
                                   ${status ? statusColors[status] : ''}`}
                                 onClick={() => handleCellClick(employee.id, dateKey)}
                               >
@@ -318,7 +318,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                               {status === 'D' && <div className="text-green-600">On Duty</div>}
                               {status === 'L' && <div className="text-red-600">On Leave</div>}
                               {status === 'T' && <div className="text-purple-600">In Training</div>}
-                              {status === 'O' && <div className="text-gray-600">Day Off</div>}
+                              {status === 'O' && <div className="text-gray-600 font-semibold">Day Off</div>}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
