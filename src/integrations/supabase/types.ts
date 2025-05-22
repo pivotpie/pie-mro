@@ -1138,6 +1138,19 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      allocate_roster_may_june_2025_weekend_offs: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      analyze_off_day_distribution: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          day_name: string
+          day_number: number
+          total_offs: number
+          percentage: number
+        }[]
+      }
       authenticate_user: {
         Args: { p_username: string; p_password: string }
         Returns: {
@@ -1259,6 +1272,29 @@ export type Database = {
       generate_training_schedules: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      generate_weekend_roster_report: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          "E#": number
+          Name: string
+          Off_Pattern: string
+          "May-1": string
+          "May-2": string
+          "May-3": string
+          "May-4": string
+          "May-5": string
+          "May-6": string
+          "May-7": string
+          "May-8": string
+          "May-9": string
+          "May-10": string
+          "May-11": string
+          "May-12": string
+          "May-13": string
+          "May-14": string
+          "May-15": string
+        }[]
       }
       get_employee_roster: {
         Args: Record<PropertyKey, never>

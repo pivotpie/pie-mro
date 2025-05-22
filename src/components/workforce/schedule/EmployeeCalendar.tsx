@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,8 +11,8 @@ import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeeke
 
 // Define interfaces for better type safety
 interface EmployeeRoster {
-  id: bigint; 
-  employee_id: bigint;
+  id: string | number; // Accept both string and number to handle BigInt conversion
+  employee_id: string | number; // Accept both string and number to handle BigInt conversion
   date: string;
   status_code: string;
   notes: string | null;
@@ -308,8 +307,13 @@ export const EmployeeCalendar = () => {
             const schedule: Record<string, string> = {};
             
             // Update with actual roster data
-            rosterData.forEach((roster: EmployeeRoster) => {
-              if (roster.employee_id.toString() === emp.id) {
+            rosterData.forEach((roster: any) => {
+              // Convert BigInt to string for comparison
+              const employeeIdStr = typeof roster.employee_id === 'bigint' 
+                ? roster.employee_id.toString() 
+                : roster.employee_id;
+                
+              if (employeeIdStr === emp.id) {
                 if (roster.date) {
                   const rosterDate = new Date(roster.date);
                   const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
@@ -355,7 +359,8 @@ export const EmployeeCalendar = () => {
         return emp.supports && emp.supports.length > 0 ? emp.supports.join(', ') : '';
       }
       if (columnName === 'night_shift') {
-        return emp.night_shift_ok ? 'Yes' : 'No';
+        const nightShiftValue = emp.night_shift_ok ? 'Yes' : 'No';
+        return values.includes(nightShiftValue);
       }
       return (emp[columnName as keyof Employee]?.toString() || '');
     }).filter(Boolean);
@@ -950,7 +955,7 @@ export const EmployeeCalendar = () => {
                                 <div className="text-sm font-medium">
                                   {rosterCodes[status] || (
                                     status === 'D' ? 'On Duty' :
-                                    status === 'AL' || status === 'L' ? 'Annual Leave' :
+                                    status === 'AL' ? 'Annual Leave' :
                                     status === 'TR' || status === 'T' ? 'Training' :
                                     status === 'O' ? 'Day Off' :
                                     status === 'B1' ? 'Half Day' :
