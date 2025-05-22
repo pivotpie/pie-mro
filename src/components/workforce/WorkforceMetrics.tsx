@@ -137,8 +137,8 @@ export default function WorkforceMetrics() {
           }
         }
 
-        // 4. Fetch aircraft metrics
-        // Grounded Aircrafts (status = "Grounded")
+        // 4. Fetch aircraft metrics directly from maintenance_visits table
+        // Grounded Aircraft (status = "Grounded")
         const { data: groundedData, error: groundedError } = await supabase
           .from('maintenance_visits')
           .select('id')
