@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -43,35 +44,58 @@ interface MetricCardProps {
   value: number | string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
+  borderColor: string;
+  textColor: string;
   percentage?: string;
+  percentageType?: 'increase' | 'decrease' | 'neutral';
   onClick?: () => void;
   isLoading?: boolean;
 }
 
-const MetricCard = ({ label, value, icon: Icon, color, percentage, onClick, isLoading }: MetricCardProps) => (
+const MetricCard = ({ 
+  label, 
+  value, 
+  icon: Icon, 
+  color, 
+  borderColor,
+  textColor,
+  percentage, 
+  percentageType = 'neutral',
+  onClick, 
+  isLoading 
+}: MetricCardProps) => (
   <Card 
-    className={`${color} hover:shadow-md transition-all cursor-pointer border`}
+    className={`relative hover:shadow-md transition-all cursor-pointer border overflow-hidden`}
     onClick={onClick}
   >
-    <CardContent className="flex items-center justify-between p-4">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-full bg-white/70 dark:bg-gray-800/70`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <div className="text-2xl font-bold">
-            {isLoading ? (
-              <div className="h-7 w-12 bg-gray-300 dark:bg-gray-700 animate-pulse rounded"></div>
-            ) : (
-              value
-            )}
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-300">{label}</div>
-        </div>
+    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${borderColor}`}></div>
+    <CardContent className="flex flex-col pt-4 pb-3 px-4 h-full">
+      <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</div>
+      <div className={`text-3xl md:text-4xl font-bold mb-1 ${textColor}`}>
+        {isLoading ? (
+          <div className="h-10 w-16 bg-gray-300 dark:bg-gray-700 animate-pulse rounded"></div>
+        ) : (
+          value
+        )}
       </div>
       {percentage && !isLoading && (
-        <div className="text-xs bg-white/70 dark:bg-gray-800/70 px-2 py-0.5 rounded-full">
-          {percentage}
+        <div className="flex items-center text-xs font-medium mt-auto">
+          {percentageType === 'increase' && (
+            <span className="text-green-500 flex items-center">
+              ↑ {percentage}
+            </span>
+          )}
+          {percentageType === 'decrease' && (
+            <span className="text-red-500 flex items-center">
+              ↓ {percentage}
+            </span>
+          )}
+          {percentageType === 'neutral' && (
+            <span className="text-gray-500 flex items-center">
+              = {percentage}
+            </span>
+          )}
+          <span className="text-gray-500 dark:text-gray-400 ml-1">from last week</span>
         </div>
       )}
     </CardContent>
@@ -1030,66 +1054,98 @@ export const WorkforceMetrics = () => {
   
   const metrics = [
     { 
-      id: 'total-employees', 
-      label: 'Total Employees', 
-      value: isLoading ? '-' : (totalEmployees?.length || 0), 
-      icon: Users, 
-      color: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800',
-    },
-    { 
       id: 'available', 
       label: 'Available Employees', 
       value: isLoading ? '-' : (availableEmployees?.length || 0), 
       icon: UserCheck, 
-      color: 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800',
+      color: 'bg-white dark:bg-gray-900',
+      borderColor: 'bg-blue-500',
+      textColor: 'text-blue-500',
+      percentage: '5%',
+      percentageType: 'increase' as const,
     },
     { 
       id: 'leave', 
       label: 'On Leave', 
       value: isLoading ? '-' : onLeaveEmployees?.length || 0, 
       icon: CalendarCheck, 
-      color: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
+      color: 'bg-white dark:bg-gray-900',
+      borderColor: 'bg-red-500',
+      textColor: 'text-red-500',
+      percentage: '2%',
+      percentageType: 'decrease' as const,
     },
     { 
       id: 'training', 
       label: 'In Training', 
       value: isLoading ? '-' : inTrainingEmployees?.length || 0, 
       icon: GraduationCap, 
-      color: 'bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800',
+      color: 'bg-white dark:bg-gray-900',
+      borderColor: 'bg-cyan-500',
+      textColor: 'text-cyan-500',
+      percentage: '3%',
+      percentageType: 'increase' as const,
     },
     { 
       id: 'grounded', 
       label: 'Grounded Aircraft', 
       value: isLoading ? '-' : aircraftMetrics?.inMaintenance || 0, 
       icon: Plane, 
-      color: 'bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800',
+      color: 'bg-white dark:bg-gray-900',
+      borderColor: 'bg-amber-500',
+      textColor: 'text-amber-500',
+      percentage: 'No change',
+      percentageType: 'neutral' as const,
     },
     { 
       id: 'assigned', 
       label: 'Aircraft w/ Teams', 
       value: isLoading ? '-' : aircraftMetrics?.inMaintenance || 0, 
       icon: PlaneTakeoff, 
-      color: 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800',
+      color: 'bg-white dark:bg-gray-900',
+      borderColor: 'bg-emerald-500',
+      textColor: 'text-emerald-500',
+      percentage: '33%',
+      percentageType: 'increase' as const,
     },
     { 
       id: 'pending', 
       label: 'Pending Assignment', 
       value: isLoading ? '-' : aircraftMetrics?.scheduled || 0, 
       icon: FileCheck, 
-      color: 'bg-orange-50 border-orange-200 dark:bg-orange-900/30 dark:border-orange-800',
+      color: 'bg-white dark:bg-gray-900',
+      borderColor: 'bg-indigo-500',
+      textColor: 'text-indigo-500',
+      percentage: '33%',
+      percentageType: 'decrease' as const,
     },
     { 
       id: 'productivity', 
       label: 'Available Aircraft', 
       value: isLoading ? '-' : aircraftMetrics?.available || 0, 
       icon: Activity, 
-      color: 'bg-cyan-50 border-cyan-200 dark:bg-cyan-900/30 dark:border-cyan-800',
+      color: 'bg-white dark:bg-gray-900',
+      borderColor: 'bg-purple-500',
+      textColor: 'text-purple-500',
+      percentage: '12%',
+      percentageType: 'increase' as const,
+    },
+    { 
+      id: 'total-employees', 
+      label: 'Total Employees', 
+      value: isLoading ? '-' : (totalEmployees?.length || 0), 
+      icon: Users, 
+      color: 'bg-white dark:bg-gray-900',
+      borderColor: 'bg-gray-500',
+      textColor: 'text-gray-500',
+      percentage: '1%',
+      percentageType: 'increase' as const,
     }
   ];
 
   return (
     <>
-      <div className="grid grid-cols-8 gap-2 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
         {metrics.map((metric) => (
           <MetricCard 
             key={metric.id}
@@ -1097,6 +1153,10 @@ export const WorkforceMetrics = () => {
             value={metric.value}
             icon={metric.icon}
             color={metric.color}
+            borderColor={metric.borderColor}
+            textColor={metric.textColor}
+            percentage={metric.percentage}
+            percentageType={metric.percentageType}
             isLoading={isLoading}
             onClick={() => handleMetricClick(metric.id)}
           />
