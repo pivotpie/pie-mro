@@ -84,11 +84,13 @@ html, body {
 }
 
 .weekend-shade {
-  background-color: rgba(229, 231, 235, 0.7);
+  background-color: rgba(107, 114, 128, 0.8);
+  color: white;
 }
 
 .dark .weekend-shade {
-  background-color: rgba(55, 65, 81, 0.7);
+  background-color: rgba(75, 85, 99, 0.9);
+  color: rgba(229, 231, 235, 1);
 }
 
 /* Custom scrollbar styling */

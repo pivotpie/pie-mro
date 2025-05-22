@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
-import { WorkforceMetrics } from "@/components/workforce/WorkforceMetrics";
+import WorkforceMetrics from "@/components/workforce/WorkforceMetrics";
 import { WorkforceTabs } from "@/components/workforce/WorkforceTabs";
 import { FloatingActionMenu } from "@/components/workforce/FloatingActionMenu";
 import { ManagementShortcuts } from "@/components/workforce/ManagementShortcuts";

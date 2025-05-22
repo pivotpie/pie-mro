@@ -47,6 +47,40 @@ interface Employee {
   schedule?: Record<string, string>;
 }
 
+// Define column widths for calculating total width
+const columnWidths = {
+  id: 80,
+  name: 200,
+  alias: 70,
+  mobile: 130,
+  team: 100,
+  core: 100,
+  support: 100,
+  title: 100,
+  night_shift: 70,
+  fte: 80,
+  ttl: 80,
+  date: 45 // Width of each date column
+};
+
+// Helper function to calculate the total width of the table
+const calculateTotalWidth = (days: any[]) => {
+  // Calculate the width of all fixed columns
+  const fixedColumnsWidth = Object.values(columnWidths).reduce((sum, width) => sum + width, 0) - columnWidths.date;
+  // Add width for each day column
+  const daysWidth = days.length * columnWidths.date;
+  return fixedColumnsWidth + daysWidth;
+};
+
+// Helper function to calculate left position for sticky columns
+const getLeftPositionStyle = (index: number) => {
+  let position = 0;
+  for (let i = 0; i < index; i++) {
+    position += Object.values(columnWidths)[i];
+  }
+  return `${position}px`;
+};
+
 // Helper function to determine if a date is a weekend
 const isWeekendDate = (date: Date) => {
   return isWeekend(date);
@@ -73,6 +107,271 @@ const generateTwoMonthDays = () => {
     isToday: isToday(date),
     monthName: format(date, 'MMM')
   }));
+};
+
+// Column Filter Component
+const ColumnFilter = ({ column, label }: { column: string, label: string }) => {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedValues, setSelectedValues] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch employees data from parent component
+    const fetchEmployees = async () => {
+      try {
+        const { data: employeesData, error: employeesError } = await supabase
+          .from('employees')
+          .select(`
+            id,
+            e_number,
+            name,
+            mobile_number,
+            key_name,
+            night_shift_ok,
+            fte_date,
+            team:team_id(team_name),
+            job_title:job_title_id(job_code, job_description),
+            employee_status
+          `)
+          .order('e_number');
+
+        if (employeesError) {
+          throw employeesError;
+        }
+
+        setEmployees(employeesData as unknown as Employee[]);
+      } catch (error) {
+        console.error("Error fetching filter data:", error);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
+
+  // Get unique values for the column
+  const getUniqueValues = () => {
+    const values = employees.map(emp => {
+      if (column === 'team') return emp.team?.team_name || '';
+      if (column === 'job_title') return emp.job_title?.job_description || '';
+      if (column === 'core') {
+        return emp.cores && emp.cores.length > 0 ? emp.cores.join(', ') : '';
+      }
+      if (column === 'support') {
+        return emp.supports && emp.supports.length > 0 ? emp.supports.join(', ') : '';
+      }
+      if (column === 'night_shift') {
+        return emp.night_shift_ok ? 'Yes' : 'No';
+      }
+      return (String(emp[column as keyof Employee] || ''));
+    }).filter(Boolean);
+    
+    // Filter by search term if present
+    const uniqueValues = [...new Set(values)].sort();
+    
+    if (searchTerm) {
+      return uniqueValues.filter(value => 
+        value.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    return uniqueValues;
+  };
+
+  // Handle value selection
+  const handleValueSelect = (value: string) => {
+    setSelectedValues(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(v => v !== value);
+      } else {
+        return [...prev, value];
+      }
+    });
+  };
+
+  // Clear all selections
+  const clearSelections = () => {
+    setSelectedValues([]);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="p-0 h-5 w-5">
+          <Filter className={`h-3 w-3 ${selectedValues.length > 0 ? 'text-blue-500' : 'text-gray-500'}`} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-60" align="end">
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm">{label} Filter</h4>
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+            <Input 
+              placeholder="Search..." 
+              className="pl-8 h-9" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto">
+            {getUniqueValues().map((value) => (
+              <div key={value} className="flex items-center py-1">
+                <Button
+                  variant="ghost"
+                  className="px-2 py-1 h-auto justify-start text-left w-full"
+                  onClick={() => handleValueSelect(value)}
+                >
+                  <span className={`mr-2 h-4 w-4 rounded border ${selectedValues.includes(value) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'} flex items-center justify-center`}>
+                    {selectedValues.includes(value) && <Check className="h-3 w-3 text-white" />}
+                  </span>
+                  <span className="truncate">{value}</span>
+                </Button>
+              </div>
+            ))}
+            {getUniqueValues().length === 0 && (
+              <p className="text-sm text-gray-500 py-2">No filter options available</p>
+            )}
+          </div>
+          {selectedValues.length > 0 && (
+            <div className="pt-2 border-t flex justify-end">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={clearSelections}
+                className="text-sm text-red-500"
+              >
+                Clear filters
+              </Button>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// Date Column Filter Component for filtering calendar days
+const DateColumnFilter = ({ dateKey }: { dateKey: string }) => {
+  const [open, setOpen] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedValues, setSelectedValues] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch employees data to get unique status values for this date
+    const fetchEmployeesWithSchedule = async () => {
+      try {
+        const { data: rosterData, error: rosterError } = await supabase
+          .from('roster_assignments')
+          .select(`
+            employee_id,
+            date_references!inner(actual_date),
+            roster_codes!inner(roster_code)
+          `);
+        
+        if (rosterError) throw rosterError;
+        
+        // Process data to create a schedule map for this date
+        const employeeSchedules: Record<string, Record<string, string>> = {};
+        
+        if (rosterData) {
+          rosterData.forEach((roster: any) => {
+            const employeeId = String(roster.employee_id);
+            const date = new Date(roster.date_references.actual_date);
+            const formattedDateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
+            
+            if (!employeeSchedules[employeeId]) {
+              employeeSchedules[employeeId] = {};
+            }
+            
+            if (formattedDateKey === dateKey) {
+              employeeSchedules[employeeId][formattedDateKey] = roster.roster_codes.roster_code;
+            }
+          });
+        }
+        
+        // Create minimal employee objects with schedules
+        const employees: Employee[] = Object.keys(employeeSchedules).map(id => ({
+          id,
+          name: '', // We don't need this for filtering
+          schedule: employeeSchedules[id]
+        }));
+        
+        setEmployees(employees);
+      } catch (error) {
+        console.error("Error fetching date filter data:", error);
+      }
+    };
+    
+    fetchEmployeesWithSchedule();
+  }, [dateKey]);
+
+  // Get unique status values for this date
+  const getUniqueStatusValues = () => {
+    const statuses = employees.map(emp => emp.schedule?.[dateKey] || '').filter(Boolean);
+    return [...new Set(statuses)].sort();
+  };
+
+  // Handle status selection
+  const handleStatusSelect = (value: string) => {
+    setSelectedValues(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(v => v !== value);
+      } else {
+        return [...prev, value];
+      }
+    });
+  };
+
+  // Clear all selections
+  const clearSelections = () => {
+    setSelectedValues([]);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="p-0 h-4 w-4">
+          <Filter className={`h-3 w-3 ${selectedValues.length > 0 ? 'text-blue-500' : 'text-gray-500'}`} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-40 popover-content" align="center">
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm">Status Filter</h4>
+          <div className="max-h-40 overflow-y-auto">
+            {getUniqueStatusValues().map((status) => (
+              <div key={status} className="flex items-center py-1">
+                <Button
+                  variant="ghost"
+                  className="px-2 py-1 h-auto justify-start text-left w-full"
+                  onClick={() => handleStatusSelect(status)}
+                >
+                  <span className={`mr-2 h-4 w-4 rounded border ${selectedValues.includes(status) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'} flex items-center justify-center`}>
+                    {selectedValues.includes(status) && <Check className="h-3 w-3 text-white" />}
+                  </span>
+                  <span className="truncate">{status}</span>
+                </Button>
+              </div>
+            ))}
+            {getUniqueStatusValues().length === 0 && (
+              <p className="text-sm text-gray-500 py-2">No status data</p>
+            )}
+          </div>
+          {selectedValues.length > 0 && (
+            <div className="pt-2 border-t flex justify-end">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={clearSelections}
+                className="text-sm text-red-500"
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 };
 
 // Add a function to check if core and support are different
@@ -102,26 +401,8 @@ export const EmployeeCalendar = () => {
   const [dateFilterOpen, setDateFilterOpen] = useState<Record<string, boolean>>({});
   const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
   
-  const columnWidths = {
-    id: 80,
-    name: 200,
-    alias: 70,
-    mobile: 130,
-    team: 100,
-    core: 100,
-    support: 100,
-    title: 100,
-    night_shift: 70,
-    fte: 80,
-    ttl: 80,
-    date: 45 // Width of each date column
-  };
-
-  // Get unique status values for a specific date
-  const getUniqueStatusValues = (dateKey: string) => {
-    const statuses = employees.map(emp => emp.schedule?.[dateKey] || '');
-    return [...new Set(statuses)].filter(Boolean).sort();
-  };
+  // Calculate total width for the table
+  const totalWidth = calculateTotalWidth(days);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -850,10 +1131,12 @@ export const EmployeeCalendar = () => {
       <style>
         {`
           .weekend-shade {
-            background-color: #f9fafb;
+            background-color: rgba(107, 114, 128, 0.8);
+            color: white;
           }
           .dark .weekend-shade {
-            background-color: #1f2937;
+            background-color: rgba(75, 85, 99, 0.9);
+            color: rgba(229, 231, 235, 1);
           }
           .today-highlight {
             border: 2px solid #3b82f6;
