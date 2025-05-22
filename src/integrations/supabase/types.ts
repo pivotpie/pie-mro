@@ -1122,6 +1122,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      allocate_roster_may_june_2025: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      allocate_roster_may_june_2025_fixed: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      allocate_roster_may_june_2025_shuffled: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      allocate_roster_may_june_2025_simple: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       authenticate_user: {
         Args: { p_username: string; p_password: string }
         Returns: {
@@ -1146,6 +1162,51 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      generate_may_roster_report: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          "E#": number
+          Name: string
+          "May-1": string
+          "May-2": string
+          "May-3": string
+          "May-4": string
+          "May-5": string
+          "May-6": string
+          "May-7": string
+          "May-8": string
+          "May-9": string
+          "May-10": string
+          "May-11": string
+          "May-12": string
+          "May-13": string
+          "May-14": string
+          "May-15": string
+        }[]
+      }
+      generate_may_roster_report_shuffled: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          "E#": number
+          Name: string
+          "May-1": string
+          "May-2": string
+          "May-3": string
+          "May-4": string
+          "May-5": string
+          "May-6": string
+          "May-7": string
+          "May-8": string
+          "May-9": string
+          "May-10": string
+          "May-11": string
+          "May-12": string
+          "May-13": string
+          "May-14": string
+          "May-15": string
+          Pattern_Summary: string
+        }[]
+      }
       generate_realistic_roster_may_june_2025: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1153,6 +1214,47 @@ export type Database = {
       generate_roster_may_june_2025: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      generate_roster_report_sample: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          "E#": number
+          Title: string
+          Name: string
+          Team: string
+          Core: string
+          Support: string
+          "May-1": string
+          "May-2": string
+          "May-3": string
+          "May-4": string
+          "May-5": string
+          "May-6": string
+          "May-7": string
+          "May-8": string
+          "May-9": string
+          "May-10": string
+          "May-11": string
+          "May-12": string
+          "May-13": string
+          "May-14": string
+          "May-15": string
+          "Jun-1": string
+          "Jun-2": string
+          "Jun-3": string
+          "Jun-4": string
+          "Jun-5": string
+          "Jun-6": string
+          "Jun-7": string
+          "Jun-8": string
+          "Jun-9": string
+          "Jun-10": string
+          "Jun-11": string
+          "Jun-12": string
+          "Jun-13": string
+          "Jun-14": string
+          "Jun-15": string
+        }[]
       }
       generate_training_schedules: {
         Args: Record<PropertyKey, never>
@@ -1171,6 +1273,55 @@ export type Database = {
       migrate_certifications_to_authorizations: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      show_employee_pattern: {
+        Args: { emp_num: number; start_date?: string; days_to_show?: number }
+        Returns: {
+          date_val: string
+          day_name: string
+          roster_code: string
+          cycle_day: number
+          pattern_note: string
+        }[]
+      }
+      test_roster_allocation: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          employee_number: number
+          employee_name: string
+          roster_date: string
+          roster_code: string
+          day_of_week: string
+        }[]
+      }
+      validate_roster_patterns: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          employee_number: number
+          employee_name: string
+          issue_date: string
+          issue_description: string
+        }[]
+      }
+      validate_roster_patterns_enhanced: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          employee_number: number
+          employee_name: string
+          week_start_date: string
+          issue_description: string
+          pattern_found: string
+        }[]
+      }
+      validate_roster_patterns_fixed: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          employee_number: number
+          employee_name: string
+          issue_date: string
+          issue_description: string
+          pattern_found: string
+        }[]
       }
     }
     Enums: {

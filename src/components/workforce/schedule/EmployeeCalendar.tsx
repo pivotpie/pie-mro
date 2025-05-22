@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,8 +11,8 @@ import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeeke
 
 // Define interfaces for better type safety
 interface EmployeeRoster {
-  id: number; // Changed from string to number to match the API response
-  employee_id: number; // Changed from string to number to match the API response
+  id: bigint; // Updated type to match database
+  employee_id: bigint; // Updated type to match database
   date: string;
   status_code: string;
   notes: string | null;
@@ -1020,4 +1019,3 @@ export const EmployeeCalendar = () => {
     </div>
   );
 };
-
