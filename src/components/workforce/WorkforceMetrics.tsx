@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Card } from "@/components/ui/card";
-import { Clock, User, Briefcase, Award, AlertTriangle, CalendarDays, PlaneTakeoff, PlaneLanding, Timer } from 'lucide-react';
+import { User, CalendarDays, Award, PlaneLanding, UsersRound, Timer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
@@ -10,20 +9,66 @@ type MetricType = {
   value: number;
   icon: React.ReactNode;
   colorClass: string;
+  borderColor: string;
   change?: number;
-  changeType?: 'increase' | 'decrease';
+  changeType?: 'increase' | 'decrease' | 'nochange';
 };
 
 export default function WorkforceMetrics() {
   const [metrics, setMetrics] = useState<MetricType[]>([
-    { title: "Available Employees", value: 0, icon: <User className="h-6 w-6" />, colorClass: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
-    { title: "On Leave", value: 0, icon: <CalendarDays className="h-6 w-6" />, colorClass: "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400" },
-    { title: "In Training", value: 0, icon: <Award className="h-6 w-6" />, colorClass: "bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" },
-    { title: "Grounded Aircrafts", value: 0, icon: <PlaneLanding className="h-6 w-6" />, colorClass: "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" },
-    { title: "Assigned Aircrafts", value: 0, icon: <PlaneTakeoff className="h-6 w-6" />, colorClass: "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400" },
-    { title: "Pending Assignment", value: 0, icon: <Timer className="h-6 w-6" />, colorClass: "bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" },
-    { title: "On Time", value: 0, icon: <Clock className="h-6 w-6" />, colorClass: "bg-yellow-50 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400", change: 2, changeType: 'increase' },
-    { title: "Late Arrivals", value: 0, icon: <AlertTriangle className="h-6 w-6" />, colorClass: "bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400", change: 1, changeType: 'decrease' },
+    { 
+      title: "Available Employees", 
+      value: 0, 
+      icon: <User className="h-6 w-6" />, 
+      colorClass: "text-blue-600", 
+      borderColor: "border-l-blue-600",
+      change: 5, 
+      changeType: 'increase' 
+    },
+    { 
+      title: "On Leave", 
+      value: 0, 
+      icon: <CalendarDays className="h-6 w-6" />, 
+      colorClass: "text-pink-600", 
+      borderColor: "border-l-pink-600",
+      change: 2, 
+      changeType: 'decrease' 
+    },
+    { 
+      title: "In Training", 
+      value: 0, 
+      icon: <Award className="h-6 w-6" />, 
+      colorClass: "text-cyan-600", 
+      borderColor: "border-l-cyan-600",
+      change: 3, 
+      changeType: 'increase' 
+    },
+    { 
+      title: "Grounded Aircraft", 
+      value: 0, 
+      icon: <PlaneLanding className="h-6 w-6" />, 
+      colorClass: "text-amber-500", 
+      borderColor: "border-l-amber-500",
+      changeType: 'nochange' 
+    },
+    { 
+      title: "Aircraft w/ Teams", 
+      value: 0, 
+      icon: <UsersRound className="h-6 w-6" />, 
+      colorClass: "text-emerald-500", 
+      borderColor: "border-l-emerald-500",
+      change: 33, 
+      changeType: 'increase' 
+    },
+    { 
+      title: "Pending Assignment", 
+      value: 0, 
+      icon: <Timer className="h-6 w-6" />, 
+      colorClass: "text-indigo-600", 
+      borderColor: "border-l-indigo-600",
+      change: 33, 
+      changeType: 'decrease' 
+    },
   ]);
 
   useEffect(() => {
@@ -100,20 +145,20 @@ export default function WorkforceMetrics() {
           .eq('status', 'Grounded');
         
         if (!groundedError && groundedData) {
-          const groundedIndex = updatedMetrics.findIndex(m => m.title === "Grounded Aircrafts");
+          const groundedIndex = updatedMetrics.findIndex(m => m.title === "Grounded Aircraft");
           if (groundedIndex !== -1) {
             updatedMetrics[groundedIndex].value = groundedData.length;
           }
         }
 
-        // Assigned Aircrafts (status = "In Service" or "Assigned")
+        // Aircraft with Teams (status = "In Service" or "Assigned")
         const { data: assignedData, error: assignedError } = await supabase
           .from('maintenance_visits')
           .select('id')
           .in('status', ['In Service', 'Assigned']);
         
         if (!assignedError && assignedData) {
-          const assignedIndex = updatedMetrics.findIndex(m => m.title === "Assigned Aircrafts");
+          const assignedIndex = updatedMetrics.findIndex(m => m.title === "Aircraft w/ Teams");
           if (assignedIndex !== -1) {
             updatedMetrics[assignedIndex].value = assignedData.length;
           }
@@ -132,31 +177,6 @@ export default function WorkforceMetrics() {
           }
         }
 
-        // 5. Fetch attendance metrics (on time and late)
-        const { data: attendanceData, error: attendanceError } = await supabase
-          .from('attendance')
-          .select('status')
-          .eq('date', todayString);
-        
-        if (!attendanceError && attendanceData) {
-          const onTimeCount = attendanceData.filter(record => record.status === 'Present').length;
-          const lateCount = attendanceData.filter(record => 
-            record.status === 'Late' || 
-            record.status === 'Left Early' || 
-            record.status === 'Late & Left Early'
-          ).length;
-          
-          const onTimeIndex = updatedMetrics.findIndex(m => m.title === "On Time");
-          if (onTimeIndex !== -1) {
-            updatedMetrics[onTimeIndex].value = onTimeCount;
-          }
-          
-          const lateIndex = updatedMetrics.findIndex(m => m.title === "Late Arrivals");
-          if (lateIndex !== -1) {
-            updatedMetrics[lateIndex].value = lateCount;
-          }
-        }
-
         // Update the state with the new metrics
         setMetrics(updatedMetrics);
       } catch (error) {
@@ -168,26 +188,50 @@ export default function WorkforceMetrics() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
       {metrics.map((metric, index) => (
-        <Card key={index} className="p-4 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className={`${metric.colorClass} p-3 rounded-lg`}>
-              {metric.icon}
-            </div>
-            <div>
+        <div 
+          key={index} 
+          className={`bg-white dark:bg-gray-800 rounded-lg p-4 border-l-4 ${metric.borderColor} shadow-sm`}
+        >
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{metric.title}</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-2xl font-bold">{metric.value}</h3>
-                {metric.change && (
-                  <span className={`text-xs font-medium ${metric.changeType === 'increase' ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-                    {metric.changeType === 'increase' ? '+' : '-'}{metric.change}%
-                  </span>
-                )}
+              <div className={`${metric.colorClass}`}>
+                {metric.icon}
               </div>
             </div>
+            <div className="flex flex-col">
+              <h3 className={`text-3xl font-bold ${metric.colorClass}`}>{metric.value}</h3>
+              {metric.change !== undefined && (
+                <div className="mt-1.5">
+                  {metric.changeType === 'increase' && (
+                    <span className="text-xs text-green-600 flex items-center">
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+                      </svg>
+                      {metric.change}% from last week
+                    </span>
+                  )}
+                  {metric.changeType === 'decrease' && (
+                    <span className="text-xs text-red-600 flex items-center">
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                      </svg>
+                      {metric.change}% from last week
+                    </span>
+                  )}
+                  {metric.changeType === 'nochange' && (
+                    <span className="text-xs text-gray-600 flex items-center">
+                      <span className="mr-1">=</span>
+                      No change
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   );
