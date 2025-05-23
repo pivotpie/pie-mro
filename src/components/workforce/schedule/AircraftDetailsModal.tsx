@@ -630,6 +630,24 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     toast.success(`${employee.name} assigned to ${aircraft?.registration}`);
   };
 
+  const handleBulkAssignEmployees = () => {
+    if (selectedEmployees.size === 0) {
+      toast.error("Please select employees to assign");
+      return;
+    }
+
+    const employeesToAssign = filteredEmployees.filter(emp => selectedEmployees.has(emp.id));
+    const newAssigned = [...assignedEmployees, ...employeesToAssign];
+    const newAvailable = availableEmployees.filter(emp => !selectedEmployees.has(emp.id));
+    
+    setAssignedEmployees(newAssigned);
+    setAvailableEmployees(newAvailable);
+    setFilteredEmployees(newAvailable);
+    setSelectedEmployees(new Set());
+    
+    toast.success(`${employeesToAssign.length} employees assigned to ${aircraft?.registration}`);
+  };
+
   const handleRemoveAssignedEmployee = (employee: Employee) => {
     setAssignedEmployees(prev => prev.filter(emp => emp.id !== employee.id));
     setAvailableEmployees(prev => [...prev, {...employee, match_score: calculateEmployeeMatchScore(employee)}]);
@@ -880,23 +898,11 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                         )}
                       </div>
                     ))}
-                    {aircraft.status === 'Scheduled' && (
-                      <Button variant="outline" className="w-full">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add More Staff
-                      </Button>
-                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <User className="h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">No team assigned</p>
-                    {aircraft.status === 'Scheduled' && (
-                      <Button className="w-full">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Assign Team
-                      </Button>
-                    )}
+                    <p className="text-gray-500 dark:text-gray-400">No team assigned</p>
                   </div>
                 )}
               </div>
@@ -925,6 +931,15 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                     >
                       <X className="h-4 w-4" />
                       Clear Filter
+                    </Button>
+                  )}
+                  {aircraft.status === 'Scheduled' && selectedEmployees.size > 0 && (
+                    <Button 
+                      onClick={handleBulkAssignEmployees}
+                      className="flex items-center gap-2"
+                    >
+                      <Check className="h-4 w-4" />
+                      Assign Selected ({selectedEmployees.size})
                     </Button>
                   )}
                 </div>
@@ -962,7 +977,6 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                           <TableHead>Trade</TableHead>
                           <TableHead>Engine Type</TableHead>
                           <TableHead>Certification</TableHead>
-                          <TableHead className="text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1021,23 +1035,6 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                             <TableCell className="text-sm">{employee.trade}</TableCell>
                             <TableCell className="text-sm">{employee.engine_type}</TableCell>
                             <TableCell className="text-sm">{employee.certification || "None"}</TableCell>
-                            <TableCell className="text-center">
-                              {aircraft.status === 'Scheduled' ? (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => handleAssignEmployee(employee)}
-                                  disabled={!employee.availability?.includes('Available')}
-                                >
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Assign
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-gray-500">
-                                  {aircraft.status === 'Completed' ? 'Completed' : 'In Progress'}
-                                </span>
-                              )}
-                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
