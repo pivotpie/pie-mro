@@ -349,6 +349,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     }
   }, [scrollLeft]);
 
+  // Calculate position based on days from start date
   const calculatePosition = (schedule: AircraftSchedule) => {
     console.log('=== Calculating position for schedule ===');
     console.log('Schedule:', {
@@ -389,20 +390,19 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
       width: finalEndIdx - startIdx + 1
     });
     
-    // Use exact pixel measurements to match table layout
-    // Each day column is 48px (w-12) 
+    // Each day column is exactly 48px wide
     const dayWidth = 48;
-    // Hangar column is 120px (w-30 = 7.5rem = 120px) + Bay column is 100px (w-25 = 6.25rem = 100px)  
-    const fixedColumnsWidth = 220;
     
+    // Calculate the start position for the card (column width * days from start)
     const startPosition = startIdx * dayWidth;
+    
+    // Calculate the width (at least one day width)
     const width = Math.max(dayWidth, (finalEndIdx - startIdx + 1) * dayWidth);
     
     console.log('Final position:', {
       startPosition,
       width,
-      dayWidth,
-      fixedColumnsWidth
+      dayWidth
     });
     
     return { startPosition, width };
@@ -441,7 +441,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
         <div className="min-w-[2800px] h-full">
           <table className="w-full border-collapse h-full table-fixed">
             <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
-              <tr className="h-[50px]">
+              <tr className="h-12">
                 <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-30">Hangar</th>
                 <th className="p-2 text-left border-r sticky left-[120px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-25">Bay</th>
                 
@@ -449,7 +449,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 {days.map((day, index) => (
                   <th 
                     key={`${day.year}-${day.month+1}-${day.day}`} 
-                    className={`p-1 text-center border-r w-12 h-[50px] dark:border-gray-700 dark:text-gray-200
+                    className={`p-1 text-center border-r w-12 h-12 dark:border-gray-700 dark:text-gray-200
                       ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                   >
                     <div className="text-xs font-medium">{day.day}</div>
@@ -460,12 +460,12 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
             </thead>
             <tbody className="h-full">
               {hangars.map((hangar) => (
-                <tr key={hangar.id} className="border-b h-[50px] dark:border-gray-700">
-                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-[50px] w-30">{hangar.name.split(" ")[0]}</td>
-                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-[50px] w-25">{hangar.name.split(" ")[1]}</td>
+                <tr key={hangar.id} className="border-b h-12 dark:border-gray-700">
+                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-12 w-30">{hangar.name.split(" ")[0]}</td>
+                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-12 w-25">{hangar.name.split(" ")[1]}</td>
                   
                   {/* Gantt chart container cell spanning across all days */}
-                  <td colSpan={days.length} className="relative p-0 h-[50px]">
+                  <td colSpan={days.length} className="relative p-0 h-12">
                     {/* Render day grid backgrounds */}
                     {days.map((day, index) => (
                       <div 
@@ -489,7 +489,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div 
-                                  className={`absolute top-[4px] h-[42px] ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
+                                  className={`absolute top-1 h-10 ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
                                   style={{
                                     left: `${position.startPosition}px`,
                                     width: `${position.width}px`,
