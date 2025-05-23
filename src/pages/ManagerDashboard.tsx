@@ -77,7 +77,7 @@ const ManagerDashboard = () => {
 
   const fetchWorkforceSummary = async () => {
     try {
-      // Fetch employees with their current assignments
+      // Fetch employees with their current assignments and maintenance visits
       const { data: employeeData, error: employeeError } = await supabase
         .from('employees')
         .select(`
@@ -96,7 +96,7 @@ const ManagerDashboard = () => {
 
       if (employeeError) throw employeeError;
 
-      // Fetch aircraft assignments (maintenance visits)
+      // Fetch aircraft assignments (maintenance visits) with personnel requirements
       const { data: maintenanceData, error: maintenanceError } = await supabase
         .from('maintenance_visits')
         .select(`
@@ -104,6 +104,15 @@ const ManagerDashboard = () => {
           visit_number,
           aircraft:aircraft_id (
             registration
+          ),
+          personnel_requirements (
+            trade_id,
+            day_shift_count,
+            night_shift_count,
+            trades:trade_id (
+              trade_name,
+              skill_category
+            )
           )
         `)
         .eq('status', 'Scheduled')
@@ -124,9 +133,10 @@ const ManagerDashboard = () => {
       };
 
       const aircraftCodes: string[] = [];
-      const initialAssignments: AircraftAssignment = {};
+      const mainAssignments: AircraftAssignment = {};
+      const initialSupportAssignments: AircraftAssignment = {};
 
-      // Count available employees
+      // Count available employees and categorize them
       employeeData?.forEach((emp: any) => {
         const jobTitle = emp.job_titles?.job_description || 'Unknown';
         const supportCode = emp.employee_supports?.[0]?.support_codes?.support_code || 'Unassigned';
@@ -144,17 +154,50 @@ const ManagerDashboard = () => {
         // Count available employees (those with AV or AVAILABLE-SLOT support codes)
         if (supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
           availableCount[roleCategory as keyof typeof availableCount]++;
-          // For support assignments, we use the same main categories
-          availableCount[`support_${roleCategory}` as keyof typeof availableCount]++;
         }
       });
 
-      // Get aircraft codes from maintenance visits
+      // Set support available counts equal to main available counts initially
+      availableCount.support_engr = availableCount.engr;
+      availableCount.support_nc = availableCount.nc;
+      availableCount.support_tech = availableCount.tech;
+
+      // Process aircraft assignments from maintenance visits
       maintenanceData?.forEach((visit: any) => {
         const aircraftCode = visit.aircraft?.registration;
         if (aircraftCode && !aircraftCodes.includes(aircraftCode)) {
           aircraftCodes.push(aircraftCode);
-          initialAssignments[aircraftCode] = {
+          
+          // Initialize main assignments from personnel requirements
+          mainAssignments[aircraftCode] = {
+            cc: 0,
+            engr: 0,
+            nc: 0,
+            tech: 0,
+            support_engr: 0,
+            support_nc: 0,
+            support_tech: 0
+          };
+
+          // Count personnel requirements by trade/skill category
+          visit.personnel_requirements?.forEach((req: any) => {
+            const tradeName = req.trades?.trade_name?.toLowerCase() || '';
+            const skillCategory = req.trades?.skill_category?.toLowerCase() || '';
+            const totalCount = req.day_shift_count + req.night_shift_count;
+
+            if (tradeName.includes('commander') || skillCategory.includes('commander')) {
+              mainAssignments[aircraftCode].cc += totalCount;
+            } else if (tradeName.includes('engineer') || skillCategory.includes('engineer')) {
+              mainAssignments[aircraftCode].engr += totalCount;
+            } else if (tradeName.includes('navigator') || skillCategory.includes('navigator')) {
+              mainAssignments[aircraftCode].nc += totalCount;
+            } else {
+              mainAssignments[aircraftCode].tech += totalCount;
+            }
+          });
+
+          // Initialize support assignments as empty
+          initialSupportAssignments[aircraftCode] = {
             cc: 0,
             engr: 0,
             nc: 0,
@@ -167,7 +210,7 @@ const ManagerDashboard = () => {
       });
 
       setAircraftList(aircraftCodes);
-      setAircraftAssignments(initialAssignments);
+      setAircraftAssignments(initialSupportAssignments);
       setAvailableEmployees(availableCount);
 
       // Add header row
@@ -197,14 +240,18 @@ const ManagerDashboard = () => {
         isAvailable: true
       });
 
-      // Add aircraft assignment rows
+      // Add aircraft assignment rows with main assignments
       aircraftCodes.forEach(aircraftCode => {
+        const mainAssignment = mainAssignments[aircraftCode] || {
+          cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0
+        };
+        
         summary.push({
           category: aircraftCode,
-          cc: 0,
-          engr: 0,
-          nc: 0,
-          tech: 0,
+          cc: mainAssignment.cc,
+          engr: mainAssignment.engr,
+          nc: mainAssignment.nc,
+          tech: mainAssignment.tech,
           support_engr: 0,
           support_nc: 0,
           support_tech: 0,
@@ -213,7 +260,7 @@ const ManagerDashboard = () => {
       });
 
       // Add totals
-      const totalAssigned = Object.values(initialAssignments).reduce((acc, assignment) => ({
+      const totalMainAssigned = Object.values(mainAssignments).reduce((acc, assignment) => ({
         cc: acc.cc + assignment.cc,
         engr: acc.engr + assignment.engr,
         nc: acc.nc + assignment.nc,
@@ -225,13 +272,13 @@ const ManagerDashboard = () => {
 
       summary.push({
         category: "Grand Total",
-        cc: availableCount.cc + totalAssigned.cc,
-        engr: availableCount.engr + totalAssigned.engr,
-        nc: availableCount.nc + totalAssigned.nc,
-        tech: availableCount.tech + totalAssigned.tech,
-        support_engr: availableCount.support_engr + totalAssigned.support_engr,
-        support_nc: availableCount.support_nc + totalAssigned.support_nc,
-        support_tech: availableCount.support_tech + totalAssigned.support_tech,
+        cc: availableCount.cc + totalMainAssigned.cc,
+        engr: availableCount.engr + totalMainAssigned.engr,
+        nc: availableCount.nc + totalMainAssigned.nc,
+        tech: availableCount.tech + totalMainAssigned.tech,
+        support_engr: availableCount.support_engr,
+        support_nc: availableCount.support_nc,
+        support_tech: availableCount.support_tech,
         isTotal: true
       });
 
@@ -257,7 +304,7 @@ const ManagerDashboard = () => {
     
     // Check if we have enough available employees from the main pool
     const mainRole = role.replace('support_', '');
-    const availableForRole = availableEmployees[mainRole as keyof typeof availableEmployees] || 0;
+    const availableForRole = availableEmployees[role as keyof typeof availableEmployees] || 0;
     
     if (difference > availableForRole) {
       toast.error(`Not enough available ${mainRole.toUpperCase()} employees. Available: ${availableForRole}`);
@@ -273,10 +320,9 @@ const ManagerDashboard = () => {
       }
     }));
 
-    // Update available count (reduce from main pool)
+    // Update available count (reduce from support pool)
     setAvailableEmployees(prev => ({
       ...prev,
-      [mainRole]: prev[mainRole] - difference,
       [role]: prev[role] - difference
     }));
 
@@ -285,7 +331,6 @@ const ManagerDashboard = () => {
       if (row.isAvailable) {
         return {
           ...row,
-          [mainRole]: availableEmployees[mainRole as keyof typeof availableEmployees] - difference,
           [role]: availableEmployees[role as keyof typeof availableEmployees] - difference
         };
       }
@@ -296,8 +341,8 @@ const ManagerDashboard = () => {
         };
       }
       if (row.isTotal && row.category === "Grand Total") {
-        // Recalculate totals
-        const newTotalAssigned = Object.values({
+        // Recalculate totals for support side only
+        const newTotalSupportAssigned = Object.values({
           ...aircraftAssignments, 
           [aircraftCode]: {
             ...(aircraftAssignments[aircraftCode] || {}),
@@ -315,22 +360,9 @@ const ManagerDashboard = () => {
           };
         }, { cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0 });
 
-        const newAvailableAfterAssignment = {
-          cc: availableEmployees.cc - difference * (mainRole === 'cc' ? 1 : 0),
-          engr: availableEmployees.engr - difference * (mainRole === 'engr' ? 1 : 0),
-          nc: availableEmployees.nc - difference * (mainRole === 'nc' ? 1 : 0),
-          tech: availableEmployees.tech - difference * (mainRole === 'tech' ? 1 : 0)
-        };
-
         return {
           ...row,
-          cc: newAvailableAfterAssignment.cc + newTotalAssigned.cc,
-          engr: newAvailableAfterAssignment.engr + newTotalAssigned.engr,
-          nc: newAvailableAfterAssignment.nc + newTotalAssigned.nc,
-          tech: newAvailableAfterAssignment.tech + newTotalAssigned.tech,
-          support_engr: newTotalAssigned.support_engr,
-          support_nc: newTotalAssigned.support_nc,
-          support_tech: newTotalAssigned.support_tech
+          [role]: newTotalSupportAssigned[role as keyof typeof newTotalSupportAssigned]
         };
       }
       return row;
@@ -487,7 +519,7 @@ const ManagerDashboard = () => {
                           )}
                         </td>
                         
-                        {/* Main section - Display values without inputs */}
+                        {/* Main section - Display actual assignments and available counts */}
                         <td className="text-center p-2">
                           {row.cc || ''}
                         </td>
@@ -507,7 +539,7 @@ const ManagerDashboard = () => {
                             <Input
                               type="number"
                               min="0"
-                              max={availableEmployees.engr + (aircraftAssignments[row.category]?.support_engr || 0)}
+                              max={availableEmployees.support_engr + (aircraftAssignments[row.category]?.support_engr || 0)}
                               value={aircraftAssignments[row.category]?.support_engr || 0}
                               onChange={(e) => handleAssignmentChange(row.category, 'support_engr', e.target.value)}
                               className="w-16 h-8 text-center"
@@ -521,7 +553,7 @@ const ManagerDashboard = () => {
                             <Input
                               type="number"
                               min="0"
-                              max={availableEmployees.nc + (aircraftAssignments[row.category]?.support_nc || 0)}
+                              max={availableEmployees.support_nc + (aircraftAssignments[row.category]?.support_nc || 0)}
                               value={aircraftAssignments[row.category]?.support_nc || 0}
                               onChange={(e) => handleAssignmentChange(row.category, 'support_nc', e.target.value)}
                               className="w-16 h-8 text-center"
@@ -535,7 +567,7 @@ const ManagerDashboard = () => {
                             <Input
                               type="number"
                               min="0"
-                              max={availableEmployees.tech + (aircraftAssignments[row.category]?.support_tech || 0)}
+                              max={availableEmployees.support_tech + (aircraftAssignments[row.category]?.support_tech || 0)}
                               value={aircraftAssignments[row.category]?.support_tech || 0}
                               onChange={(e) => handleAssignmentChange(row.category, 'support_tech', e.target.value)}
                               className="w-16 h-8 text-center"
