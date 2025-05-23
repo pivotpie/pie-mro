@@ -82,11 +82,6 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     try {
       const currentDate = new Date().toISOString().split('T')[0];
       
-      // Enhanced authorization data for G-FVWF aircraft (Boeing 737)
-      if (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) {
-        await enhanceAuthorizationsForGFVWF();
-      }
-      
       // Fetch employees with their current roster assignments
       const { data: employeesData, error: employeesError } = await supabase
         .from('employees')
@@ -246,10 +241,9 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         return (b.match_score || 0) - (a.match_score || 0);
       });
       
-      // Determine assigned employees based on aircraft status
+      // Generate assigned teams for completed and in-progress visits
       let assigned: Employee[] = [];
       if (aircraft.status === 'Completed' || aircraft.status === 'In Progress') {
-        // Mock assigned team for completed/in-progress visits
         assigned = generateMockAssignedTeam(availableEmps, aircraft);
       } else if (aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA'))) {
         // For G-FVWF scheduled visits, show high-matching employees as potentially assigned
@@ -265,63 +259,6 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       toast.error("Failed to load employee data");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const enhanceAuthorizationsForGFVWF = async () => {
-    try {
-      // Add mock authorizations for employees to work on Boeing 737 (G-FVWF)
-      const mockAuthorizations = [
-        { employee_id: 1, authorization_basis: 'B1', aircraft_model_id: 1 },
-        { employee_id: 2, authorization_basis: 'B2', aircraft_model_id: 1 },
-        { employee_id: 3, authorization_basis: 'B1', aircraft_model_id: 1 },
-        { employee_id: 4, authorization_basis: 'C', aircraft_model_id: 1 },
-        { employee_id: 5, authorization_basis: 'B1', aircraft_model_id: 1 },
-        { employee_id: 6, authorization_basis: 'B2', aircraft_model_id: 1 },
-        { employee_id: 7, authorization_basis: 'B1', aircraft_model_id: 1 },
-        { employee_id: 8, authorization_basis: 'B2', aircraft_model_id: 1 },
-        { employee_id: 9, authorization_basis: 'B1', aircraft_model_id: 1 },
-        { employee_id: 10, authorization_basis: 'B2', aircraft_model_id: 1 }
-      ];
-
-      // Update employee supports for better matching
-      const mockSupports = [
-        { employee_id: 1, support_id: 1 }, // Assuming support_id 1 is relevant
-        { employee_id: 2, support_id: 2 },
-        { employee_id: 3, support_id: 1 },
-        { employee_id: 4, support_id: 3 },
-        { employee_id: 5, support_id: 1 },
-        { employee_id: 7, support_id: 2 },
-        { employee_id: 8, support_id: 3 },
-        { employee_id: 9, support_id: 1 },
-        { employee_id: 10, support_id: 2 }
-      ];
-
-      // Update employee cores
-      const mockCores = [
-        { employee_id: 1, core_id: 1 }, // Assuming core_id 1 is relevant
-        { employee_id: 2, core_id: 2 },
-        { employee_id: 3, core_id: 1 },
-        { employee_id: 4, core_id: 3 },
-        { employee_id: 5, core_id: 1 },
-        { employee_id: 6, core_id: 2 },
-        { employee_id: 7, core_id: 1 },
-        { employee_id: 9, core_id: 3 },
-        { employee_id: 10, core_id: 2 }
-      ];
-
-      // Add certifications
-      const mockCertifications = [
-        { employee_id: 1, certification_code_id: 1, aircraft_id: 1, expiry_date: '2026-12-31' },
-        { employee_id: 2, certification_code_id: 2, aircraft_id: 1, expiry_date: '2026-12-31' },
-        { employee_id: 3, certification_code_id: 3, aircraft_id: 1, expiry_date: '2026-12-31' },
-        { employee_id: 5, certification_code_id: 1, aircraft_id: 1, expiry_date: '2026-12-31' },
-        { employee_id: 8, certification_code_id: 2, aircraft_id: 1, expiry_date: '2026-12-31' }
-      ];
-
-      console.log("Enhanced authorizations for G-FVWF aircraft demo");
-    } catch (error) {
-      console.error("Error enhancing authorizations:", error);
     }
   };
 
@@ -362,7 +299,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       }
     }
 
-    // For completed visits, mark all as available since they've completed the work
+    // For completed visits, mark all as completed work
     if (aircraft.status === 'Completed') {
       return assignedTeam.map(emp => ({
         ...emp,
@@ -435,8 +372,8 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
 
     // Special boost for G-FVWF aircraft to ensure we have good matches
     if (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) {
-      // Boost scores for employees with IDs 1-10 (for demo purposes)
-      if (employee.id && employee.id <= 10) {
+      // Boost scores for employees with IDs 1-15 (for demo purposes)
+      if (employee.id && employee.id <= 15) {
         score = Math.min(score + 30, maxScore);
       }
     }
@@ -855,10 +792,12 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <User className="h-12 w-12 text-gray-400 mb-4" />
                     <p className="text-gray-500 dark:text-gray-400 mb-4">No team assigned</p>
-                    <Button className="w-full">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Assign Team
-                    </Button>
+                    {aircraft.status === 'Scheduled' && (
+                      <Button className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Assign Team
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
