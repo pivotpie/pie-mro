@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Bell, Moon, Search, Settings, Sun, User, X, Home } from "lucide-react";
@@ -60,18 +59,13 @@ export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: Workforc
     setIsSearching(true);
     
     try {
-      // Search employees
+      // Search employees - Fixed query to not include trades relation
       const { data: employees, error: employeesError } = await supabase
         .from('employees')
         .select(`
           *,
           job_titles (job_description),
-          teams (team_name),
-          trades (trade_name),
-          certifications (
-            *,
-            certification_codes (certification_description)
-          )
+          teams (team_name)
         `)
         .or(`name.ilike.%${query}%,e_number.eq.${!isNaN(Number(query)) ? query : 0}`)
         .limit(5);
@@ -109,7 +103,6 @@ export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: Workforc
           metadata: {
             employeeId: employee.e_number,
             team: employee.teams?.team_name,
-            trade: employee.trades?.trade_name,
           },
           rawData: employee,
         })),
@@ -415,9 +408,6 @@ export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: Workforc
                             {item.subtitle}
                             {item.type === 'employee' && item.metadata.team && (
                               <span className="ml-2">• Team: {item.metadata.team}</span>
-                            )}
-                            {item.type === 'employee' && item.metadata.trade && (
-                              <span className="ml-2">• Trade: {item.metadata.trade}</span>
                             )}
                             {item.type === 'aircraft' && item.metadata.customer && (
                               <span className="ml-2">• {item.metadata.customer}</span>

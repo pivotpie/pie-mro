@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
+import { X } from 'lucide-react';
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
 import WorkforceMetrics from "@/components/workforce/WorkforceMetrics";
 import { WorkforceTabs } from "@/components/workforce/WorkforceTabs";
@@ -117,7 +118,7 @@ const AdminWorkforce = () => {
                   <ManagementShortcuts />
                 </div>
                 <div className="lg:col-span-2">
-                  <CertificationList onCertificationClick={handleCertificationClick} />
+                  <CertificationList />
                 </div>
               </div>
             </div>
@@ -128,7 +129,6 @@ const AdminWorkforce = () => {
             <div className="w-full max-w-md border-l dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto">
               <EmployeeDetailPanel 
                 employee={selectedEmployee} 
-                onClose={() => setShowEmployeePanel(false)} 
               />
             </div>
           )}

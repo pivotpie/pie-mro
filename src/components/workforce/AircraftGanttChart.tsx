@@ -546,10 +546,10 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* New Aircraft Details Modal */}
+      {/* Aircraft Details Modal - Fixed prop names */}
       <AircraftDetailsModal 
-        isOpen={modalOpen}
-        onClose={handleModalClose}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
         aircraft={selectedAircraft}
       />
     </div>

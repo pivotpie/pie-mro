@@ -30,7 +30,7 @@ export const AircraftDetailsModal: React.FC<AircraftDetailsModalProps> = ({ airc
 
     setLoading(true);
     try {
-      // Get employees with "AV" support code (available)
+      // Get employees with "AV" support code (available) - Fixed query
       const { data: employees, error } = await supabase
         .from('employee_supports')
         .select(`
@@ -46,14 +46,8 @@ export const AircraftDetailsModal: React.FC<AircraftDetailsModalProps> = ({ airc
             job_title_id,
             job_titles (
               id,
-              title,
+              job_code,
               job_description
-            ),
-            trade_id,
-            trades (
-              id,
-              trade_name,
-              trade_code
             )
           ),
           support_codes (id, support_code)
@@ -70,8 +64,6 @@ export const AircraftDetailsModal: React.FC<AircraftDetailsModalProps> = ({ airc
         mobile: item.employees.mobile_number,
         job_title: item.employees.job_titles?.job_description,
         job_title_id: item.employees.job_title_id,
-        trade: item.employees.trades?.trade_name,
-        trade_code: item.employees.trades?.trade_code,
         support_id: item.id  // For updating this specific support record
       })) || [];
 
@@ -138,9 +130,7 @@ export const AircraftDetailsModal: React.FC<AircraftDetailsModalProps> = ({ airc
     const filtered = allEmployees.filter(emp => 
       emp.name.toLowerCase().includes(query.toLowerCase()) || 
       emp.e_number.toString().includes(query) || 
-      (emp.trade && emp.trade.toLowerCase().includes(query.toLowerCase())) ||
-      (emp.job_title && emp.job_title.toLowerCase().includes(query.toLowerCase())) ||
-      (emp.trade_code && emp.trade_code.toLowerCase().includes(query.toLowerCase()))
+      (emp.job_title && emp.job_title.toLowerCase().includes(query.toLowerCase()))
     );
     
     setAvailableEmployees(filtered);
@@ -256,7 +246,7 @@ export const AircraftDetailsModal: React.FC<AircraftDetailsModalProps> = ({ airc
                 </div>
                 <input 
                   type="text" 
-                  placeholder="Search by name, number, trade or job title" 
+                  placeholder="Search by name, number, or job title" 
                   className="pl-10 p-2 w-full border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600"
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
@@ -289,7 +279,7 @@ export const AircraftDetailsModal: React.FC<AircraftDetailsModalProps> = ({ airc
                           <div className="ml-3">
                             <div className="font-medium">{employee.name}</div>
                             <div className="text-xs text-gray-500">
-                              #{employee.e_number} • {employee.trade || 'No Trade'} • {employee.job_title || 'No Title'}
+                              #{employee.e_number} • {employee.job_title || 'No Title'}
                             </div>
                           </div>
                         </div>

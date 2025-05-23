@@ -29,51 +29,68 @@ const ManagerDashboard = () => {
   const fetchSupportData = async () => {
     setLoading(true);
     try {
-      // Fetch support distribution data
+      // Fetch support distribution data - Fixed query without .group()
       const { data: supportData, error: supportError } = await supabase
         .from('employee_supports')
         .select(`
+          support_id,
           support_codes (
             support_code
-          ),
-          count
-        `)
-        .select('support_codes(support_code), count(*)')
-        .group('support_codes(support_code)')
-        .order('count', { ascending: false })
-        .limit(20);
+          )
+        `);
 
       if (supportError) throw supportError;
 
-      // Transform support data
-      const transformedSupport = supportData.map(item => ({
-        id: item.support_codes.support_code,
-        support_code: item.support_codes.support_code,
-        count: item.count
-      }));
+      // Manually group and count support codes
+      const supportCounts = supportData.reduce((acc: any, item: any) => {
+        const supportCode = item.support_codes?.support_code;
+        if (supportCode) {
+          acc[supportCode] = (acc[supportCode] || 0) + 1;
+        }
+        return acc;
+      }, {});
 
-      // Fetch job title distribution
+      // Transform to array and sort
+      const transformedSupport = Object.entries(supportCounts)
+        .map(([support_code, count]) => ({
+          id: support_code,
+          support_code,
+          count
+        }))
+        .sort((a: any, b: any) => b.count - a.count)
+        .slice(0, 20);
+
+      // Fetch job title distribution - Fixed query without .group()
       const { data: roleData, error: roleError } = await supabase
         .from('employees')
         .select(`
+          job_title_id,
           job_titles (
             job_description
-          ),
-          count
+          )
         `)
-        .select('job_titles(job_description), count(*)')
-        .group('job_titles(job_description)')
-        .order('count', { ascending: false })
-        .limit(20);
+        .eq('is_active', true);
 
       if (roleError) throw roleError;
 
-      // Transform role data
-      const transformedRoles = roleData.map(item => ({
-        id: item.job_titles.job_description,
-        job_description: item.job_titles.job_description,
-        count: item.count
-      }));
+      // Manually group and count job titles
+      const roleCounts = roleData.reduce((acc: any, item: any) => {
+        const jobDescription = item.job_titles?.job_description;
+        if (jobDescription) {
+          acc[jobDescription] = (acc[jobDescription] || 0) + 1;
+        }
+        return acc;
+      }, {});
+
+      // Transform to array and sort
+      const transformedRoles = Object.entries(roleCounts)
+        .map(([job_description, count]) => ({
+          id: job_description,
+          job_description,
+          count
+        }))
+        .sort((a: any, b: any) => b.count - a.count)
+        .slice(0, 20);
 
       setSupportDistribution(transformedSupport);
       setRoleDistribution(transformedRoles);
