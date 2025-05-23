@@ -57,12 +57,12 @@ interface TradeRequirement {
 }
 
 interface AircraftDetailsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   aircraft: AircraftSchedule | null;
 }
 
-export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDetailsModalProps) => {
+export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftDetailsModalProps) => {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [assignedEmployees, setAssignedEmployees] = useState<Employee[]>([]);
@@ -73,11 +73,11 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
   const [hasActiveFilter, setHasActiveFilter] = useState(false);
 
   useEffect(() => {
-    if (isOpen && aircraft) {
+    if (open && aircraft) {
       fetchEmployeeData();
       fetchPersonnelRequirements();
     }
-  }, [isOpen, aircraft]);
+  }, [open, aircraft]);
 
   useEffect(() => {
     // Apply search/filter when search query or available employees change
@@ -753,7 +753,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
   const duration = differenceInDays(aircraft.end, aircraft.start) + 1;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[90vw] w-[90vw] h-[80vh] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Aircraft Details - {aircraft.registration}</DialogTitle>
