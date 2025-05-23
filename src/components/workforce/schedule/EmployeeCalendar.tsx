@@ -280,9 +280,15 @@ interface EmployeeCalendarProps {
   onScroll: (position: number) => void;
   currentDate?: Date;
   onEmployeeSelect?: (employee: any) => void;
+  onCellClick?: (employee: any, date: string, status: string) => void;
 }
 
-export const EmployeeCalendar = ({ onScroll, currentDate = new Date(), onEmployeeSelect }: EmployeeCalendarProps) => {
+export const EmployeeCalendar = ({ 
+  onScroll, 
+  currentDate = new Date(), 
+  onEmployeeSelect, 
+  onCellClick 
+}: EmployeeCalendarProps) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -995,101 +1001,137 @@ export const EmployeeCalendar = ({ onScroll, currentDate = new Date(), onEmploye
                       isDifferent ? 'core-support-different' : ''
                     )}
                     style={{ width: `${columnWidths.id}px`, left: 0 }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.e_number || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.name}px`, left: getLeftPositionStyle(1) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.name || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.alias}px`, left: getLeftPositionStyle(2) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.key_name || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.mobile}px`, left: getLeftPositionStyle(3) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.mobile_number || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.team}px`, left: getLeftPositionStyle(4) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.team?.team_name || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.core}px`, left: getLeftPositionStyle(5) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.cores?.join(', ') || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.support}px`, left: getLeftPositionStyle(6) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.supports?.join(', ') || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.title}px`, left: getLeftPositionStyle(7) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.job_title?.job_description || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.night_shift}px`, left: getLeftPositionStyle(8) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.night_shift_ok ? 'Yes' : 'No'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.fte}px`, left: getLeftPositionStyle(9) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.ttl}px`, left: getLeftPositionStyle(10) }}
-                    onClick={() => handleProfileClick(employee)}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.ttl || '-'}
                   </td>
                   
-                  {/* Calendar days */}
+                  {/* Calendar days with tooltips */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                     const status = employee.schedule?.[dateKey] || '';
                     const hasStatus = status !== '';
                     
                     return (
-                      <td 
-                        key={dateKey}
-                        className={cn(
-                          "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
-                          day.isWeekend ? 'weekend-shade' : '',
-                          hasStatus ? statusColors[status] || '' : '',
-                          day.isToday ? 'today-highlight' : ''
-                        )}
-                        style={{ width: `${columnWidths.date}px` }}
-                        onClick={() => handleCellClick(employee, dateKey)}
-                      >
-                        {status}
-                      </td>
+                      <TooltipProvider key={dateKey}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <td 
+                              className={cn(
+                                "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
+                                day.isWeekend ? 'weekend-shade' : '',
+                                hasStatus ? statusColors[status] || '' : '',
+                                day.isToday ? 'today-highlight' : ''
+                              )}
+                              style={{ width: `${columnWidths.date}px` }}
+                              onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
+                            >
+                              {status}
+                            </td>
+                          </TooltipTrigger>
+                          <TooltipContent className="z-50">
+                            <div className="space-y-1">
+                              <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
+                              <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
+                              <div className="flex items-center gap-2">
+                                <span>Status:</span> 
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full text-xs",
+                                  status === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
+                                  status === 'AL' || status === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
+                                  status === 'TR' || status === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
+                                  status === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
+                                  status === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                                  status === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+                                  status === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                                )}>
+                                  {status === 'D' && 'On Duty'}
+                                  {status === 'AL' && 'Annual Leave'}
+                                  {status === 'L' && 'On Leave'}
+                                  {status === 'TR' || status === 'T' ? 'Training' : ''}
+                                  {status === 'O' && 'Off Duty'}
+                                  {status === 'B1' && 'Half Day'}
+                                  {status === 'SK' && 'Sick Leave'}
+                                  {status === 'DO' && 'Overtime'}
+                                  {!status && 'Not Assigned'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500">Click to edit</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     );
                   })}
                 </tr>
