@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,12 +128,16 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       if (assignedTeam?.data) {
         assigned = employeesData
           .filter((emp: any) => emp.team_id === assignedTeam.data.id)
-          .map((emp: any) => ({
-            id: emp.id,
-            name: emp.name,
-            role: emp.job_titles?.job_description || "Technician",
-            avatar: getInitials(emp.name),
-          }));
+          .map((emp: any) => {
+            const empAuths = authData?.filter(auth => auth.employee_id === emp.id) || [];
+            return {
+              id: emp.id,
+              name: emp.name,
+              role: emp.job_titles?.job_description || "Technician",
+              skill: determineSkill(empAuths),
+              avatar: getInitials(emp.name),
+            };
+          });
       }
 
       setAssignedEmployees(assigned);
@@ -151,6 +154,9 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     if (!aircraft) return;
     
     try {
+      // Convert aircraft.id to number if it's a string
+      const visitId = typeof aircraft.id === 'string' ? parseInt(aircraft.id) : aircraft.id;
+      
       // Fetch personnel requirements for this maintenance visit
       const { data: reqData, error: reqError } = await supabase
         .from('personnel_requirements')
@@ -166,7 +172,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
             trade_code
           )
         `)
-        .eq('maintenance_visit_id', aircraft.id);
+        .eq('maintenance_visit_id', visitId);
 
       if (reqError) throw reqError;
 
