@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addDays, eachDayOfInterval, isWeekend, isSameDay } from "date-fns";
+import { format, addDays, eachDayOfInterval, isWeekend, isSameDay, startOfDay } from "date-fns";
 
 // Helper function to generate days between two dates
 const generateDaysBetween = (startDate: Date, endDate: Date) => {
@@ -351,10 +350,6 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
   }, [scrollLeft]);
 
   const calculatePosition = (schedule: AircraftSchedule) => {
-    // Find the day indexes by comparing dates
-    let startIdx = -1;
-    let endIdx = -1;
-    
     console.log('Calculating position for schedule:', {
       id: schedule.id,
       start: schedule.start,
@@ -362,45 +357,56 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
       registration: schedule.registration
     });
     
-    // Find start and end indices based on date matching
+    // Find the exact day indexes based on date matching
+    let startIdx = -1;
+    let endIdx = -1;
+    
+    const scheduleStartDay = startOfDay(schedule.start);
+    const scheduleEndDay = startOfDay(schedule.end);
+    
+    console.log('Looking for dates:', {
+      scheduleStartDay: format(scheduleStartDay, 'yyyy-MM-dd'),
+      scheduleEndDay: format(scheduleEndDay, 'yyyy-MM-dd'),
+      totalDays: days.length
+    });
+    
+    // Find start and end indices based on exact date matching
     for (let i = 0; i < days.length; i++) {
-      const dayDate = days[i].date;
+      const dayDate = startOfDay(days[i].date);
+      const dayDateStr = format(dayDate, 'yyyy-MM-dd');
       
-      // Check if schedule starts on this day or before this day but after previous day
-      if (startIdx === -1) {
-        // If schedule starts on this exact day
-        if (isSameDay(dayDate, schedule.start)) {
-          startIdx = i;
-        }
-        // If schedule starts before this day but we haven't found a start yet
-        else if (schedule.start < dayDate && (i === 0 || schedule.start >= days[i-1].date)) {
-          startIdx = i;
-        }
+      // Check if schedule starts on this day
+      if (startIdx === -1 && isSameDay(dayDate, scheduleStartDay)) {
+        startIdx = i;
+        console.log(`Found start date at index ${i}: ${dayDateStr}`);
       }
       
-      // Check if schedule ends on this day or after this day but before next day
-      if (isSameDay(dayDate, schedule.end)) {
+      // Check if schedule ends on this day
+      if (isSameDay(dayDate, scheduleEndDay)) {
         endIdx = i;
-      }
-      else if (schedule.end < dayDate && endIdx === -1) {
-        endIdx = Math.max(0, i - 1);
+        console.log(`Found end date at index ${i}: ${dayDateStr}`);
       }
     }
     
-    // If schedule starts before our date range, start from first day
-    if (startIdx === -1 && schedule.start < days[0].date) {
-      startIdx = 0;
+    // Handle edge cases where dates are outside our visible range
+    if (startIdx === -1) {
+      if (scheduleStartDay < startOfDay(days[0].date)) {
+        startIdx = 0;
+        console.log('Schedule starts before visible range, using index 0');
+      } else {
+        console.log('Schedule start date not found in range, skipping');
+        return null;
+      }
     }
     
-    // If schedule ends after our date range, end at last day
-    if (endIdx === -1 && schedule.end >= days[days.length - 1].date) {
-      endIdx = days.length - 1;
-    }
-    
-    // If we still don't have valid indices, the schedule is outside our range
-    if (startIdx === -1 || endIdx === -1) {
-      console.log('Schedule outside date range, skipping');
-      return null;
+    if (endIdx === -1) {
+      if (scheduleEndDay > startOfDay(days[days.length - 1].date)) {
+        endIdx = days.length - 1;
+        console.log('Schedule ends after visible range, using last index');
+      } else {
+        console.log('Schedule end date not found in range, skipping');
+        return null;
+      }
     }
     
     // Ensure endIdx is not before startIdx
@@ -410,19 +416,19 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     
     // Calculate position - each day column is exactly 40px wide
     const dayWidth = 40;
-    const fixedColumnsWidth = 220; // Width of Hangar (120px) + Bay (100px) columns
+    const fixedColumnsWidth = 220; // Hangar (120px) + Bay (100px) columns
     
     // Position calculation: start at the beginning of the start day
     const startPosition = startIdx * dayWidth + fixedColumnsWidth;
     const width = (endIdx - startIdx + 1) * dayWidth;
     
-    console.log('Position calculated:', {
+    console.log('Final position calculated:', {
       startIdx,
       endIdx,
       startPosition,
       width,
       dayWidth,
-      totalDays: days.length
+      fixedColumnsWidth
     });
     
     return { startPosition, width };
@@ -480,12 +486,12 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
             </thead>
             <tbody className="h-full">
               {hangars.map((hangar) => (
-                <tr key={hangar.id} className="border-b h-[45px] dark:border-gray-700">
-                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-[45px]">{hangar.name.split(" ")[0]}</td>
-                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-[45px]">{hangar.name.split(" ")[1]}</td>
+                <tr key={hangar.id} className="border-b h-[40px] dark:border-gray-700">
+                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-[40px]">{hangar.name.split(" ")[0]}</td>
+                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-[40px]">{hangar.name.split(" ")[1]}</td>
                   
                   {/* Gantt chart container cell spanning across all days */}
-                  <td colSpan={days.length} className="relative p-0 h-[45px]">
+                  <td colSpan={days.length} className="relative p-0 h-[40px]">
                     {/* Render day grid backgrounds */}
                     {days.map((day, index) => (
                       <div 
@@ -510,7 +516,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div 
-                                  className={`absolute top-[2px] h-[40px] ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
+                                  className={`absolute top-[2px] h-[36px] ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
                                   style={{
                                     left: `${position.startPosition}px`,
                                     width: `${position.width}px`,
