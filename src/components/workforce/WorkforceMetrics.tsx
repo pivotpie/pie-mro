@@ -84,8 +84,8 @@ export default function WorkforceMetrics() {
         // 1. Fetch available employees from "AV" records in employee_supports
         const { data: availableData, error: availableError } = await supabase
           .from('employee_supports')
-          .select('id')
-          .eq('support_id', 1); // Assuming 1 is the ID for "AV" (Available)
+          .select('id, support_codes!inner(support_code)')
+          .eq('support_codes.support_code', 'AV');
         
         if (!availableError && availableData) {
           // Find the "Available Employees" metric and update it

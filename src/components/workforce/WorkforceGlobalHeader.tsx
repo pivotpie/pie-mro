@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Bell, Moon, Search, Settings, Sun, User, X, Home } from "lucide-react";
@@ -11,10 +12,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { useTheme } from "next-themes";
 import { supabase } from "@/integrations/supabase/client";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface WorkforceGlobalHeaderProps {
   user: {
@@ -23,9 +24,10 @@ interface WorkforceGlobalHeaderProps {
     employee: any;
   };
   onLogout: () => void;
+  onItemSelect?: (type: 'employee' | 'aircraft' | 'certification', item: any) => void;
 }
 
-export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderProps) => {
+export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: WorkforceGlobalHeaderProps) => {
   const { theme, setTheme } = useTheme();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,9 +35,11 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
   const [isSearching, setIsSearching] = useState(false);
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const location = useLocation();
-  const isOnDashboard = location.pathname === "/dashboard";
+  const navigate = useNavigate();
+  const isOnDashboard = location.pathname === "/dashboard" || location.pathname === "/manager-dashboard";
 
   const getInitials = (name: string) => {
+    if (!name) return "U";
     return name
       .split(' ')
       .map(part => part[0])
@@ -63,6 +67,7 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
           *,
           job_titles (job_description),
           teams (team_name),
+          trades (trade_name),
           certifications (
             *,
             certification_codes (certification_description)
@@ -104,6 +109,7 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
           metadata: {
             employeeId: employee.e_number,
             team: employee.teams?.team_name,
+            trade: employee.trades?.trade_name,
           },
           rawData: employee,
         })),
@@ -137,6 +143,31 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
     }
   };
 
+  const handleItemClick = (item: any) => {
+    if (!onItemSelect) {
+      console.log("No item select handler defined");
+      return;
+    }
+
+    // Close the dialog
+    setIsSearchOpen(false);
+    
+    // Process the selection based on the item type
+    switch (item.type) {
+      case 'employee':
+        onItemSelect('employee', item.rawData);
+        break;
+      case 'aircraft':
+        onItemSelect('aircraft', item.rawData);
+        break;
+      case 'certification':
+        onItemSelect('certification', item.rawData);
+        break;
+      default:
+        console.warn("Unknown item type:", item.type);
+    }
+  };
+
   const toggleSelected = (item: any) => {
     if (selectedItems.some(selected => selected.id === item.id)) {
       setSelectedItems(selectedItems.filter(selected => selected.id !== item.id));
@@ -154,10 +185,6 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
     e.preventDefault();
     handleSearch(searchQuery);
   };
-
-  // Use username from our custom user object
-  const displayName = user.username || 'User';
-  const initials = getInitials(displayName);
 
   // Add keyboard shortcut listener for Ctrl+G
   useEffect(() => {
@@ -215,7 +242,7 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
             </Button>
           ) : (
             <Button variant="outline" size="sm" asChild>
-              <Link to="/dashboard">
+              <Link to="/manager-dashboard">
                 <Home className="h-4 w-4 mr-1" />
                 <span>Dashboard</span>
               </Link>
@@ -248,7 +275,7 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-blue-600 text-white">
-                    {initials}
+                    {getInitials(user.employee?.name || user.username)}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -256,7 +283,7 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{displayName}</p>
+                  <p className="text-sm font-medium leading-none">{user.username}</p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user.employee?.name || user.username}
                   </p>
@@ -370,7 +397,7 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
                       <div 
                         key={item.id}
                         className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                        onClick={() => toggleSelected(item)}
+                        onClick={() => handleItemClick(item)}
                       >
                         <div>
                           <div className="flex items-center">
@@ -388,6 +415,9 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
                             {item.subtitle}
                             {item.type === 'employee' && item.metadata.team && (
                               <span className="ml-2">• Team: {item.metadata.team}</span>
+                            )}
+                            {item.type === 'employee' && item.metadata.trade && (
+                              <span className="ml-2">• Trade: {item.metadata.trade}</span>
                             )}
                             {item.type === 'aircraft' && item.metadata.customer && (
                               <span className="ml-2">• {item.metadata.customer}</span>
