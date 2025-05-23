@@ -118,19 +118,19 @@ const AdminWorkforce = () => {
                   <ManagementShortcuts />
                 </div>
                 <div className="lg:col-span-2">
-                  <CertificationList />
+                  <CertificationList onCertificationClick={handleCertificationClick} />
                 </div>
               </div>
             </div>
           </div>
           
           {/* Side panel for employee details - slide in from right */}
-          {showEmployeePanel && selectedEmployee && (
-            <div className="w-full max-w-md border-l dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto">
-              <EmployeeDetailPanel 
-                employee={selectedEmployee} 
-              />
-            </div>
+          {selectedEmployee && (
+            <EmployeeDetailPanel 
+              employee={selectedEmployee} 
+              open={showEmployeePanel}
+              onOpenChange={setShowEmployeePanel}
+            />
           )}
           
           {/* Side panel for certification details - slide in from right */}
