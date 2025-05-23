@@ -281,14 +281,11 @@ interface EmployeeCalendarProps {
   currentDate?: Date;
   onEmployeeSelect?: (employee: any) => void;
   onCellClick?: (employee: any, date: string, status: string) => void;
+  refreshKey?: number; // Add refreshKey prop
 }
 
-export const EmployeeCalendar = ({ 
-  onScroll, 
-  currentDate = new Date(), 
-  onEmployeeSelect, 
-  onCellClick 
-}: EmployeeCalendarProps) => {
+export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
+  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -310,6 +307,7 @@ export const EmployeeCalendar = ({
   // Calculate total width for the table
   const totalWidth = calculateTotalWidth(days);
 
+  // Updated useEffect to also respond to refreshKey changes
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
@@ -467,6 +465,7 @@ export const EmployeeCalendar = ({
 
         // Get employee roster data using direct query
         console.log("Fetching roster data...");
+        console.log("Using refreshKey:", refreshKey);
         
         const { data: rosterData, error: rosterError } = await supabase
           .from('roster_assignments')
@@ -558,7 +557,7 @@ export const EmployeeCalendar = ({
     };
 
     fetchEmployees();
-  }, []);
+  }, [currentDate, refreshKey]); // Add refreshKey as a dependency
 
   // Apply filters to employees
   useEffect(() => {
@@ -1269,11 +1268,10 @@ export const EmployeeCalendar = ({
             border-left: 4px solid #ef4444;
           }
           .tooltip-fixed {
-            position: absolute !important;
+            position: absolute !important; 
             pointer-events: none !important;
             z-index: 100 !important;
             transform-origin: var(--radix-tooltip-content-transform-origin) !important;
-            transform: translateY(-8px) !important;
           }
           .popover-content {
             z-index: 100;

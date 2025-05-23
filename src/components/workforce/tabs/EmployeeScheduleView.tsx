@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
 import { EmployeeCalendar } from "../schedule/EmployeeCalendar";
@@ -30,6 +30,8 @@ export const EmployeeScheduleView = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key state
+  const calendarRef = useRef<any>(null); // Add ref for the calendar component
   const isMobile = useIsMobile();
 
   // Handler to receive scroll position updates from the employee calendar
@@ -75,6 +77,12 @@ export const EmployeeScheduleView = () => {
     setSelectedDate(date);
     setSelectedStatus(status || "");
     setIsDetailOpen(true);
+  };
+
+  // Function to force refresh the calendar data
+  const refreshCalendarData = () => {
+    setRefreshKey(prev => prev + 1);
+    console.log("Calendar data refresh requested");
   };
 
   // Handle schedule update
@@ -157,10 +165,8 @@ export const EmployeeScheduleView = () => {
       toast.success('Schedule updated successfully');
       setIsDetailOpen(false);
       
-      // Force a refresh by changing the date slightly and then back
-      const tempDate = new Date(currentDate);
-      setCurrentDate(new Date(tempDate.setSeconds(tempDate.getSeconds() + 1)));
-      setTimeout(() => setCurrentDate(new Date(tempDate.setSeconds(tempDate.getSeconds() - 1))), 100);
+      // Immediately refresh the calendar data after update
+      refreshCalendarData();
       
     } catch (error: any) {
       console.error('Update schedule error:', error);
@@ -189,10 +195,12 @@ export const EmployeeScheduleView = () => {
         {/* Simple container with direct overflow control and scroll position synchronization */}
         <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
           <EmployeeCalendar 
+            ref={calendarRef}
             onScroll={handleCalendarScroll} 
             currentDate={currentDate}
             onEmployeeSelect={handleEmployeeSelect}
             onCellClick={handleScheduleCellClick}
+            refreshKey={refreshKey} // Pass refresh key to force re-rendering
           />
         </div>
       </div>
