@@ -34,14 +34,13 @@ interface Employee {
   certification?: string;
   availability?: string;
   match_score?: number;
+  support?: string;
+  core?: string;
+  trade?: string;
 }
 
 interface TradeRequirement {
   trade: string;
-  day_count: number;
-  night_count: number;
-  assigned_day: number;
-  assigned_night: number;
   dates: {
     date: string;
     day_count: number;
@@ -171,6 +170,33 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
 
       if (certError) throw certError;
 
+      // Fetch employee supports
+      const { data: supportData, error: supportError } = await supabase
+        .from('employee_supports')
+        .select(`
+          employee_id,
+          support_codes:support_id (support_code)
+        `);
+
+      if (supportError) throw supportError;
+
+      // Fetch employee cores
+      const { data: coreData, error: coreError } = await supabase
+        .from('employee_cores')
+        .select(`
+          employee_id,
+          core_codes:core_id (core_code)
+        `);
+
+      if (coreError) throw coreError;
+
+      // Fetch trades for employees (we'll infer from authorizations and job titles)
+      const { data: tradesData, error: tradesError } = await supabase
+        .from('trades')
+        .select('*');
+
+      if (tradesError) throw tradesError;
+
       // Check for assigned team
       const assignedTeam = aircraft.team ? 
         await supabase.from('teams').select('*').eq('team_name', aircraft.team).single() : null;
@@ -179,6 +205,9 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       const availableEmps = allEmployees.map((emp: any) => {
         const empAuths = authData?.filter(auth => auth.employee_id === emp.id) || [];
         const empCerts = certData?.filter(cert => cert.employee_id === emp.id) || [];
+        const empSupports = supportData?.filter(support => support.employee_id === emp.id) || [];
+        const empCores = coreData?.filter(core => core.employee_id === emp.id) || [];
+        
         const matchScore = calculateEnhancedMatchScore(empAuths, empCerts, aircraft, emp);
         
         return {
@@ -190,7 +219,10 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
           certification: extractCertifications(empAuths, empCerts),
           availability: emp.availability,
           match_score: matchScore,
-          current_roster: emp.current_roster
+          current_roster: emp.current_roster,
+          support: empSupports.map(s => s.support_codes?.support_code).filter(Boolean).join(', ') || 'None',
+          core: empCores.map(c => c.core_codes?.core_code).filter(Boolean).join(', ') || 'None',
+          trade: determineTrade(empAuths, emp.job_titles?.job_description, tradesData)
         };
       });
 
@@ -490,11 +522,35 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       .substring(0, 2);
   };
 
+  const determineTrade = (authorizations: any[], jobTitle: string, trades: any[]): string => {
+    // First try to match from authorizations
+    const authBases = authorizations.map(auth => auth.authorization_basis);
+    const authCategories = authorizations.map(auth => auth.authorization_category);
+    
+    if (authBases.includes('B1') || authCategories.includes('B1')) return "B1 Tech";
+    if (authBases.includes('B2') || authCategories.includes('B2')) return "B2 Tech";
+    if (authBases.includes('C') || authCategories.includes('C')) return "Base Maintenance";
+    
+    // Then try to match from job title
+    if (jobTitle) {
+      const lowerTitle = jobTitle.toLowerCase();
+      if (lowerTitle.includes('structural') || lowerTitle.includes('composite')) return "STRUC & COMP";
+      if (lowerTitle.includes('paint')) return "PAINT";
+      if (lowerTitle.includes('cabin')) return "CABIN";
+      if (lowerTitle.includes('ndt')) return "NDT";
+    }
+    
+    return "General";
+  };
+
   const filteredEmployees = availableEmployees.filter(employee => 
     employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     employee.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
     employee.skill.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (employee.certification && employee.certification.toLowerCase().includes(searchQuery.toLowerCase()))
+    (employee.certification && employee.certification.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (employee.support && employee.support.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (employee.core && employee.core.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (employee.trade && employee.trade.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   if (!aircraft) return null;
@@ -503,7 +559,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[80vw] w-[80vw] h-[80vh] max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-[90vw] w-[90vw] h-[80vh] max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Aircraft Details - {aircraft.registration}</DialogTitle>
         </DialogHeader>
@@ -566,14 +622,6 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                   <TableHeader>
                     <TableRow>
                       <TableHead className="font-bold">Trade</TableHead>
-                      <TableHead className="text-center font-bold">
-                        <div>Day</div>
-                        <div className="text-xs">Req / Assigned</div>
-                      </TableHead>
-                      <TableHead className="text-center font-bold">
-                        <div>Night</div>
-                        <div className="text-xs">Req / Assigned</div>
-                      </TableHead>
                       {tradeRequirements.length > 0 && tradeRequirements[0].dates.slice(0, 7).map((date, idx) => (
                         <TableHead key={idx} className="text-center font-bold">
                           <div>{date.date}</div>
@@ -586,20 +634,6 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                     {tradeRequirements.map((req, idx) => (
                       <TableRow key={idx}>
                         <TableCell className="font-medium">{req.trade}</TableCell>
-                        <TableCell className="text-center">
-                          <span className={req.assigned_day >= req.day_count ? 
-                            "text-emerald-600 dark:text-emerald-400 font-medium" : 
-                            "text-amber-600 dark:text-amber-400 font-medium"}>
-                            {req.assigned_day} / {req.day_count}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className={req.assigned_night >= req.night_count ? 
-                            "text-emerald-600 dark:text-emerald-400 font-medium" : 
-                            "text-amber-600 dark:text-amber-400 font-medium"}>
-                            {req.assigned_night} / {req.night_count}
-                          </span>
-                        </TableCell>
                         {req.dates.slice(0, 7).map((date, dateIdx) => (
                           <TableCell key={dateIdx} className="text-center text-sm">
                             <div className="flex flex-col">
@@ -618,7 +652,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                     ))}
                     {tradeRequirements.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-6 text-gray-500">
+                        <TableCell colSpan={8} className="text-center py-6 text-gray-500">
                           No personnel requirements available
                         </TableCell>
                       </TableRow>
@@ -674,7 +708,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
               </div>
             </div>
 
-            {/* Right Column (70%) - Available Employees */}
+            {/* Right Column (70%) - Available Employees Table */}
             <div className="lg:col-span-7 space-y-4">
               <h3 className="text-lg font-semibold">Available Employees</h3>
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
@@ -682,72 +716,93 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                 <div className="relative mb-4">
                   <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <Input 
-                    placeholder="Search by name, skill, certification..."
+                    placeholder="Search by name, skill, certification, support, core, trade..."
                     className="pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
 
-                {/* Employee List */}
-                <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                {/* Employee Table */}
+                <div className="overflow-auto max-h-[300px]">
                   {loading ? (
                     <div className="flex justify-center items-center h-[200px]">
                       <div className="animate-spin h-6 w-6 border-2 border-blue-600 rounded-full border-t-transparent"></div>
                     </div>
                   ) : filteredEmployees.length > 0 ? (
-                    filteredEmployees.map((employee) => (
-                      <div 
-                        key={employee.id} 
-                        className={`flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
-                          employee.match_score && employee.match_score > 70 
-                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800' 
-                            : employee.match_score && employee.match_score > 30
-                            ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
-                            : 'bg-white dark:bg-gray-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                            <span className="text-xs font-medium">{employee.avatar}</span>
-                          </div>
-                          <div>
-                            <p className="font-medium dark:text-gray-200">{employee.name}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {employee.skill} • {employee.role} • {employee.certification || "No certs"}
-                            </p>
-                            <div className="flex items-center gap-2 text-xs">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead className="text-center">Match %</TableHead>
+                          <TableHead>Job Title</TableHead>
+                          <TableHead>Support</TableHead>
+                          <TableHead>Core</TableHead>
+                          <TableHead>Trade</TableHead>
+                          <TableHead>Certification</TableHead>
+                          <TableHead className="text-center">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredEmployees.map((employee) => (
+                          <TableRow 
+                            key={employee.id}
+                            className={`${
+                              employee.match_score && employee.match_score > 70 
+                                ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800' 
+                                : employee.match_score && employee.match_score > 30
+                                ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+                                : 'hover:bg-gray-100 dark:hover:bg-gray-600'
+                            } transition-colors`}
+                          >
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="h-6 w-6 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                                  <span className="text-xs font-medium">{employee.avatar}</span>
+                                </div>
+                                <div>
+                                  <p className="font-medium dark:text-gray-200">{employee.name}</p>
+                                  <p className={`text-xs ${
+                                    employee.availability?.includes('Available') ? 'text-green-600 dark:text-green-400' :
+                                    employee.availability?.includes('Leave') ? 'text-red-600 dark:text-red-400' :
+                                    employee.availability?.includes('Training') ? 'text-blue-600 dark:text-blue-400' :
+                                    'text-amber-600 dark:text-amber-400'
+                                  }`}>
+                                    {employee.availability}
+                                  </p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
                               {employee.match_score && (
                                 <span className={`font-medium ${
                                   employee.match_score > 70 ? 'text-emerald-600 dark:text-emerald-400' : 
                                   employee.match_score > 30 ? 'text-amber-600 dark:text-amber-400' :
                                   'text-gray-500 dark:text-gray-400'
                                 }`}>
-                                  {employee.match_score}% match
+                                  {employee.match_score}%
                                 </span>
                               )}
-                              <span className="text-gray-400">•</span>
-                              <span className={`${
-                                employee.availability?.includes('Available') ? 'text-green-600 dark:text-green-400' :
-                                employee.availability?.includes('Leave') ? 'text-red-600 dark:text-red-400' :
-                                employee.availability?.includes('Training') ? 'text-blue-600 dark:text-blue-400' :
-                                'text-amber-600 dark:text-amber-400'
-                              }`}>
-                                {employee.availability}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleAssignEmployee(employee)}
-                          disabled={!employee.availability?.includes('Available')}
-                        >
-                          Assign
-                        </Button>
-                      </div>
-                    ))
+                            </TableCell>
+                            <TableCell className="text-sm">{employee.role}</TableCell>
+                            <TableCell className="text-sm">{employee.support}</TableCell>
+                            <TableCell className="text-sm">{employee.core}</TableCell>
+                            <TableCell className="text-sm">{employee.trade}</TableCell>
+                            <TableCell className="text-sm">{employee.certification || "None"}</TableCell>
+                            <TableCell className="text-center">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleAssignEmployee(employee)}
+                                disabled={!employee.availability?.includes('Available')}
+                              >
+                                Assign
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   ) : (
                     <div className="text-center py-10 text-gray-500">
                       No employees match your search
