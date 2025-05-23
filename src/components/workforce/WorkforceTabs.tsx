@@ -18,12 +18,7 @@ export const WorkforceTabs = () => {
     });
   };
 
-  return (
-    <Tabs 
-      value={currentView} 
-      onValueChange={setCurrentView} 
-      className="mt-4"
-    >
+  return {
       <div className="flex items-center justify-between mb-2">
 </TabsContent>
       </div>
