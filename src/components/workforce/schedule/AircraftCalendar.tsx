@@ -43,42 +43,47 @@ export const AircraftCalendar = () => {
 
   return (
     <div className="w-full">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
-        <div className="grid grid-cols-2 gap-2 text-sm text-gray-500 dark:text-gray-400">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+        {/* Horizontal Legend Layout */}
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           {/* Status indicators */}
-          <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-emerald-200 dark:bg-emerald-800 border border-emerald-400 dark:border-emerald-600"></span>
-            <span>Completed</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-amber-200 dark:bg-amber-800 border border-amber-400 dark:border-amber-600"></span>
-            <span>In Progress</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600"></span>
-            <span>Scheduled</span>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center">
+              <span className="w-3 h-3 mr-1 rounded-sm bg-emerald-200 dark:bg-emerald-800 border border-emerald-400 dark:border-emerald-600"></span>
+              <span>Completed</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-3 h-3 mr-1 rounded-sm bg-amber-200 dark:bg-amber-800 border border-amber-400 dark:border-amber-600"></span>
+              <span>In Progress</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-3 h-3 mr-1 rounded-sm bg-slate-200 dark:bg-slate-700 border border-slate-400 dark:border-slate-600"></span>
+              <span>Scheduled</span>
+            </div>
           </div>
           
           {/* Aircraft type border indicators */}
-          <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-indigo-500"></span>
-            <span>Boeing</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-rose-500"></span>
-            <span>Airbus</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-amber-500"></span>
-            <span>Small Aircraft</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-purple-500"></span>
-            <span>Helicopter</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-gray-400 dark:border-gray-500"></span>
-            <span>Other</span>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center">
+              <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-indigo-500"></span>
+              <span>Boeing</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-rose-500"></span>
+              <span>Airbus</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-amber-500"></span>
+              <span>Small Aircraft</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-purple-500"></span>
+              <span>Helicopter</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-3 h-3 mr-1 rounded-sm bg-white dark:bg-gray-900 border-3 border-gray-400 dark:border-gray-500"></span>
+              <span>Other</span>
+            </div>
           </div>
         </div>
         
