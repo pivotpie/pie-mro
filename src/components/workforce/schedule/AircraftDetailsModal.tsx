@@ -1,9 +1,8 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, User, Plus, Check } from "lucide-react";
+import { Search, User, Plus, Check, X } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +37,8 @@ interface Employee {
   support?: string;
   core?: string;
   trade?: string;
+  engine_type?: string;
+  selected?: boolean;
 }
 
 interface TradeRequirement {
@@ -66,7 +67,10 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
   const [searchQuery, setSearchQuery] = useState("");
   const [assignedEmployees, setAssignedEmployees] = useState<Employee[]>([]);
   const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [tradeRequirements, setTradeRequirements] = useState<TradeRequirement[]>([]);
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<number>>(new Set());
+  const [hasActiveFilter, setHasActiveFilter] = useState(false);
 
   useEffect(() => {
     if (isOpen && aircraft) {
@@ -74,6 +78,59 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       fetchPersonnelRequirements();
     }
   }, [isOpen, aircraft]);
+
+  useEffect(() => {
+    // Apply search/filter when search query or available employees change
+    applySearchFilter();
+  }, [searchQuery, availableEmployees]);
+
+  const applySearchFilter = () => {
+    if (!searchQuery.trim()) {
+      // No search - show all available employees, with selected ones first if filter was active
+      if (hasActiveFilter && selectedEmployees.size > 0) {
+        const selected = availableEmployees.filter(emp => selectedEmployees.has(emp.id));
+        const unselected = availableEmployees.filter(emp => !selectedEmployees.has(emp.id));
+        setFilteredEmployees([...selected, ...unselected]);
+      } else {
+        setFilteredEmployees(availableEmployees);
+      }
+      setHasActiveFilter(false);
+      return;
+    }
+
+    // Parse search query - split by commas and clean terms
+    const searchTerms = searchQuery.toLowerCase().split(',').map(term => term.trim()).filter(term => term.length > 0);
+    
+    const filtered = availableEmployees.filter(employee => {
+      // Check if employee matches ALL search terms (AND logic)
+      return searchTerms.every(term => {
+        return (
+          employee.name.toLowerCase().includes(term) ||
+          employee.role.toLowerCase().includes(term) ||
+          employee.skill.toLowerCase().includes(term) ||
+          (employee.certification && employee.certification.toLowerCase().includes(term)) ||
+          (employee.support && employee.support.toLowerCase().includes(term)) ||
+          (employee.core && employee.core.toLowerCase().includes(term)) ||
+          (employee.trade && employee.trade.toLowerCase().includes(term)) ||
+          (employee.engine_type && employee.engine_type.toLowerCase().includes(term)) ||
+          // Check for aircraft type matches
+          (term.includes('a350') && (employee.certification?.toLowerCase().includes('a350') || employee.engine_type?.toLowerCase().includes('trent'))) ||
+          (term.includes('737') && (employee.certification?.toLowerCase().includes('737') || employee.certification?.toLowerCase().includes('boeing'))) ||
+          (term.includes('777') && (employee.certification?.toLowerCase().includes('777') || employee.certification?.toLowerCase().includes('boeing'))) ||
+          // Check for engine type matches
+          (term.includes('trent') && employee.engine_type?.toLowerCase().includes('trent')) ||
+          (term.includes('cfm') && employee.engine_type?.toLowerCase().includes('cfm')) ||
+          (term.includes('pw') && employee.engine_type?.toLowerCase().includes('pw')) ||
+          // Check for authorization matches
+          (term.includes('b1') && (employee.certification?.toLowerCase().includes('b1') || employee.trade?.toLowerCase().includes('b1'))) ||
+          (term.includes('b2') && (employee.certification?.toLowerCase().includes('b2') || employee.trade?.toLowerCase().includes('b2')))
+        );
+      });
+    });
+
+    setFilteredEmployees(filtered);
+    setHasActiveFilter(searchTerms.length > 0);
+  };
 
   const fetchEmployeeData = async () => {
     if (!aircraft) return;
@@ -209,7 +266,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         const empSupports = supportData?.filter(support => support.employee_id === emp.id) || [];
         const empCores = coreData?.filter(core => core.employee_id === emp.id) || [];
         
-        const matchScore = calculateEnhancedMatchScore(empAuths, empCerts, aircraft, emp);
+        const matchScore = calculateEnhancedMatchScore(empAuths, empCerts, empSupports, aircraft, emp);
         
         return {
           id: emp.id,
@@ -223,7 +280,8 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
           current_roster: emp.current_roster,
           support: empSupports.map((s: any) => s.support_codes?.support_code).filter(Boolean).join(', ') || 'None',
           core: empCores.map((c: any) => c.core_codes?.core_code).filter(Boolean).join(', ') || 'None',
-          trade: determineTrade(empAuths, emp.job_titles?.job_description, tradesData)
+          trade: determineTrade(empAuths, emp.job_titles?.job_description, tradesData),
+          engine_type: extractEngineTypes(empAuths)
         };
       });
 
@@ -244,7 +302,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       // Generate assigned teams for completed and in-progress visits
       let assigned: Employee[] = [];
       if (aircraft.status === 'Completed' || aircraft.status === 'In Progress') {
-        assigned = generateMockAssignedTeam(availableEmps, aircraft);
+        assigned = generateAssignedTeam(availableEmps, aircraft);
       } else if (aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA'))) {
         // For G-FVWF scheduled visits, show high-matching employees as potentially assigned
         assigned = availableEmps
@@ -262,12 +320,9 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     }
   };
 
-  const generateMockAssignedTeam = (employees: Employee[], aircraft: AircraftSchedule): Employee[] => {
-    // Filter employees with good availability and high match scores
-    const goodMatches = employees.filter(emp => 
-      (emp.availability?.includes('Available') || aircraft.status === 'Completed') && 
-      emp.match_score && emp.match_score > 50
-    );
+  const generateAssignedTeam = (employees: Employee[], aircraft: AircraftSchedule): Employee[] => {
+    // Filter employees with good availability and match scores
+    const goodMatches = employees.filter(emp => emp.match_score && emp.match_score > 30);
 
     // Ensure we have a diverse team with different trades
     const teamComposition = [
@@ -307,19 +362,28 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       }));
     }
 
+    // For in-progress visits, mark as currently working
+    if (aircraft.status === 'In Progress') {
+      return assignedTeam.map(emp => ({
+        ...emp,
+        availability: 'Currently working'
+      }));
+    }
+
     return assignedTeam;
   };
 
   const calculateEnhancedMatchScore = (
     authorizations: any[], 
     certifications: any[], 
+    supports: any[],
     aircraft: AircraftSchedule, 
     employee: any
   ): number => {
     let score = 0;
     const maxScore = 100;
 
-    // 1. Aircraft Type Authorization Match (40 points)
+    // 1. Aircraft Type Authorization Match (30 points)
     const aircraftName = aircraft.aircraft.toLowerCase();
     const matchingAuths = authorizations.filter(auth => {
       const modelName = auth.aircraft_models?.model_name?.toLowerCase() || '';
@@ -334,10 +398,10 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     });
     
     if (matchingAuths.length > 0) {
-      score += 40;
+      score += 30;
     }
 
-    // 2. Certification Match (30 points)
+    // 2. Certification Match (25 points)
     const matchingCerts = certifications.filter(cert => {
       const certAircraftType = cert.aircraft?.aircraft_types?.type_name?.toLowerCase() || '';
       const certTypeCode = cert.aircraft?.aircraft_types?.type_code?.toLowerCase() || '';
@@ -348,7 +412,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     });
     
     if (matchingCerts.length > 0) {
-      score += 30;
+      score += 25;
     }
 
     // 3. Authorization Category/Basis Match (20 points)
@@ -362,7 +426,17 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       score += 20;
     }
 
-    // 4. Job Title Relevance (10 points)
+    // 4. Availability/Support Match (15 points) - NOW INCLUDES AV
+    const isAvailable = supports.some(support => 
+      support.support_codes?.support_code === 'AV' || // Available
+      support.support_codes?.support_code === 'O'     // Off duty
+    );
+    
+    if (isAvailable) {
+      score += 15;
+    }
+
+    // 5. Job Title Relevance (10 points)
     const jobTitle = employee.job_titles?.job_description?.toLowerCase() || '';
     const relevantTitles = ['technician', 'engineer', 'mechanic', 'inspector'];
     
@@ -374,11 +448,26 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     if (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) {
       // Boost scores for employees with IDs 1-15 (for demo purposes)
       if (employee.id && employee.id <= 15) {
-        score = Math.min(score + 30, maxScore);
+        score = Math.min(score + 20, maxScore);
       }
     }
 
     return Math.min(score, maxScore);
+  };
+
+  const extractEngineTypes = (authorizations: any[]): string => {
+    const engines = new Set<string>();
+    
+    authorizations.forEach(auth => {
+      if (auth.engine_models?.model_code) {
+        engines.add(auth.engine_models.model_code);
+      }
+      if (auth.engine_models?.manufacturer) {
+        engines.add(auth.engine_models.manufacturer);
+      }
+    });
+    
+    return Array.from(engines).join(', ') || 'None';
   };
 
   const fetchPersonnelRequirements = async () => {
@@ -476,7 +565,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
   const generateMockRequirements = (requirements: Record<string, TradeRequirement>) => {
     if (!aircraft) return;
     
-    const trades = ['B1 Tech', 'B2 Tech', 'STRUC & COMP', 'PAINT', 'CABIN', 'NDT'];
+    const trades = ['Engineer', 'Technician', 'Certifying Controller'];
     const startDate = new Date(aircraft.start);
     const endDate = new Date(aircraft.end);
     const dayDiff = differenceInDays(endDate, startDate);
@@ -486,15 +575,13 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       let totalDay = 0;
       let totalNight = 0;
       
-      for (let i = 0; i <= dayDiff; i++) {
+      for (let i = 0; i <= Math.min(dayDiff, 6); i++) {
         const currentDate = new Date(startDate);
         currentDate.setDate(startDate.getDate() + i);
         
-        const dayCount = trade === 'B1 Tech' ? 18 : 
-                         trade === 'B2 Tech' ? 4 : 
-                         trade === 'STRUC & COMP' ? 2 : 
-                         trade === 'PAINT' ? 3 : 
-                         trade === 'CABIN' ? 5 : 0;
+        const dayCount = trade === 'Engineer' ? 1 : 
+                         trade === 'Technician' ? 2 : 
+                         trade === 'Certifying Controller' ? 1 : 0;
                          
         const nightCount = 0; // Mock data shows 0 night shift
         
@@ -508,11 +595,9 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         } else if (aircraft.status === 'In Progress') {
           assignedDay = Math.floor(dayCount * 0.8); // 80% assigned for in-progress
         } else if (aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA'))) {
-          assignedDay = Math.floor(dayCount * 0.6); // 60% assigned for G-FVWF scheduled
+          assignedDay = 0; // No assignment for scheduled G-FVWF
         } else {
-          assignedDay = trade === 'B1 Tech' ? Math.floor(dayCount * 0.3) : 
-                        trade === 'B2 Tech' ? Math.floor(dayCount * 0.2) :
-                        0; // Minimal assignment for other scheduled visits
+          assignedDay = 0; // No assignment for other scheduled visits
         }
         
         dates.push({
@@ -526,8 +611,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       
       const totalAssignedDay = aircraft.status === 'Completed' ? totalDay :
                               aircraft.status === 'In Progress' ? Math.floor(totalDay * 0.8) :
-                              aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) ? Math.floor(totalDay * 0.6) :
-                              Math.floor(totalDay * 0.2);
+                              0;
       
       requirements[trade] = {
         trade,
@@ -621,15 +705,30 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     return "General";
   };
 
-  const filteredEmployees = availableEmployees.filter(employee => 
-    employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.skill.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (employee.certification && employee.certification.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (employee.support && employee.support.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (employee.core && employee.core.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (employee.trade && employee.trade.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const handleEmployeeSelect = (employeeId: number) => {
+    setSelectedEmployees(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(employeeId)) {
+        newSet.delete(employeeId);
+      } else {
+        newSet.add(employeeId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleClearFilter = () => {
+    setSearchQuery("");
+    setHasActiveFilter(false);
+    // Keep selected employees at top
+    if (selectedEmployees.size > 0) {
+      const selected = availableEmployees.filter(emp => selectedEmployees.has(emp.id));
+      const unselected = availableEmployees.filter(emp => !selectedEmployees.has(emp.id));
+      setFilteredEmployees([...selected, ...unselected]);
+    } else {
+      setFilteredEmployees(availableEmployees);
+    }
+  };
 
   if (!aircraft) return null;
 
@@ -807,15 +906,27 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
             <div className="lg:col-span-7 space-y-4">
               <h3 className="text-lg font-semibold">Available Employees</h3>
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                {/* Search Bar */}
-                <div className="relative mb-4">
-                  <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <Input 
-                    placeholder="Search by name, skill, certification, support, core, trade..."
-                    className="pl-10"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                {/* Enhanced Search Bar */}
+                <div className="flex gap-2 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Input 
+                      placeholder="Search: B1, A350, Trent 1000 or Trent 1000, B1, A350..."
+                      className="pl-10"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  {hasActiveFilter && (
+                    <Button 
+                      variant="outline" 
+                      onClick={handleClearFilter}
+                      className="flex items-center gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Clear Filter
+                    </Button>
+                  )}
                 </div>
 
                 {/* Employee Table */}
@@ -828,12 +939,28 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-8">
+                            <input 
+                              type="checkbox" 
+                              className="rounded"
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  const allIds = new Set(filteredEmployees.map(emp => emp.id));
+                                  setSelectedEmployees(allIds);
+                                } else {
+                                  setSelectedEmployees(new Set());
+                                }
+                              }}
+                              checked={filteredEmployees.length > 0 && filteredEmployees.every(emp => selectedEmployees.has(emp.id))}
+                            />
+                          </TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead className="text-center">Match %</TableHead>
                           <TableHead>Job Title</TableHead>
                           <TableHead>Support</TableHead>
                           <TableHead>Core</TableHead>
                           <TableHead>Trade</TableHead>
+                          <TableHead>Engine Type</TableHead>
                           <TableHead>Certification</TableHead>
                           <TableHead className="text-center">Action</TableHead>
                         </TableRow>
@@ -843,6 +970,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                           <TableRow 
                             key={employee.id}
                             className={`${
+                              selectedEmployees.has(employee.id) ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800' :
                               employee.match_score && employee.match_score > 70 
                                 ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800' 
                                 : employee.match_score && employee.match_score > 30
@@ -850,6 +978,14 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                                 : 'hover:bg-gray-100 dark:hover:bg-gray-600'
                             } transition-colors`}
                           >
+                            <TableCell>
+                              <input
+                                type="checkbox"
+                                className="rounded"
+                                checked={selectedEmployees.has(employee.id)}
+                                onChange={() => handleEmployeeSelect(employee.id)}
+                              />
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <div className="h-6 w-6 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
@@ -883,6 +1019,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                             <TableCell className="text-sm">{employee.support}</TableCell>
                             <TableCell className="text-sm">{employee.core}</TableCell>
                             <TableCell className="text-sm">{employee.trade}</TableCell>
+                            <TableCell className="text-sm">{employee.engine_type}</TableCell>
                             <TableCell className="text-sm">{employee.certification || "None"}</TableCell>
                             <TableCell className="text-center">
                               {aircraft.status === 'Scheduled' ? (
@@ -907,7 +1044,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                     </Table>
                   ) : (
                     <div className="text-center py-10 text-gray-500">
-                      No employees match your search
+                      {searchQuery ? 'No employees match your search criteria' : 'No employees available'}
                     </div>
                   )}
                 </div>
