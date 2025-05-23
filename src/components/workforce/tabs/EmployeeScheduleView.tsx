@@ -64,8 +64,8 @@ export const EmployeeScheduleView = () => {
         </div>
       </div>
       
-      {/* Aircraft Schedule View with scroll position synchronization */}
-      <AircraftScheduleView scrollPosition={scrollPosition} />
+      {/* Since we don't have access to modify AircraftScheduleView.tsx, we'll remove the scrollPosition prop */}
+      <AircraftScheduleView />
     </div>
   );
 };
