@@ -57,12 +57,15 @@ export const EmployeeScheduleView = () => {
 
         {/* Simple container with direct overflow control and scroll position synchronization */}
         <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
-          <EmployeeCalendar />
+          <EmployeeCalendar 
+            onScroll={handleCalendarScroll} 
+            currentDate={currentDate}
+          />
         </div>
       </div>
       
       {/* Aircraft Schedule View with scroll position synchronization */}
-      <AircraftScheduleView />
+      <AircraftScheduleView scrollPosition={scrollPosition} />
     </div>
   );
 };
