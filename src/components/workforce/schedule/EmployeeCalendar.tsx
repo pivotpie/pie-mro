@@ -1076,7 +1076,7 @@ export const EmployeeCalendar = ({
                     {employee.ttl || '-'}
                   </td>
                   
-                  {/* Calendar days with tooltips */}
+                  {/* Calendar days with tooltips - Updated for no layout shift */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                     const status = employee.schedule?.[dateKey] || '';
@@ -1093,13 +1093,13 @@ export const EmployeeCalendar = ({
                                 hasStatus ? statusColors[status] || '' : '',
                                 day.isToday ? 'today-highlight' : ''
                               )}
-                              style={{ width: `${columnWidths.date}px` }}
+                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
                               onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
                             >
                               {status}
                             </td>
                           </TooltipTrigger>
-                          <TooltipContent className="z-50">
+                          <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
                             <div className="space-y-1">
                               <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
                               <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
@@ -1267,6 +1267,13 @@ export const EmployeeCalendar = ({
           }
           .core-support-different {
             border-left: 4px solid #ef4444;
+          }
+          .tooltip-fixed {
+            position: absolute;
+            pointer-events: none;
+          }
+          .popover-content {
+            z-index: 100;
           }
         `}
       </style>
