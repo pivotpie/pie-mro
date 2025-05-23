@@ -76,8 +76,30 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     setLoading(true);
 
     try {
-      // Fetch employees data from the database
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      // Fetch employees with their current roster assignments
       const { data: employeesData, error: employeesError } = await supabase
+        .from('employees')
+        .select(`
+          id,
+          name,
+          job_title_id,
+          job_titles:job_title_id (job_description),
+          team_id,
+          roster_assignments!inner (
+            roster_id,
+            roster_codes (roster_code, description),
+            date_references!inner (actual_date)
+          )
+        `)
+        .eq('is_active', true)
+        .eq('roster_assignments.date_references.actual_date', currentDate);
+
+      if (employeesError) throw employeesError;
+
+      // Also fetch employees without roster assignments for today
+      const { data: unassignedEmployees, error: unassignedError } = await supabase
         .from('employees')
         .select(`
           id,
@@ -86,27 +108,78 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
           job_titles:job_title_id (job_description),
           team_id
         `)
+        .eq('is_active', true)
+        .not('id', 'in', `(${employeesData?.map(e => e.id).join(',') || '0'})`);
+
+      if (unassignedError) throw unassignedError;
+
+      // Combine both datasets
+      const allEmployees = [
+        ...(employeesData || []).map((emp: any) => ({
+          ...emp,
+          current_roster: emp.roster_assignments?.[0]?.roster_codes?.roster_code || null,
+          availability: emp.roster_assignments?.[0]?.roster_codes?.roster_code === 'O' ? 'Available (Off Day)' :
+                       emp.roster_assignments?.[0]?.roster_codes?.roster_code === 'AL' ? 'On Annual Leave' :
+                       emp.roster_assignments?.[0]?.roster_codes?.roster_code === 'SK' ? 'Sick Leave' :
+                       emp.roster_assignments?.[0]?.roster_codes?.roster_code === 'TR' ? 'In Training' :
+                       'Assigned to Work'
+        })),
+        ...(unassignedEmployees || []).map((emp: any) => ({
+          ...emp,
+          current_roster: null,
+          availability: 'Available'
+        }))
+      ];
+
+      // Fetch employee authorizations
+      const { data: authData, error: authError } = await supabase
+        .from('employee_authorizations')
+        .select(`
+          employee_id,
+          authorization_basis,
+          aircraft_model_id,
+          engine_model_id,
+          authorization_category,
+          is_active,
+          expiry_date,
+          aircraft_models (
+            model_name,
+            aircraft_type_id,
+            aircraft_types (type_name, type_code)
+          ),
+          engine_models (
+            model_code,
+            manufacturer
+          )
+        `)
         .eq('is_active', true);
 
-      if (employeesError) throw employeesError;
+      if (authError) throw authError;
+
+      // Fetch certifications for additional matching
+      const { data: certData, error: certError } = await supabase
+        .from('certifications')
+        .select(`
+          employee_id,
+          certification_code_id,
+          aircraft_id,
+          expiry_date,
+          certification_codes (certification_code, certification_description),
+          aircraft (registration, aircraft_type_id, aircraft_types (type_name, type_code))
+        `)
+        .gte('expiry_date', currentDate);
+
+      if (certError) throw certError;
 
       // Check for assigned team
       const assignedTeam = aircraft.team ? 
         await supabase.from('teams').select('*').eq('team_name', aircraft.team).single() : null;
 
-      // Fetch employee authorizations to determine qualifications
-      const { data: authData, error: authError } = await supabase
-        .from('employee_authorizations')
-        .select('*')
-        .eq('is_active', true);
-
-      if (authError) throw authError;
-
-      // Process employees data
-      const availableEmps = employeesData.map((emp: any) => {
-        // Calculate match score based on authorizations matching aircraft type
+      // Process employees data with enhanced matching
+      const availableEmps = allEmployees.map((emp: any) => {
         const empAuths = authData?.filter(auth => auth.employee_id === emp.id) || [];
-        const matchScore = calculateMatchScore(empAuths, aircraft);
+        const empCerts = certData?.filter(cert => cert.employee_id === emp.id) || [];
+        const matchScore = calculateEnhancedMatchScore(empAuths, empCerts, aircraft, emp);
         
         return {
           id: emp.id,
@@ -114,19 +187,31 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
           role: emp.job_titles?.job_description || "Technician",
           skill: determineSkill(empAuths),
           avatar: getInitials(emp.name),
-          certification: extractCertifications(empAuths),
-          availability: "Available",
-          match_score: matchScore
+          certification: extractCertifications(empAuths, empCerts),
+          availability: emp.availability,
+          match_score: matchScore,
+          current_roster: emp.current_roster
         };
       });
 
-      // Sort by match score
-      availableEmps.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+      // Sort by availability first (available employees first), then by match score
+      availableEmps.sort((a, b) => {
+        // Prioritize available employees
+        const aAvailable = a.availability?.includes('Available') ? 1 : 0;
+        const bAvailable = b.availability?.includes('Available') ? 1 : 0;
+        
+        if (aAvailable !== bAvailable) {
+          return bAvailable - aAvailable;
+        }
+        
+        // Then sort by match score
+        return (b.match_score || 0) - (a.match_score || 0);
+      });
       
-      // If team is assigned, determine assigned employees
+      // Determine assigned employees
       let assigned: Employee[] = [];
       if (assignedTeam?.data) {
-        assigned = employeesData
+        assigned = allEmployees
           .filter((emp: any) => emp.team_id === assignedTeam.data.id)
           .map((emp: any) => {
             const empAuths = authData?.filter(auth => auth.employee_id === emp.id) || [];
@@ -148,6 +233,69 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateEnhancedMatchScore = (
+    authorizations: any[], 
+    certifications: any[], 
+    aircraft: AircraftSchedule, 
+    employee: any
+  ): number => {
+    let score = 0;
+    const maxScore = 100;
+
+    // 1. Aircraft Type Authorization Match (40 points)
+    const aircraftName = aircraft.aircraft.toLowerCase();
+    const matchingAuths = authorizations.filter(auth => {
+      const modelName = auth.aircraft_models?.model_name?.toLowerCase() || '';
+      const typeName = auth.aircraft_models?.aircraft_types?.type_name?.toLowerCase() || '';
+      const typeCode = auth.aircraft_models?.aircraft_types?.type_code?.toLowerCase() || '';
+      
+      return modelName.includes(aircraftName) || 
+             typeName.includes(aircraftName) ||
+             typeCode.includes(aircraftName) ||
+             (aircraftName.includes('boeing') && (typeName.includes('boeing') || typeCode.includes('b'))) ||
+             (aircraftName.includes('airbus') && (typeName.includes('airbus') || typeCode.includes('a')));
+    });
+    
+    if (matchingAuths.length > 0) {
+      score += 40;
+    }
+
+    // 2. Certification Match (30 points)
+    const matchingCerts = certifications.filter(cert => {
+      const certAircraftType = cert.aircraft?.aircraft_types?.type_name?.toLowerCase() || '';
+      const certTypeCode = cert.aircraft?.aircraft_types?.type_code?.toLowerCase() || '';
+      
+      return certAircraftType.includes(aircraftName) ||
+             certTypeCode.includes(aircraftName) ||
+             cert.aircraft?.registration === aircraft.registration;
+    });
+    
+    if (matchingCerts.length > 0) {
+      score += 30;
+    }
+
+    // 3. Authorization Category/Basis Match (20 points)
+    const relevantCategories = ['B1', 'B2', 'C'];
+    const hasRelevantAuth = authorizations.some(auth => 
+      relevantCategories.includes(auth.authorization_basis) ||
+      relevantCategories.includes(auth.authorization_category)
+    );
+    
+    if (hasRelevantAuth) {
+      score += 20;
+    }
+
+    // 4. Job Title Relevance (10 points)
+    const jobTitle = employee.job_titles?.job_description?.toLowerCase() || '';
+    const relevantTitles = ['technician', 'engineer', 'mechanic', 'inspector'];
+    
+    if (relevantTitles.some(title => jobTitle.includes(title))) {
+      score += 10;
+    }
+
+    return Math.min(score, maxScore);
   };
 
   const fetchPersonnelRequirements = async () => {
@@ -290,50 +438,47 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
   };
 
   const calculateMatchScore = (authorizations: any[], aircraft: AircraftSchedule): number => {
-    if (!authorizations || authorizations.length === 0) return 0;
-    
-    // Basic matching logic - could be enhanced with more specific logic
-    const matchingAuths = authorizations.filter(auth => {
-      const aircraftName = aircraft.aircraft.toLowerCase();
-      const authAircraft = auth.aircraft_model_id?.toString() || '';
-      
-      return (
-        aircraftName.includes('boeing') && authAircraft.includes('boeing') ||
-        aircraftName.includes('airbus') && authAircraft.includes('airbus') ||
-        true // Default match for demo purposes
-      );
-    });
-    
-    return Math.min(100, matchingAuths.length * 25);
+    // This is now handled by calculateEnhancedMatchScore
+    return calculateEnhancedMatchScore(authorizations, [], aircraft, {});
   };
 
   const calculateEmployeeMatchScore = (employee: Employee): number => {
-    // Re-calculate match score for an employee being added back to available list
     return employee.match_score || Math.floor(Math.random() * 100);
   };
 
   const determineSkill = (authorizations: any[]): string => {
     if (!authorizations || authorizations.length === 0) return "General";
     
-    const authTypes = authorizations.map(auth => auth.authorization_type_id);
+    const authBases = authorizations.map(auth => auth.authorization_basis);
+    const authCategories = authorizations.map(auth => auth.authorization_category);
     
-    if (authTypes.includes(1)) return "Avionics";
-    if (authTypes.includes(2)) return "Airframe";
-    if (authTypes.includes(3)) return "Engines";
+    if (authBases.includes('B1') || authCategories.includes('B1')) return "Airframe";
+    if (authBases.includes('B2') || authCategories.includes('B2')) return "Avionics";
+    if (authBases.includes('C') || authCategories.includes('C')) return "Base Maintenance";
     return "General";
   };
 
-  const extractCertifications = (authorizations: any[]): string => {
-    if (!authorizations || authorizations.length === 0) return "None";
+  const extractCertifications = (authorizations: any[], certifications: any[]): string => {
+    const authCerts = new Set<string>();
     
-    const certifications = new Set<string>();
+    // Add authorization-based certifications
     authorizations.forEach(auth => {
-      if (auth.aircraft_model_id) {
-        certifications.add(`A${auth.aircraft_model_id}`);
+      if (auth.authorization_basis) {
+        authCerts.add(auth.authorization_basis);
+      }
+      if (auth.authorization_category) {
+        authCerts.add(auth.authorization_category);
       }
     });
     
-    return Array.from(certifications).join(', ') || "General";
+    // Add certification codes
+    certifications.forEach(cert => {
+      if (cert.certification_codes?.certification_code) {
+        authCerts.add(cert.certification_codes.certification_code);
+      }
+    });
+    
+    return Array.from(authCerts).join(', ') || "None";
   };
 
   const getInitials = (name: string): string => {
@@ -571,23 +716,33 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                             <p className="text-sm text-gray-500 dark:text-gray-400">
                               {employee.skill} • {employee.role} • {employee.certification || "No certs"}
                             </p>
-                            {employee.match_score && (
-                              <p className="text-xs">
+                            <div className="flex items-center gap-2 text-xs">
+                              {employee.match_score && (
                                 <span className={`font-medium ${
                                   employee.match_score > 70 ? 'text-emerald-600 dark:text-emerald-400' : 
                                   employee.match_score > 30 ? 'text-amber-600 dark:text-amber-400' :
                                   'text-gray-500 dark:text-gray-400'
                                 }`}>
                                   {employee.match_score}% match
-                                </span> • {employee.availability}
-                              </p>
-                            )}
+                                </span>
+                              )}
+                              <span className="text-gray-400">•</span>
+                              <span className={`${
+                                employee.availability?.includes('Available') ? 'text-green-600 dark:text-green-400' :
+                                employee.availability?.includes('Leave') ? 'text-red-600 dark:text-red-400' :
+                                employee.availability?.includes('Training') ? 'text-blue-600 dark:text-blue-400' :
+                                'text-amber-600 dark:text-amber-400'
+                              }`}>
+                                {employee.availability}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => handleAssignEmployee(employee)}
+                          disabled={!employee.availability?.includes('Available')}
                         >
                           Assign
                         </Button>
