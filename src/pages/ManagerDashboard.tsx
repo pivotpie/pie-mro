@@ -240,6 +240,11 @@ const ManagerDashboard = () => {
   };
 
   const handleAssignmentChange = (aircraftCode: string, role: string, value: string) => {
+    // Only allow support side roles to be modified
+    if (!role.startsWith('support_')) {
+      return;
+    }
+    
     const numValue = parseInt(value) || 0;
     
     // Get current assignment for this aircraft and role
@@ -276,7 +281,7 @@ const ManagerDashboard = () => {
       if (row.isAvailable) {
         return {
           ...row,
-          [role]: prev[role] - difference
+          [role]: availableEmployees[role as keyof typeof availableEmployees] - difference
         };
       }
       if (row.category === aircraftCode) {
@@ -287,18 +292,21 @@ const ManagerDashboard = () => {
       }
       if (row.isTotal && row.category === "Grand Total") {
         // Recalculate totals
-        const newTotalAssigned = Object.values(aircraftAssignments).reduce((acc, assignment) => {
-          const updatedAssignment = aircraftCode in aircraftAssignments 
-            ? { ...assignment, [role]: aircraftCode === Object.keys(aircraftAssignments).find(k => k === aircraftCode) ? numValue : assignment[role as keyof typeof assignment] }
-            : assignment;
+        const newTotalAssigned = Object.values({
+          ...aircraftAssignments, 
+          [aircraftCode]: {
+            ...(aircraftAssignments[aircraftCode] || {}),
+            [role]: numValue
+          }
+        }).reduce((acc, assignment) => {
           return {
-            cc: acc.cc + updatedAssignment.cc,
-            engr: acc.engr + updatedAssignment.engr,
-            nc: acc.nc + updatedAssignment.nc,
-            tech: acc.tech + updatedAssignment.tech,
-            support_engr: acc.support_engr + updatedAssignment.support_engr,
-            support_nc: acc.support_nc + updatedAssignment.support_nc,
-            support_tech: acc.support_tech + updatedAssignment.support_tech
+            cc: acc.cc + (assignment.cc || 0),
+            engr: acc.engr + (assignment.engr || 0),
+            nc: acc.nc + (assignment.nc || 0),
+            tech: acc.tech + (assignment.tech || 0),
+            support_engr: acc.support_engr + (assignment.support_engr || 0),
+            support_nc: acc.support_nc + (assignment.support_nc || 0),
+            support_tech: acc.support_tech + (assignment.support_tech || 0)
           };
         }, { cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0 });
 
@@ -467,65 +475,21 @@ const ManagerDashboard = () => {
                           )}
                         </td>
                         
-                        {/* Main section */}
+                        {/* Main section - Display values without inputs */}
                         <td className="text-center p-2">
-                          {row.isAircraft ? (
-                            <Input
-                              type="number"
-                              min="0"
-                              max={availableEmployees.cc + (aircraftAssignments[row.category]?.cc || 0)}
-                              value={aircraftAssignments[row.category]?.cc || 0}
-                              onChange={(e) => handleAssignmentChange(row.category, 'cc', e.target.value)}
-                              className="w-16 h-8 text-center"
-                            />
-                          ) : (
-                            row.cc || ''
-                          )}
+                          {row.cc || ''}
                         </td>
                         <td className="text-center p-2">
-                          {row.isAircraft ? (
-                            <Input
-                              type="number"
-                              min="0"
-                              max={availableEmployees.engr + (aircraftAssignments[row.category]?.engr || 0)}
-                              value={aircraftAssignments[row.category]?.engr || 0}
-                              onChange={(e) => handleAssignmentChange(row.category, 'engr', e.target.value)}
-                              className="w-16 h-8 text-center"
-                            />
-                          ) : (
-                            row.engr || ''
-                          )}
+                          {row.engr || ''}
                         </td>
                         <td className="text-center p-2">
-                          {row.isAircraft ? (
-                            <Input
-                              type="number"
-                              min="0"
-                              max={availableEmployees.nc + (aircraftAssignments[row.category]?.nc || 0)}
-                              value={aircraftAssignments[row.category]?.nc || 0}
-                              onChange={(e) => handleAssignmentChange(row.category, 'nc', e.target.value)}
-                              className="w-16 h-8 text-center"
-                            />
-                          ) : (
-                            row.nc || ''
-                          )}
+                          {row.nc || ''}
                         </td>
                         <td className="text-center p-2">
-                          {row.isAircraft ? (
-                            <Input
-                              type="number"
-                              min="0"
-                              max={availableEmployees.tech + (aircraftAssignments[row.category]?.tech || 0)}
-                              value={aircraftAssignments[row.category]?.tech || 0}
-                              onChange={(e) => handleAssignmentChange(row.category, 'tech', e.target.value)}
-                              className="w-16 h-8 text-center"
-                            />
-                          ) : (
-                            row.tech || ''
-                          )}
+                          {row.tech || ''}
                         </td>
                         
-                        {/* Support section */}
+                        {/* Support section - With input fields for aircraft rows only */}
                         <td className="text-center p-2 border-l-2 border-gray-400">
                           {row.isAircraft ? (
                             <Input
