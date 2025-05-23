@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -349,18 +349,18 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     }
   }, [scrollLeft]);
 
-  // Calculate position based on days from start date
+  // Calculate position and width based on actual dates
   const calculatePosition = (schedule: AircraftSchedule) => {
     const chartStartDate = startOfDay(days[0].date);
     const scheduleStartDate = startOfDay(new Date(schedule.start));
     const scheduleEndDate = startOfDay(new Date(schedule.end));
     
     const startDaysDifference = differenceInDays(scheduleStartDate, chartStartDate);
-    const endDaysDifference = differenceInDays(scheduleEndDate, chartStartDate);
+    const durationInDays = differenceInDays(scheduleEndDate, scheduleStartDate) + 1; // +1 to include both start and end days
     
+    // Ensure we don't go negative or beyond the visible range
     const startIdx = Math.max(0, startDaysDifference);
-    const endIdx = Math.min(days.length - 1, endDaysDifference);
-    const finalEndIdx = Math.max(startIdx, endIdx);
+    const actualDuration = Math.max(1, durationInDays); // Minimum 1 day
     
     // Each day column is exactly 48px wide (w-12 = 3rem = 48px)
     const dayWidth = 48;
@@ -368,10 +368,10 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     // Calculate the start position for the card
     const startPosition = startIdx * dayWidth;
     
-    // Calculate the width (at least one day width)
-    const width = Math.max(dayWidth, (finalEndIdx - startIdx + 1) * dayWidth);
+    // Calculate the width based on actual duration
+    const width = actualDuration * dayWidth;
     
-    return { startPosition, width };
+    return { startPosition, width, duration: actualDuration };
   };
 
   const handleAircraftClick = (schedule: AircraftSchedule) => {
@@ -404,21 +404,21 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
         ref={scrollAreaRef}
         onScroll={handleScroll}
       >
-        <div className="flex">
+        <div className="flex min-w-fit">
           {/* Fixed left columns */}
-          <div className="flex-shrink-0 bg-white dark:bg-gray-900">
+          <div className="flex-shrink-0 bg-white dark:bg-gray-900 sticky left-0 z-20 border-r dark:border-gray-700">
             <table className="border-collapse">
               <thead className="bg-gray-100 dark:bg-gray-800">
                 <tr className="h-12">
-                  <th className="p-2 text-left border-r dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
-                  <th className="p-2 text-left border-r dark:border-gray-700 dark:text-gray-200 w-[100px]">Bay</th>
+                  <th className="p-2 text-left border-r dark:border-gray-700 dark:text-gray-200 w-24">Hangar</th>
+                  <th className="p-2 text-left border-r dark:border-gray-700 dark:text-gray-200 w-16">Bay</th>
                 </tr>
               </thead>
               <tbody>
                 {hangars.map((hangar) => (
                   <tr key={hangar.id} className="border-b h-12 dark:border-gray-700">
-                    <td className="p-2 border-r dark:border-gray-700 dark:text-gray-300 h-12">{hangar.name.split(" ")[0]}</td>
-                    <td className="p-2 border-r dark:border-gray-700 dark:text-gray-300 h-12">{hangar.name.split(" ")[1]}</td>
+                    <td className="p-2 border-r dark:border-gray-700 dark:text-gray-300 h-12 w-24">{hangar.name.split(" ")[0]}</td>
+                    <td className="p-2 border-r dark:border-gray-700 dark:text-gray-300 h-12 w-16">{hangar.name.split(" ")[1]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -426,75 +426,85 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
           </div>
 
           {/* Scrollable calendar section */}
-          <div className="flex-1 overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-100 dark:bg-gray-800">
-                <tr className="h-12">
-                  {days.map((day, index) => (
-                    <th 
-                      key={`${day.year}-${day.month+1}-${day.day}`} 
-                      className={`p-1 text-center border-r w-12 h-12 dark:border-gray-700 dark:text-gray-200
-                        ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
-                    >
-                      <div className="text-xs font-medium">{day.day}</div>
-                      <div className="text-xs">{format(day.date, 'MMM')}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {hangars.map((hangar) => (
-                  <tr key={hangar.id} className="border-b h-12 dark:border-gray-700">
-                    {/* Individual day cells for background */}
-                    {days.map((day, dayIndex) => (
-                      <td 
-                        key={`${hangar.id}-${day.year}-${day.month}-${day.day}`}
-                        className={`relative p-0 h-12 w-12 border-r dark:border-gray-700 ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
-                      >
-                        {/* Render aircraft schedules only on the first day cell */}
-                        {dayIndex === 0 && aircraftSchedules
-                          .find(item => item.hangarId === hangar.id)
-                          ?.schedules.map(schedule => {
-                            const position = calculatePosition(schedule);
-                            if (!position) return null;
-                            
-                            return (
-                              <TooltipProvider key={schedule.id}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div 
-                                      className={`absolute top-1 h-10 ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200 z-10`}
-                                      style={{
-                                        left: `${position.startPosition}px`,
-                                        width: `${position.width}px`,
-                                      }}
-                                      onClick={() => handleAircraftClick(schedule)}
-                                    >
-                                      <span className="truncate px-1 font-medium">{schedule.registration}</span>
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <div className="text-sm font-medium">{schedule.aircraft}</div>
-                                    <div className="text-xs">{schedule.registration} - {schedule.customer}</div>
-                                    <div className="text-xs">
-                                      {format(schedule.start, 'dd MMM yyyy')} - {format(schedule.end, 'dd MMM yyyy')}
-                                    </div>
-                                    <div className="text-xs font-medium mt-1">
-                                      Status: <span className="text-blue-600 dark:text-blue-400">{schedule.status}</span>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          })}
-                      </td>
-                    ))}
-                  </tr>
+          <div className="flex-1 min-w-fit">
+            <div className="relative">
+              {/* Header with dates */}
+              <div className="bg-gray-100 dark:bg-gray-800 h-12 flex sticky top-0 z-10">
+                {days.map((day) => (
+                  <div 
+                    key={`${day.year}-${day.month+1}-${day.day}`} 
+                    className={`p-1 text-center border-r w-12 h-12 flex-shrink-0 dark:border-gray-700 dark:text-gray-200 flex flex-col justify-center
+                      ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                  >
+                    <div className="text-xs font-medium">{day.day}</div>
+                    <div className="text-xs">{format(day.date, 'MMM')}</div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Gantt chart rows */}
+              <div className="relative">
+                {hangars.map((hangar, hangarIndex) => (
+                  <div key={hangar.id} className="relative border-b h-12 dark:border-gray-700">
+                    {/* Background day cells */}
+                    <div className="flex h-12">
+                      {days.map((day) => (
+                        <div 
+                          key={`${hangar.id}-${day.year}-${day.month}-${day.day}`}
+                          className={`w-12 h-12 border-r dark:border-gray-700 flex-shrink-0 ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Aircraft schedule cards overlay */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      {aircraftSchedules
+                        .find(item => item.hangarId === hangar.id)
+                        ?.schedules.map(schedule => {
+                          const position = calculatePosition(schedule);
+                          
+                          return (
+                            <TooltipProvider key={schedule.id}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div 
+                                    className={`absolute top-1 h-10 ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200 pointer-events-auto`}
+                                    style={{
+                                      left: `${position.startPosition}px`,
+                                      width: `${position.width}px`,
+                                    }}
+                                    onClick={() => handleAircraftClick(schedule)}
+                                  >
+                                    <span className="truncate px-1 font-medium text-center">
+                                      {schedule.registration}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <div className="text-sm font-medium">{schedule.aircraft}</div>
+                                  <div className="text-xs">{schedule.registration} - {schedule.customer}</div>
+                                  <div className="text-xs">
+                                    {format(schedule.start, 'dd MMM yyyy')} - {format(schedule.end, 'dd MMM yyyy')}
+                                  </div>
+                                  <div className="text-xs">Duration: {position.duration} days</div>
+                                  <div className="text-xs font-medium mt-1">
+                                    Status: <span className="text-blue-600 dark:text-blue-400">{schedule.status}</span>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
+        
+        {/* Add horizontal scroll bar */}
+        <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
       {/* Aircraft Details Modal */}
