@@ -137,19 +137,24 @@ export default function WorkforceMetrics() {
           }
         }
 
-        // 4. Fetch aircraft metrics from maintenance_visits table
-
-        // Aircraft with Teams (status = "In Service" or "Assigned")
-        const { data: assignedData, error: assignedError } = await supabase
+        // 4. Fetch aircraft metrics
+        
+        // Aircraft with Teams - Aircraft where there are employee cores assigned to them
+        const { data: aircraftWithTeamsData, error: aircraftWithTeamsError } = await supabase
           .from('maintenance_visits')
-          .select('id')
+          .select('id, aircraft_id, aircraft!inner(id, registration)')
           .in('status', ['In Service', 'Assigned']);
         
-        if (!assignedError && assignedData) {
+        // Get the list of aircraft registrations that have teams assigned
+        const assignedAircraft = aircraftWithTeamsData ? aircraftWithTeamsData.length : 0;
+        
+        if (!aircraftWithTeamsError) {
           const assignedIndex = updatedMetrics.findIndex(m => m.title === "Aircraft w/ Teams");
           if (assignedIndex !== -1) {
-            updatedMetrics[assignedIndex].value = assignedData.length;
+            updatedMetrics[assignedIndex].value = assignedAircraft;
           }
+        } else {
+          console.error("Error fetching assigned aircraft:", aircraftWithTeamsError);
         }
 
         // Pending Assignment (status = "Scheduled" or "Pending")
