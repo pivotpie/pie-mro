@@ -2,8 +2,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, User, Plus } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Search, User, Plus, Check } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AircraftSchedule {
   id: string;
@@ -22,6 +26,32 @@ interface AircraftSchedule {
   check_type: string;
 }
 
+interface Employee {
+  id: number;
+  name: string;
+  role: string;
+  skill: string;
+  avatar: string;
+  certification?: string;
+  availability?: string;
+  match_score?: number;
+}
+
+interface TradeRequirement {
+  trade: string;
+  day_count: number;
+  night_count: number;
+  assigned_day: number;
+  assigned_night: number;
+  dates: {
+    date: string;
+    day_count: number;
+    night_count: number;
+    assigned_day: number;
+    assigned_night: number;
+  }[];
+}
+
 interface AircraftDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,38 +59,296 @@ interface AircraftDetailsModalProps {
 }
 
 export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDetailsModalProps) => {
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [assignedEmployees, setAssignedEmployees] = useState<Employee[]>([]);
+  const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([]);
+  const [tradeRequirements, setTradeRequirements] = useState<TradeRequirement[]>([]);
+
+  useEffect(() => {
+    if (isOpen && aircraft) {
+      fetchEmployeeData();
+      fetchPersonnelRequirements();
+    }
+  }, [isOpen, aircraft]);
+
+  const fetchEmployeeData = async () => {
+    if (!aircraft) return;
+    setLoading(true);
+
+    try {
+      // Fetch employees data from the database
+      const { data: employeesData, error: employeesError } = await supabase
+        .from('employees')
+        .select(`
+          id,
+          name,
+          job_title_id,
+          job_titles:job_title_id (job_description),
+          team_id
+        `)
+        .eq('is_active', true);
+
+      if (employeesError) throw employeesError;
+
+      // Check for assigned team
+      const assignedTeam = aircraft.team ? 
+        await supabase.from('teams').select('*').eq('team_name', aircraft.team).single() : null;
+
+      // Fetch employee authorizations to determine qualifications
+      const { data: authData, error: authError } = await supabase
+        .from('employee_authorizations')
+        .select('*')
+        .eq('is_active', true);
+
+      if (authError) throw authError;
+
+      // Process employees data
+      const availableEmps = employeesData.map((emp: any) => {
+        // Calculate match score based on authorizations matching aircraft type
+        const empAuths = authData?.filter(auth => auth.employee_id === emp.id) || [];
+        const matchScore = calculateMatchScore(empAuths, aircraft);
+        
+        return {
+          id: emp.id,
+          name: emp.name,
+          role: emp.job_titles?.job_description || "Technician",
+          skill: determineSkill(empAuths),
+          avatar: getInitials(emp.name),
+          certification: extractCertifications(empAuths),
+          availability: "Available",
+          match_score: matchScore
+        };
+      });
+
+      // Sort by match score
+      availableEmps.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+      
+      // If team is assigned, determine assigned employees
+      let assigned: Employee[] = [];
+      if (assignedTeam?.data) {
+        assigned = employeesData
+          .filter((emp: any) => emp.team_id === assignedTeam.data.id)
+          .map((emp: any) => ({
+            id: emp.id,
+            name: emp.name,
+            role: emp.job_titles?.job_description || "Technician",
+            avatar: getInitials(emp.name),
+          }));
+      }
+
+      setAssignedEmployees(assigned);
+      setAvailableEmployees(availableEmps);
+    } catch (error) {
+      console.error("Error fetching employee data:", error);
+      toast.error("Failed to load employee data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPersonnelRequirements = async () => {
+    if (!aircraft) return;
+    
+    try {
+      // Fetch personnel requirements for this maintenance visit
+      const { data: reqData, error: reqError } = await supabase
+        .from('personnel_requirements')
+        .select(`
+          id,
+          date,
+          day_shift_count,
+          night_shift_count,
+          remarks,
+          trades:trade_id (
+            id,
+            trade_name,
+            trade_code
+          )
+        `)
+        .eq('maintenance_visit_id', aircraft.id);
+
+      if (reqError) throw reqError;
+
+      // Process the requirements data
+      const requirements: Record<string, TradeRequirement> = {};
+      
+      if (reqData && reqData.length > 0) {
+        reqData.forEach((req: any) => {
+          const tradeName = req.trades?.trade_name || 'Unknown';
+          
+          if (!requirements[tradeName]) {
+            requirements[tradeName] = {
+              trade: tradeName,
+              day_count: 0,
+              night_count: 0,
+              assigned_day: 0,
+              assigned_night: 0,
+              dates: []
+            };
+          }
+          
+          requirements[tradeName].day_count += req.day_shift_count;
+          requirements[tradeName].night_count += req.night_shift_count;
+          requirements[tradeName].dates.push({
+            date: format(new Date(req.date), 'dd-MMM'),
+            day_count: req.day_shift_count,
+            night_count: req.night_shift_count,
+            assigned_day: 0, // Would be populated from actual assignments
+            assigned_night: 0
+          });
+        });
+      }
+
+      // If no data from database, generate mock data for the demo
+      if (Object.keys(requirements).length === 0) {
+        generateMockRequirements(requirements);
+      }
+      
+      setTradeRequirements(Object.values(requirements));
+    } catch (error) {
+      console.error("Error fetching personnel requirements:", error);
+      toast.error("Failed to load personnel requirements");
+      
+      // Generate mock data if fetch fails
+      const requirements: Record<string, TradeRequirement> = {};
+      generateMockRequirements(requirements);
+      setTradeRequirements(Object.values(requirements));
+    }
+  };
+
+  const generateMockRequirements = (requirements: Record<string, TradeRequirement>) => {
+    if (!aircraft) return;
+    
+    const trades = ['B1 Tech', 'B2 Tech', 'STRUC & COMP', 'PAINT', 'CABIN', 'NDT'];
+    const startDate = new Date(aircraft.start);
+    const endDate = new Date(aircraft.end);
+    const dayDiff = differenceInDays(endDate, startDate);
+    
+    trades.forEach(trade => {
+      const dates = [];
+      let totalDay = 0;
+      let totalNight = 0;
+      
+      for (let i = 0; i <= dayDiff; i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + i);
+        
+        const dayCount = trade === 'B1 Tech' ? 18 : 
+                         trade === 'B2 Tech' ? 4 : 
+                         trade === 'STRUC & COMP' ? 2 : 
+                         trade === 'PAINT' ? 3 : 
+                         trade === 'CABIN' ? 5 : 0;
+                         
+        const nightCount = 0; // Mock data shows 0 night shift
+        
+        totalDay += dayCount;
+        totalNight += nightCount;
+        
+        dates.push({
+          date: format(currentDate, 'dd-MMM'),
+          day_count: dayCount,
+          night_count: nightCount,
+          assigned_day: trade === 'B1 Tech' ? Math.floor(dayCount * 0.7) : 
+                        trade === 'B2 Tech' ? Math.floor(dayCount * 0.5) :
+                        trade === 'STRUC & COMP' ? 1 :
+                        trade === 'CABIN' ? 3 : 0,
+          assigned_night: 0
+        });
+      }
+      
+      requirements[trade] = {
+        trade,
+        day_count: totalDay,
+        night_count: totalNight,
+        assigned_day: trade === 'B1 Tech' ? Math.floor(totalDay * 0.7) : 
+                       trade === 'B2 Tech' ? Math.floor(totalDay * 0.5) :
+                       trade === 'STRUC & COMP' ? dayDiff :
+                       trade === 'CABIN' ? 3 * dayDiff : 0,
+        assigned_night: 0,
+        dates
+      };
+    });
+  };
+
+  const handleAssignEmployee = (employee: Employee) => {
+    setAssignedEmployees(prev => [...prev, employee]);
+    setAvailableEmployees(prev => prev.filter(emp => emp.id !== employee.id));
+    toast.success(`${employee.name} assigned to ${aircraft?.registration}`);
+  };
+
+  const handleRemoveAssignedEmployee = (employee: Employee) => {
+    setAssignedEmployees(prev => prev.filter(emp => emp.id !== employee.id));
+    setAvailableEmployees(prev => [...prev, {...employee, match_score: calculateEmployeeMatchScore(employee)}]);
+    toast.info(`${employee.name} removed from ${aircraft?.registration}`);
+  };
+
+  const calculateMatchScore = (authorizations: any[], aircraft: AircraftSchedule): number => {
+    if (!authorizations || authorizations.length === 0) return 0;
+    
+    // Basic matching logic - could be enhanced with more specific logic
+    const matchingAuths = authorizations.filter(auth => {
+      const aircraftName = aircraft.aircraft.toLowerCase();
+      const authAircraft = auth.aircraft_model_id?.toString() || '';
+      
+      return (
+        aircraftName.includes('boeing') && authAircraft.includes('boeing') ||
+        aircraftName.includes('airbus') && authAircraft.includes('airbus') ||
+        true // Default match for demo purposes
+      );
+    });
+    
+    return Math.min(100, matchingAuths.length * 25);
+  };
+
+  const calculateEmployeeMatchScore = (employee: Employee): number => {
+    // Re-calculate match score for an employee being added back to available list
+    return employee.match_score || Math.floor(Math.random() * 100);
+  };
+
+  const determineSkill = (authorizations: any[]): string => {
+    if (!authorizations || authorizations.length === 0) return "General";
+    
+    const authTypes = authorizations.map(auth => auth.authorization_type_id);
+    
+    if (authTypes.includes(1)) return "Avionics";
+    if (authTypes.includes(2)) return "Airframe";
+    if (authTypes.includes(3)) return "Engines";
+    return "General";
+  };
+
+  const extractCertifications = (authorizations: any[]): string => {
+    if (!authorizations || authorizations.length === 0) return "None";
+    
+    const certifications = new Set<string>();
+    authorizations.forEach(auth => {
+      if (auth.aircraft_model_id) {
+        certifications.add(`A${auth.aircraft_model_id}`);
+      }
+    });
+    
+    return Array.from(certifications).join(', ') || "General";
+  };
+
+  const getInitials = (name: string): string => {
+    return name
+      .split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
+  const filteredEmployees = availableEmployees.filter(employee => 
+    employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.skill.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (employee.certification && employee.certification.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   if (!aircraft) return null;
 
   const duration = differenceInDays(aircraft.end, aircraft.start) + 1;
-
-  // Mock personnel requirements based on aircraft type
-  const getPersonnelRequirements = (aircraftType: string) => {
-    const requirements = [
-      { skill: "Avionics Technician", required: 2, assigned: 1 },
-      { skill: "Airframe Mechanic", required: 3, assigned: 2 },
-      { skill: "Engine Specialist", required: 1, assigned: aircraft.status === 'Scheduled' ? 0 : 1 },
-      { skill: "Inspector", required: 1, assigned: aircraft.status === 'Completed' ? 1 : 0 },
-    ];
-    return requirements;
-  };
-
-  // Mock assigned employees
-  const assignedEmployees = aircraft.team ? [
-    { id: 1, name: "Michael Johnson", role: "Lead Technician", avatar: "MJ" },
-    { id: 2, name: "Sarah Williams", role: "Avionics Tech", avatar: "SW" },
-    { id: 3, name: "David Brown", role: "Mechanic", avatar: "DB" },
-  ] : [];
-
-  // Mock available employees
-  const availableEmployees = [
-    { id: 4, name: "Emily Chen", skill: "Avionics", certification: "A320, B777", availability: "Available", avatar: "EC" },
-    { id: 5, name: "Robert Garcia", skill: "Airframe", certification: "B777, B787", availability: "Available", avatar: "RG" },
-    { id: 6, name: "Lisa Anderson", skill: "Engines", certification: "A350, B787", availability: "Training until May 25", avatar: "LA" },
-    { id: 7, name: "James Wilson", skill: "Inspector", certification: "All Types", availability: "Available", avatar: "JW" },
-    { id: 8, name: "Maria Rodriguez", skill: "Avionics", certification: "A320, A350", availability: "Available", avatar: "MR" },
-  ];
-
-  const personnelRequirements = getPersonnelRequirements(aircraft.aircraft);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -71,9 +359,9 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         
         <div className="flex-1 overflow-y-auto space-y-6">
           {/* First Row - Aircraft Details & Personnel Requirements */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column - Aircraft Details */}
-            <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+            {/* Left Column - Aircraft Details (40%) */}
+            <div className="lg:col-span-4 space-y-4">
               <h3 className="text-lg font-semibold">Aircraft Information</h3>
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                 <div className="grid grid-cols-2 gap-4">
@@ -119,29 +407,73 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
               </div>
             </div>
 
-            {/* Right Column - Personnel Requirements */}
-            <div className="space-y-4">
+            {/* Right Column - Personnel Requirements Table (60%) */}
+            <div className="lg:col-span-6 space-y-4">
               <h3 className="text-lg font-semibold">Personnel Requirements</h3>
-              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                <div className="space-y-3">
-                  {personnelRequirements.map((req, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium dark:text-gray-200">{req.skill}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {req.assigned}/{req.required} assigned
-                        </p>
-                      </div>
-                      <div className={`px-2 py-1 rounded text-sm ${
-                        req.assigned >= req.required 
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
-                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
-                      }`}>
-                        {req.assigned >= req.required ? 'Complete' : 'Needs Staff'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg overflow-auto max-h-[300px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="font-bold">Trade</TableHead>
+                      <TableHead className="text-center font-bold">
+                        <div>Day</div>
+                        <div className="text-xs">Req / Assigned</div>
+                      </TableHead>
+                      <TableHead className="text-center font-bold">
+                        <div>Night</div>
+                        <div className="text-xs">Req / Assigned</div>
+                      </TableHead>
+                      {tradeRequirements.length > 0 && tradeRequirements[0].dates.slice(0, 7).map((date, idx) => (
+                        <TableHead key={idx} className="text-center font-bold">
+                          <div>{date.date}</div>
+                          <div className="text-xs">Day / Night</div>
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tradeRequirements.map((req, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{req.trade}</TableCell>
+                        <TableCell className="text-center">
+                          <span className={req.assigned_day >= req.day_count ? 
+                            "text-emerald-600 dark:text-emerald-400 font-medium" : 
+                            "text-amber-600 dark:text-amber-400 font-medium"}>
+                            {req.assigned_day} / {req.day_count}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={req.assigned_night >= req.night_count ? 
+                            "text-emerald-600 dark:text-emerald-400 font-medium" : 
+                            "text-amber-600 dark:text-amber-400 font-medium"}>
+                            {req.assigned_night} / {req.night_count}
+                          </span>
+                        </TableCell>
+                        {req.dates.slice(0, 7).map((date, dateIdx) => (
+                          <TableCell key={dateIdx} className="text-center text-sm">
+                            <div className="flex flex-col">
+                              <span className={date.assigned_day >= date.day_count ? 
+                                "text-emerald-600 dark:text-emerald-400" : 
+                                "text-amber-600 dark:text-amber-400"}>
+                                {date.assigned_day}/{date.day_count}
+                              </span>
+                              <span className="text-gray-400">
+                                {date.assigned_night}/{date.night_count}
+                              </span>
+                            </div>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                    {tradeRequirements.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center py-6 text-gray-500">
+                          No personnel requirements available
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           </div>
@@ -159,10 +491,18 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                         <div className="h-10 w-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                           <span className="text-sm font-medium">{employee.avatar}</span>
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium dark:text-gray-200">{employee.name}</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{employee.role}</p>
                         </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-500 hover:text-red-700"
+                          onClick={() => handleRemoveAssignedEmployee(employee)}
+                        >
+                          Remove
+                        </Button>
                       </div>
                     ))}
                     <Button variant="outline" className="w-full">
@@ -193,28 +533,65 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                   <Input 
                     placeholder="Search by name, skill, certification..."
                     className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
 
                 {/* Employee List */}
                 <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                  {availableEmployees.map((employee) => (
-                    <div key={employee.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-medium">{employee.avatar}</span>
-                        </div>
-                        <div>
-                          <p className="font-medium dark:text-gray-200">{employee.name}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{employee.skill} • {employee.certification}</p>
-                          <p className="text-xs text-gray-400">{employee.availability}</p>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        Assign
-                      </Button>
+                  {loading ? (
+                    <div className="flex justify-center items-center h-[200px]">
+                      <div className="animate-spin h-6 w-6 border-2 border-blue-600 rounded-full border-t-transparent"></div>
                     </div>
-                  ))}
+                  ) : filteredEmployees.length > 0 ? (
+                    filteredEmployees.map((employee) => (
+                      <div 
+                        key={employee.id} 
+                        className={`flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                          employee.match_score && employee.match_score > 70 
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800' 
+                            : employee.match_score && employee.match_score > 30
+                            ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+                            : 'bg-white dark:bg-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                            <span className="text-xs font-medium">{employee.avatar}</span>
+                          </div>
+                          <div>
+                            <p className="font-medium dark:text-gray-200">{employee.name}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {employee.skill} • {employee.role} • {employee.certification || "No certs"}
+                            </p>
+                            {employee.match_score && (
+                              <p className="text-xs">
+                                <span className={`font-medium ${
+                                  employee.match_score > 70 ? 'text-emerald-600 dark:text-emerald-400' : 
+                                  employee.match_score > 30 ? 'text-amber-600 dark:text-amber-400' :
+                                  'text-gray-500 dark:text-gray-400'
+                                }`}>
+                                  {employee.match_score}% match
+                                </span> • {employee.availability}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleAssignEmployee(employee)}
+                        >
+                          Assign
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-10 text-gray-500">
+                      No employees match your search
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
