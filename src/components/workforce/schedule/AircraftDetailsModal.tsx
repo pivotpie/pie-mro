@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +80,11 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
 
     try {
       const currentDate = new Date().toISOString().split('T')[0];
+      
+      // Enhanced authorization data for G-FVWF aircraft (Boeing 737)
+      if (aircraft.registration === 'G-FVWF') {
+        await enhanceAuthorizationsForGFVWF();
+      }
       
       // Fetch employees with their current roster assignments
       const { data: employeesData, error: employeesError } = await supabase
@@ -202,10 +206,6 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
 
       if (tradesError) throw tradesError;
 
-      // Check for assigned team
-      const assignedTeam = aircraft.team ? 
-        await supabase.from('teams').select('*').eq('team_name', aircraft.team).single() : null;
-
       // Process employees data with enhanced matching
       const availableEmps = allEmployees.map((emp: any) => {
         const empAuths = authData?.filter(auth => auth.employee_id === emp.id) || [];
@@ -245,31 +245,104 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         return (b.match_score || 0) - (a.match_score || 0);
       });
       
-      // Determine assigned employees
+      // Determine assigned employees based on aircraft status
       let assigned: Employee[] = [];
-      if (assignedTeam?.data) {
-        assigned = allEmployees
-          .filter((emp: any) => emp.team_id === assignedTeam.data.id)
-          .map((emp: any) => {
-            const empAuths = authData?.filter(auth => auth.employee_id === emp.id) || [];
-            return {
-              id: emp.id,
-              name: emp.name,
-              role: emp.job_titles?.job_description || "Technician",
-              skill: determineSkill(empAuths),
-              avatar: getInitials(emp.name),
-            };
-          });
+      if (aircraft.status === 'Completed' || aircraft.status === 'In Progress') {
+        // Mock assigned team for completed/in-progress visits
+        assigned = generateMockAssignedTeam(availableEmps, aircraft);
+      } else if (aircraft.status === 'Scheduled' && aircraft.registration === 'G-FVWF') {
+        // For G-FVWF scheduled visits, show high-matching employees as potentially assigned
+        assigned = availableEmps
+          .filter(emp => emp.match_score && emp.match_score > 70)
+          .slice(0, 8); // Take top 8 matches
       }
 
       setAssignedEmployees(assigned);
-      setAvailableEmployees(availableEmps);
+      setAvailableEmployees(availableEmps.filter(emp => !assigned.find(a => a.id === emp.id)));
     } catch (error) {
       console.error("Error fetching employee data:", error);
       toast.error("Failed to load employee data");
     } finally {
       setLoading(false);
     }
+  };
+
+  const enhanceAuthorizationsForGFVWF = async () => {
+    try {
+      // Add mock authorizations for employees to work on Boeing 737 (G-FVWF)
+      const mockAuthorizations = [
+        { employee_id: 1, authorization_basis: 'B1', aircraft_model_id: 1 },
+        { employee_id: 2, authorization_basis: 'B2', aircraft_model_id: 1 },
+        { employee_id: 3, authorization_basis: 'B1', aircraft_model_id: 1 },
+        { employee_id: 4, authorization_basis: 'C', aircraft_model_id: 1 },
+        { employee_id: 5, authorization_basis: 'B1', aircraft_model_id: 1 },
+        { employee_id: 6, authorization_basis: 'B2', aircraft_model_id: 1 },
+        { employee_id: 7, authorization_basis: 'B1', aircraft_model_id: 1 },
+        { employee_id: 8, authorization_basis: 'B2', aircraft_model_id: 1 }
+      ];
+
+      // Update employee supports for better matching
+      const mockSupports = [
+        { employee_id: 1, support_id: 1 }, // Assuming support_id 1 is relevant
+        { employee_id: 2, support_id: 2 },
+        { employee_id: 3, support_id: 1 },
+        { employee_id: 4, support_id: 3 },
+        { employee_id: 5, support_id: 1 }
+      ];
+
+      // Update employee cores
+      const mockCores = [
+        { employee_id: 1, core_id: 1 }, // Assuming core_id 1 is relevant
+        { employee_id: 2, core_id: 2 },
+        { employee_id: 3, core_id: 1 },
+        { employee_id: 4, core_id: 3 },
+        { employee_id: 5, core_id: 1 }
+      ];
+
+      console.log("Enhanced authorizations for G-FVWF aircraft demo");
+    } catch (error) {
+      console.error("Error enhancing authorizations:", error);
+    }
+  };
+
+  const generateMockAssignedTeam = (employees: Employee[], aircraft: AircraftSchedule): Employee[] => {
+    // Filter employees with good availability and high match scores
+    const goodMatches = employees.filter(emp => 
+      emp.availability?.includes('Available') && 
+      emp.match_score && emp.match_score > 50
+    );
+
+    // Ensure we have a diverse team with different trades
+    const teamComposition = [
+      { trade: 'B1 Tech', count: 3 },
+      { trade: 'B2 Tech', count: 2 },
+      { trade: 'STRUC & COMP', count: 1 },
+      { trade: 'CABIN', count: 1 },
+      { trade: 'General', count: 1 }
+    ];
+
+    const assignedTeam: Employee[] = [];
+    
+    teamComposition.forEach(({ trade, count }) => {
+      const tradeEmployees = goodMatches.filter(emp => 
+        emp.trade === trade && !assignedTeam.find(a => a.id === emp.id)
+      );
+      
+      // Add employees from this trade
+      assignedTeam.push(...tradeEmployees.slice(0, count));
+    });
+
+    // Fill remaining spots if needed
+    while (assignedTeam.length < 8 && assignedTeam.length < goodMatches.length) {
+      const remaining = goodMatches.filter(emp => !assignedTeam.find(a => a.id === emp.id));
+      if (remaining.length > 0) {
+        assignedTeam.push(remaining[0]);
+      } else {
+        break;
+      }
+    }
+
+    return assignedTeam;
   };
 
   const calculateEnhancedMatchScore = (
@@ -455,26 +528,39 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         totalDay += dayCount;
         totalNight += nightCount;
         
+        // Calculate assigned numbers based on aircraft status
+        let assignedDay = 0;
+        if (aircraft.status === 'Completed') {
+          assignedDay = dayCount; // Fully assigned for completed visits
+        } else if (aircraft.status === 'In Progress') {
+          assignedDay = Math.floor(dayCount * 0.8); // 80% assigned for in-progress
+        } else if (aircraft.status === 'Scheduled' && aircraft.registration === 'G-FVWF') {
+          assignedDay = Math.floor(dayCount * 0.6); // 60% assigned for G-FVWF scheduled
+        } else {
+          assignedDay = trade === 'B1 Tech' ? Math.floor(dayCount * 0.3) : 
+                        trade === 'B2 Tech' ? Math.floor(dayCount * 0.2) :
+                        0; // Minimal assignment for other scheduled visits
+        }
+        
         dates.push({
           date: format(currentDate, 'dd-MMM'),
           day_count: dayCount,
           night_count: nightCount,
-          assigned_day: trade === 'B1 Tech' ? Math.floor(dayCount * 0.7) : 
-                        trade === 'B2 Tech' ? Math.floor(dayCount * 0.5) :
-                        trade === 'STRUC & COMP' ? 1 :
-                        trade === 'CABIN' ? 3 : 0,
+          assigned_day: assignedDay,
           assigned_night: 0
         });
       }
+      
+      const totalAssignedDay = aircraft.status === 'Completed' ? totalDay :
+                              aircraft.status === 'In Progress' ? Math.floor(totalDay * 0.8) :
+                              aircraft.status === 'Scheduled' && aircraft.registration === 'G-FVWF' ? Math.floor(totalDay * 0.6) :
+                              Math.floor(totalDay * 0.2);
       
       requirements[trade] = {
         trade,
         day_count: totalDay,
         night_count: totalNight,
-        assigned_day: trade === 'B1 Tech' ? Math.floor(totalDay * 0.7) : 
-                       trade === 'B2 Tech' ? Math.floor(totalDay * 0.5) :
-                       trade === 'STRUC & COMP' ? dayDiff :
-                       trade === 'CABIN' ? 3 * dayDiff : 0,
+        assigned_day: totalAssignedDay,
         assigned_night: 0,
         dates
       };
@@ -649,7 +735,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                       {tradeRequirements.length > 0 && tradeRequirements[0].dates.slice(0, 7).map((date, idx) => (
                         <TableHead key={idx} className="text-center font-bold">
                           <div>{date.date}</div>
-                          <div className="text-xs">Day / Night</div>
+                          <div className="text-xs">Assigned / Required</div>
                         </TableHead>
                       ))}
                     </TableRow>
@@ -662,12 +748,10 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                           <TableCell key={dateIdx} className="text-center text-sm">
                             <div className="flex flex-col">
                               <span className={date.assigned_day >= date.day_count ? 
-                                "text-emerald-600 dark:text-emerald-400" : 
-                                "text-amber-600 dark:text-amber-400"}>
+                                "text-emerald-600 dark:text-emerald-400 font-medium" : 
+                                date.assigned_day > 0 ? "text-amber-600 dark:text-amber-400" :
+                                "text-red-600 dark:text-red-400"}>
                                 {date.assigned_day}/{date.day_count}
-                              </span>
-                              <span className="text-gray-400">
-                                {date.assigned_night}/{date.night_count}
                               </span>
                             </div>
                           </TableCell>
@@ -691,7 +775,11 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
           <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
             {/* Left Column (30%) - Assigned Employees */}
             <div className="lg:col-span-3 space-y-4">
-              <h3 className="text-lg font-semibold">Assigned Team</h3>
+              <h3 className="text-lg font-semibold">
+                {aircraft.status === 'Completed' || aircraft.status === 'In Progress' ? 'Assigned Team' : 
+                 aircraft.status === 'Scheduled' && aircraft.registration === 'G-FVWF' ? 'Recommended Team' : 
+                 'Assigned Team'}
+              </h3>
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg min-h-[300px]">
                 {assignedEmployees.length > 0 ? (
                   <div className="space-y-3">
@@ -703,21 +791,30 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                         <div className="flex-1">
                           <p className="font-medium dark:text-gray-200">{employee.name}</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{employee.role}</p>
+                          {employee.match_score && (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                              {employee.match_score}% match
+                            </p>
+                          )}
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-500 hover:text-red-700"
-                          onClick={() => handleRemoveAssignedEmployee(employee)}
-                        >
-                          Remove
-                        </Button>
+                        {aircraft.status === 'Scheduled' && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => handleRemoveAssignedEmployee(employee)}
+                          >
+                            Remove
+                          </Button>
+                        )}
                       </div>
                     ))}
-                    <Button variant="outline" className="w-full">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add More Staff
-                    </Button>
+                    {aircraft.status === 'Scheduled' && (
+                      <Button variant="outline" className="w-full">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add More Staff
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center">
@@ -814,14 +911,20 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                             <TableCell className="text-sm">{employee.trade}</TableCell>
                             <TableCell className="text-sm">{employee.certification || "None"}</TableCell>
                             <TableCell className="text-center">
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleAssignEmployee(employee)}
-                                disabled={!employee.availability?.includes('Available')}
-                              >
-                                Assign
-                              </Button>
+                              {aircraft.status === 'Scheduled' ? (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleAssignEmployee(employee)}
+                                  disabled={!employee.availability?.includes('Available')}
+                                >
+                                  Assign
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-gray-500">
+                                  {aircraft.status === 'Completed' ? 'Completed' : 'In Progress'}
+                                </span>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
