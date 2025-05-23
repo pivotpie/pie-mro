@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
@@ -10,7 +9,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose, DrawerFo
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const EmployeeScheduleView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -20,7 +19,7 @@ export const EmployeeScheduleView = () => {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [isScheduleDetailOpen, setIsScheduleDetailOpen] = useState(false);
   const { toast } = useToast();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   // Navigate to previous month
   const goToPreviousMonth = () => {
