@@ -1269,11 +1269,20 @@ export const EmployeeCalendar = ({
             border-left: 4px solid #ef4444;
           }
           .tooltip-fixed {
-            position: absolute;
-            pointer-events: none;
+            position: absolute !important;
+            pointer-events: none !important;
+            z-index: 100 !important;
+            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
+            transform: translateY(-8px) !important;
           }
           .popover-content {
             z-index: 100;
+          }
+          .fixed-tooltip {
+            position: absolute !important; 
+            pointer-events: none !important;
+            z-index: 1000 !important;
+            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
           }
         `}
       </style>
