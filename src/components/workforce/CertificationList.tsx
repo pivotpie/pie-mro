@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,18 @@ interface Certification {
   expiryStatus: "valid" | "expiring" | "expired";
 }
 
-export const CertificationList = () => {
+interface CertificationData {
+  id: number;
+  certification_code: string;
+  certification_description: string;
+  [key: string]: any;
+}
+
+interface CertificationListProps {
+  onCertificationClick?: (certification: CertificationData) => void;
+}
+
+export const CertificationList = ({ onCertificationClick }: CertificationListProps) => {
   const [selectedCertification, setSelectedCertification] = useState<Certification | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -66,8 +76,19 @@ export const CertificationList = () => {
   ];
 
   const handleCertificationClick = (certification: Certification) => {
-    setSelectedCertification(certification);
-    setDetailsOpen(true);
+    if (onCertificationClick) {
+      // Convert to CertificationData format for the callback
+      const certificationData: CertificationData = {
+        id: certification.id,
+        certification_code: certification.name,
+        certification_description: certification.type
+      };
+      onCertificationClick(certificationData);
+    } else {
+      // Fallback to local modal
+      setSelectedCertification(certification);
+      setDetailsOpen(true);
+    }
   };
 
   const handleSendForTraining = (id: number, employeeName: string) => {
@@ -229,7 +250,6 @@ export const CertificationList = () => {
           </DialogHeader>
           {selectedCertification && (
             <div className="mt-6 space-y-6">
-              {/* Employee Section */}
               <div>
                 <h3 className="text-lg font-medium mb-2">Employee Information</h3>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
@@ -254,7 +274,6 @@ export const CertificationList = () => {
                 </div>
               </div>
 
-              {/* Certification Section */}
               <div>
                 <h3 className="text-lg font-medium mb-2">Certification Information</h3>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
@@ -283,7 +302,6 @@ export const CertificationList = () => {
                 </div>
               </div>
 
-              {/* Associated Aircraft */}
               <div>
                 <h3 className="text-lg font-medium mb-2">Associated Aircraft</h3>
                 <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md">
@@ -300,7 +318,6 @@ export const CertificationList = () => {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end space-x-2 pt-4">
                 <Button variant="outline" size="sm" onClick={() => setDetailsOpen(false)}>
                   <X className="mr-1 h-4 w-4" /> Close
