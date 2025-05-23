@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -35,6 +36,7 @@ interface AircraftSchedule {
   registration: string;
   customer: string;
   color: string;
+  borderColor: string;
   visit_number: string;
   check_type: string;
 }
@@ -102,17 +104,33 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
           name: hangar.hangar_name
         }));
         
-        // Status-based color mapping
+        // Status-based fill color mapping
         const getStatusColor = (status: string) => {
           switch (status) {
             case 'Completed':
-              return 'bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700';
+              return 'bg-green-200 dark:bg-green-900';
             case 'In Progress':
-              return 'bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700';
+              return 'bg-blue-200 dark:bg-blue-900';
             case 'Scheduled':
-              return 'bg-gray-200 border-gray-400 dark:bg-gray-700 dark:border-gray-600';
+              return 'bg-gray-200 dark:bg-gray-700';
             default:
-              return 'bg-gray-200 border-gray-400 dark:bg-gray-700 dark:border-gray-600';
+              return 'bg-gray-200 dark:bg-gray-700';
+          }
+        };
+
+        // Aircraft model-based border color mapping
+        const getAircraftBorderColor = (aircraftName: string) => {
+          const name = aircraftName.toLowerCase();
+          if (name.includes('boeing') || name.includes('b737') || name.includes('b777') || name.includes('b787')) {
+            return 'border-blue-500';
+          } else if (name.includes('airbus') || name.includes('a320') || name.includes('a350') || name.includes('a380')) {
+            return 'border-green-500';
+          } else if (name.includes('pa-28') || name.includes('cessna')) {
+            return 'border-yellow-500';
+          } else if (name.includes('r44') || name.includes('helicopter')) {
+            return 'border-purple-500';
+          } else {
+            return 'border-gray-400';
           }
         };
         
@@ -136,8 +154,9 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 endDate = new Date(new Date().getTime() + 86400000); // Next day
               }
               
-              // Use status-based color instead of aircraft type
-              const color = getStatusColor(visit.status);
+              // Use status-based fill color and aircraft model-based border color
+              const fillColor = getStatusColor(visit.status);
+              const borderColor = getAircraftBorderColor(visit.aircraft?.aircraft_name || '');
               
               return {
                 id: visit.id,
@@ -150,7 +169,8 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 status: visit.status || 'Scheduled',
                 registration: visit.aircraft?.registration || 'UNKNOWN',
                 customer: visit.aircraft?.customer || 'Unknown Operator',
-                color,
+                color: fillColor,
+                borderColor: borderColor,
                 visit_number: visit.visit_number || 'N/A',
                 check_type: visit.check_type || 'Standard Check'
               };
@@ -199,7 +219,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     fetchData();
   }, [startDate, endDate]); // Dependency on date range
 
-  // Generate enhanced mock data based on the reference image with status-based colors
+  // Generate enhanced mock data based on the reference image with status-based colors and aircraft model-based borders
   const generateEnhancedMockData = (hangars: HangarData[]) => {
     const mockData: { hangarId: number, schedules: AircraftSchedule[] }[] = [];
     
@@ -276,17 +296,33 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
       { hangar: 'Hangar 1B', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 16, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' }
     ];
     
-    // Use status-based color mapping
+    // Use status-based fill color mapping
     const getStatusColor = (status: string) => {
       switch (status) {
         case 'Completed':
-          return 'bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700';
+          return 'bg-green-200 dark:bg-green-900';
         case 'In Progress':
-          return 'bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700';
+          return 'bg-blue-200 dark:bg-blue-900';
         case 'Scheduled':
-          return 'bg-gray-200 border-gray-400 dark:bg-gray-700 dark:border-gray-600';
+          return 'bg-gray-200 dark:bg-gray-700';
         default:
-          return 'bg-gray-200 border-gray-400 dark:bg-gray-700 dark:border-gray-600';
+          return 'bg-gray-200 dark:bg-gray-700';
+      }
+    };
+
+    // Aircraft model-based border color mapping
+    const getAircraftBorderColor = (aircraftName: string) => {
+      const name = aircraftName.toLowerCase();
+      if (name.includes('boeing') || name.includes('b737') || name.includes('b777') || name.includes('b787')) {
+        return 'border-blue-500';
+      } else if (name.includes('airbus') || name.includes('a320') || name.includes('a350') || name.includes('a380')) {
+        return 'border-green-500';
+      } else if (name.includes('pa-28') || name.includes('cessna')) {
+        return 'border-yellow-500';
+      } else if (name.includes('r44') || name.includes('helicopter') || name.includes('adhoc')) {
+        return 'border-purple-500';
+      } else {
+        return 'border-gray-400';
       }
     };
     
@@ -315,6 +351,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
           registration: `${assignment.authority}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
           customer: assignment.authority,
           color: getStatusColor(assignment.status),
+          borderColor: getAircraftBorderColor(assignment.aircraft),
           visit_number: `MV${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
           check_type: 'Maintenance Check'
         };
@@ -459,7 +496,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div 
-                                    className={`absolute top-1 h-10 ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200 pointer-events-auto`}
+                                    className={`absolute top-1 h-10 ${schedule.color} ${schedule.borderColor} border-2 rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200 pointer-events-auto`}
                                     style={{
                                       left: `${position.startPosition}px`,
                                       width: `${position.width}px`,
