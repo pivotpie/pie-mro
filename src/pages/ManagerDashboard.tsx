@@ -144,6 +144,8 @@ const ManagerDashboard = () => {
         // Count available employees (those with AV or AVAILABLE-SLOT support codes)
         if (supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
           availableCount[roleCategory as keyof typeof availableCount]++;
+          // For support assignments, we use the same main categories
+          availableCount[`support_${roleCategory}` as keyof typeof availableCount]++;
         }
       });
 
@@ -253,11 +255,12 @@ const ManagerDashboard = () => {
     // Calculate the difference
     const difference = numValue - currentAssignment;
     
-    // Check if we have enough available employees
-    const availableForRole = availableEmployees[role as keyof typeof availableEmployees] || 0;
+    // Check if we have enough available employees from the main pool
+    const mainRole = role.replace('support_', '');
+    const availableForRole = availableEmployees[mainRole as keyof typeof availableEmployees] || 0;
     
     if (difference > availableForRole) {
-      toast.error(`Not enough available ${role.toUpperCase()} employees. Available: ${availableForRole}`);
+      toast.error(`Not enough available ${mainRole.toUpperCase()} employees. Available: ${availableForRole}`);
       return;
     }
 
@@ -270,9 +273,10 @@ const ManagerDashboard = () => {
       }
     }));
 
-    // Update available count
+    // Update available count (reduce from main pool)
     setAvailableEmployees(prev => ({
       ...prev,
+      [mainRole]: prev[mainRole] - difference,
       [role]: prev[role] - difference
     }));
 
@@ -281,6 +285,7 @@ const ManagerDashboard = () => {
       if (row.isAvailable) {
         return {
           ...row,
+          [mainRole]: availableEmployees[mainRole as keyof typeof availableEmployees] - difference,
           [role]: availableEmployees[role as keyof typeof availableEmployees] - difference
         };
       }
@@ -310,15 +315,22 @@ const ManagerDashboard = () => {
           };
         }, { cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0 });
 
+        const newAvailableAfterAssignment = {
+          cc: availableEmployees.cc - difference * (mainRole === 'cc' ? 1 : 0),
+          engr: availableEmployees.engr - difference * (mainRole === 'engr' ? 1 : 0),
+          nc: availableEmployees.nc - difference * (mainRole === 'nc' ? 1 : 0),
+          tech: availableEmployees.tech - difference * (mainRole === 'tech' ? 1 : 0)
+        };
+
         return {
           ...row,
-          cc: availableEmployees.cc + newTotalAssigned.cc,
-          engr: availableEmployees.engr + newTotalAssigned.engr,
-          nc: availableEmployees.nc + newTotalAssigned.nc,
-          tech: availableEmployees.tech + newTotalAssigned.tech,
-          support_engr: availableEmployees.support_engr + newTotalAssigned.support_engr,
-          support_nc: availableEmployees.support_nc + newTotalAssigned.support_nc,
-          support_tech: availableEmployees.support_tech + newTotalAssigned.support_tech
+          cc: newAvailableAfterAssignment.cc + newTotalAssigned.cc,
+          engr: newAvailableAfterAssignment.engr + newTotalAssigned.engr,
+          nc: newAvailableAfterAssignment.nc + newTotalAssigned.nc,
+          tech: newAvailableAfterAssignment.tech + newTotalAssigned.tech,
+          support_engr: newTotalAssigned.support_engr,
+          support_nc: newTotalAssigned.support_nc,
+          support_tech: newTotalAssigned.support_tech
         };
       }
       return row;
@@ -445,14 +457,14 @@ const ManagerDashboard = () => {
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">ENGR</th>
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">NC</th>
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">TECH</th>
-                      <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50 border-l-2 border-gray-400">ENGR</th>
+                      <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50 border-l-4 border-gray-600">ENGR</th>
                       <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50">NC</th>
                       <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50">TECH</th>
                     </tr>
                     <tr className="border-b bg-gray-100 dark:bg-gray-800">
                       <th className="text-left p-2"></th>
                       <th className="text-center p-2 text-xs" colSpan={4}>Main</th>
-                      <th className="text-center p-2 text-xs border-l-2 border-gray-400" colSpan={3}>Support</th>
+                      <th className="text-center p-2 text-xs border-l-4 border-gray-600" colSpan={3}>Support</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -490,12 +502,12 @@ const ManagerDashboard = () => {
                         </td>
                         
                         {/* Support section - With input fields for aircraft rows only */}
-                        <td className="text-center p-2 border-l-2 border-gray-400">
+                        <td className="text-center p-2 border-l-4 border-gray-600">
                           {row.isAircraft ? (
                             <Input
                               type="number"
                               min="0"
-                              max={availableEmployees.support_engr + (aircraftAssignments[row.category]?.support_engr || 0)}
+                              max={availableEmployees.engr + (aircraftAssignments[row.category]?.support_engr || 0)}
                               value={aircraftAssignments[row.category]?.support_engr || 0}
                               onChange={(e) => handleAssignmentChange(row.category, 'support_engr', e.target.value)}
                               className="w-16 h-8 text-center"
@@ -509,7 +521,7 @@ const ManagerDashboard = () => {
                             <Input
                               type="number"
                               min="0"
-                              max={availableEmployees.support_nc + (aircraftAssignments[row.category]?.support_nc || 0)}
+                              max={availableEmployees.nc + (aircraftAssignments[row.category]?.support_nc || 0)}
                               value={aircraftAssignments[row.category]?.support_nc || 0}
                               onChange={(e) => handleAssignmentChange(row.category, 'support_nc', e.target.value)}
                               className="w-16 h-8 text-center"
@@ -523,7 +535,7 @@ const ManagerDashboard = () => {
                             <Input
                               type="number"
                               min="0"
-                              max={availableEmployees.support_tech + (aircraftAssignments[row.category]?.support_tech || 0)}
+                              max={availableEmployees.tech + (aircraftAssignments[row.category]?.support_tech || 0)}
                               value={aircraftAssignments[row.category]?.support_tech || 0}
                               onChange={(e) => handleAssignmentChange(row.category, 'support_tech', e.target.value)}
                               className="w-16 h-8 text-center"
