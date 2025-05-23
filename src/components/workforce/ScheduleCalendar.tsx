@@ -1,9 +1,11 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Filter } from "lucide-react";
+import { Check, Filter, Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Helper function to determine if a date is a weekend
 const isWeekend = (dayOfMonth: number, month: number) => {
@@ -47,6 +49,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
   const [supportFilterValues, setSupportFilterValues] = useState<string[]>([]);
   const [activeCoreFilters, setActiveCoreFilters] = useState<string[]>([]);
   const [activeSupportFilters, setActiveSupportFilters] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const days = generateDays();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -104,6 +107,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     const sortedEmployees = employeesWithSchedule.sort((a, b) => a.e_number - b.e_number);
     
     setColumns(sortedEmployees);
+    setIsLoading(false);
   }, []);
 
   // Handle scroll events
@@ -190,7 +194,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     });
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
         <div className="text-center">
