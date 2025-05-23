@@ -1,13 +1,16 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
 import WorkforceMetrics from "@/components/workforce/WorkforceMetrics";
 import { toast } from "sonner";
 import { SortableTable } from "@/components/ui/sortable-table";
 import { supabase } from "@/integrations/supabase/client";
+import { UserPlus } from "lucide-react";
 
 interface SummaryData {
   category: string;
@@ -21,6 +24,23 @@ interface SummaryData {
   support_tech: number;
   isSubcategory?: boolean;
   isTotal?: boolean;
+  available_employees?: number[];
+  aircraft_assignments?: { [key: string]: number };
+}
+
+interface AvailableEmployee {
+  id: number;
+  name: string;
+  job_title: string;
+  support_code: string;
+}
+
+interface MaintenanceVisit {
+  id: number;
+  visit_number: string;
+  aircraft: {
+    registration: string;
+  };
 }
 
 const ManagerDashboard = () => {
@@ -29,6 +49,8 @@ const ManagerDashboard = () => {
   const [supportDistribution, setSupportDistribution] = useState<any[]>([]);
   const [roleDistribution, setRoleDistribution] = useState<any[]>([]);
   const [summaryData, setSummaryData] = useState<SummaryData[]>([]);
+  const [availableEmployees, setAvailableEmployees] = useState<AvailableEmployee[]>([]);
+  const [maintenanceVisits, setMaintenanceVisits] = useState<MaintenanceVisit[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,71 +59,185 @@ const ManagerDashboard = () => {
       return;
     }
 
-    fetchSupportData();
-    fetchSummaryData();
+    fetchAllData();
   }, [user, navigate]);
 
-  const fetchSummaryData = async () => {
+  const fetchAllData = async () => {
+    setLoading(true);
     try {
-      // Generate summary data matching the Excel format
-      const summaryRows: SummaryData[] = [
-        // Header row with date
-        { category: "Monday", subcategory: "5-May", cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0, isTotal: true },
-        
-        // Available
-        { category: "Available", cc: 0, engr: 8, nc: 2, tech: 6, support_engr: 7, support_nc: 2, support_tech: 0 },
-        
-        // Night Shift
-        { category: "Night Shift", cc: 0, engr: 2, nc: 0, tech: 9, support_engr: 0, support_nc: 0, support_tech: 0 },
-        
-        // VH-OQC
-        { category: "VH-OQC", cc: 1, engr: 4, nc: 0, tech: 10, support_engr: 0, support_nc: 0, support_tech: 0 },
-        
-        // Aircraft input section
-        { category: "A6-APH Lx input", cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 1, support_nc: 0, support_tech: 0, subcategory: "Fatima" },
-        
-        // Individual aircraft
-        { category: "A6-AEC", cc: 1, engr: 3, nc: 0, tech: 13, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "A6-AER", cc: 0, engr: 0, nc: 0, tech: 3, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "A6-BNA", cc: 1, engr: 5, nc: 0, tech: 18, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "A6-EIH", cc: 1, engr: 2, nc: 1, tech: 6, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "A6-ETA", cc: 1, engr: 7, nc: 0, tech: 15, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "A6-XWC", cc: 1, engr: 5, nc: 0, tech: 17, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "F-GSQI", cc: 1, engr: 5, nc: 0, tech: 14, support_engr: 0, support_nc: 0, support_tech: 2 },
-        { category: "F-GZNO", cc: 1, engr: 7, nc: 0, tech: 19, support_engr: 0, support_nc: 0, support_tech: 2 },
-        { category: "F-HRBH", cc: 1, engr: 4, nc: 2, tech: 14, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "G-ZBKM", cc: 1, engr: 4, nc: 3, tech: 16, support_engr: 0, support_nc: 0, support_tech: 2 },
-        { category: "SP-LSC", cc: 1, engr: 2, nc: 0, tech: 2, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "VH-IWY", cc: 1, engr: 4, nc: 2, tech: 20, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "VH-OQC", cc: 1, engr: 4, nc: 0, tech: 10, support_engr: 0, support_nc: 0, support_tech: 0 },
-        { category: "VH-OQL", cc: 1, engr: 11, nc: 0, tech: 38, support_engr: 0, support_nc: 0, support_tech: 0 },
-        
-        // Leave section
-        { category: "Leave", cc: 0, engr: 7, nc: 2, tech: 27, support_engr: 0, support_nc: 0, support_tech: 0 },
-        
-        // C-Cert section
-        { category: "C-Cert", cc: 4, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0 },
-        
-        // OFF section
-        { category: "OFF", cc: 0, engr: 17, nc: 2, tech: 65, support_engr: 0, support_nc: 0, support_tech: 0 },
-        
-        // Training section
-        { category: "Training", cc: 0, engr: 8, nc: 0, tech: 3, support_engr: 0, support_nc: 0, support_tech: 0 },
-        
-        // Grand Total
-        { category: "Grand Total", cc: 17, engr: 107, nc: 15, tech: 325, support_engr: 0, support_nc: 0, support_tech: 0, isTotal: true },
-      ];
-
-      setSummaryData(summaryRows);
+      await Promise.all([
+        fetchSupportData(),
+        fetchWorkforceSummary(),
+        fetchMaintenanceVisits()
+      ]);
     } catch (error) {
-      console.error("Error generating summary data:", error);
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchWorkforceSummary = async () => {
+    try {
+      // Fetch employees with their current assignments
+      const { data: employeeData, error: employeeError } = await supabase
+        .from('employees')
+        .select(`
+          id,
+          name,
+          job_titles:job_title_id (
+            job_description
+          ),
+          employee_supports (
+            support_codes:support_id (
+              support_code
+            )
+          )
+        `)
+        .eq('is_active', true);
+
+      if (employeeError) throw employeeError;
+
+      // Process the data to create summary
+      const summary: SummaryData[] = [];
+      
+      // Add header row
+      summary.push({
+        category: "Monday",
+        subcategory: "5-May",
+        cc: 0,
+        engr: 0,
+        nc: 0,
+        tech: 0,
+        support_engr: 0,
+        support_nc: 0,
+        support_tech: 0,
+        isTotal: true
+      });
+
+      // Calculate workforce distribution
+      const workforceBySupport: { [key: string]: any } = {};
+      const availableEmpList: AvailableEmployee[] = [];
+
+      employeeData?.forEach((emp: any) => {
+        const jobTitle = emp.job_titles?.job_description || 'Unknown';
+        const supportCode = emp.employee_supports?.[0]?.support_codes?.support_code || 'Unassigned';
+        
+        // Determine role category
+        let roleCategory = 'tech'; // default
+        if (jobTitle.toLowerCase().includes('commander') || jobTitle.toLowerCase().includes('cc')) {
+          roleCategory = 'cc';
+        } else if (jobTitle.toLowerCase().includes('engineer')) {
+          roleCategory = 'engr';
+        } else if (jobTitle.toLowerCase().includes('navigator') || jobTitle.toLowerCase().includes('nc')) {
+          roleCategory = 'nc';
+        }
+
+        // Group by support code
+        if (!workforceBySupport[supportCode]) {
+          workforceBySupport[supportCode] = {
+            category: supportCode,
+            cc: 0,
+            engr: 0,
+            nc: 0,
+            tech: 0,
+            support_engr: 0,
+            support_nc: 0,
+            support_tech: 0,
+            available_employees: []
+          };
+        }
+
+        // Increment main counts
+        workforceBySupport[supportCode][roleCategory]++;
+        
+        // If available, add to available employees list
+        if (supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
+          availableEmpList.push({
+            id: emp.id,
+            name: emp.name,
+            job_title: jobTitle,
+            support_code: supportCode
+          });
+          workforceBySupport[supportCode].available_employees.push(emp.id);
+        }
+      });
+
+      // Add Available row first
+      if (workforceBySupport['AV'] || workforceBySupport['AVAILABLE-SLOT']) {
+        const availableData = workforceBySupport['AV'] || workforceBySupport['AVAILABLE-SLOT'];
+        summary.push({
+          ...availableData,
+          category: 'Available'
+        });
+      }
+
+      // Add other aircraft assignments
+      Object.entries(workforceBySupport).forEach(([supportCode, data]: [string, any]) => {
+        if (supportCode !== 'AV' && supportCode !== 'AVAILABLE-SLOT' && supportCode !== 'Unassigned') {
+          summary.push({
+            ...data,
+            category: supportCode
+          });
+        }
+      });
+
+      // Add totals
+      const totals = Object.values(workforceBySupport).reduce((acc: any, curr: any) => ({
+        cc: acc.cc + curr.cc,
+        engr: acc.engr + curr.engr,
+        nc: acc.nc + curr.nc,
+        tech: acc.tech + curr.tech,
+        support_engr: acc.support_engr + curr.support_engr,
+        support_nc: acc.support_nc + curr.support_nc,
+        support_tech: acc.support_tech + curr.support_tech
+      }), { cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0 });
+
+      summary.push({
+        category: "Grand Total",
+        ...totals,
+        isTotal: true
+      });
+
+      setSummaryData(summary);
+      setAvailableEmployees(availableEmpList);
+    } catch (error) {
+      console.error("Error fetching workforce summary:", error);
+    }
+  };
+
+  const fetchMaintenanceVisits = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('maintenance_visits')
+        .select(`
+          id,
+          visit_number,
+          aircraft:aircraft_id (
+            registration
+          )
+        `)
+        .eq('status', 'Scheduled')
+        .limit(10);
+
+      if (error) throw error;
+
+      setMaintenanceVisits(data?.map((visit: any) => ({
+        id: visit.id,
+        visit_number: visit.visit_number,
+        aircraft: {
+          registration: visit.aircraft?.registration || 'Unknown'
+        }
+      })) || []);
+    } catch (error) {
+      console.error("Error fetching maintenance visits:", error);
     }
   };
 
   const fetchSupportData = async () => {
-    setLoading(true);
     try {
-      // Fetch support distribution data - Fixed query without .group()
+      // Fetch support distribution data
       const { data: supportData, error: supportError } = await supabase
         .from('employee_supports')
         .select(`
@@ -132,7 +268,7 @@ const ManagerDashboard = () => {
         .sort((a: any, b: any) => b.count - a.count)
         .slice(0, 20);
 
-      // Fetch job title distribution - Fixed query without .group()
+      // Fetch job title distribution
       const { data: roleData, error: roleError } = await supabase
         .from('employees')
         .select(`
@@ -169,8 +305,35 @@ const ManagerDashboard = () => {
     } catch (error) {
       console.error("Error fetching support data:", error);
       toast.error("Failed to load workforce distribution data");
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const handleAssignEmployee = async (employeeId: number, aircraftRegistration: string) => {
+    try {
+      // Find the support code for the aircraft
+      let supportCode = aircraftRegistration;
+      
+      // Update employee support assignment
+      const { error } = await supabase
+        .from('employee_supports')
+        .update({
+          support_id: (await supabase
+            .from('support_codes')
+            .select('id')
+            .eq('support_code', supportCode)
+            .single()).data?.id
+        })
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+
+      toast.success("Employee assigned successfully");
+      
+      // Refresh data
+      fetchWorkforceSummary();
+    } catch (error) {
+      console.error("Error assigning employee:", error);
+      toast.error("Failed to assign employee");
     }
   };
 
@@ -209,7 +372,7 @@ const ManagerDashboard = () => {
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>Daily Workforce Summary</CardTitle>
-              <CardDescription>Current workforce allocation breakdown</CardDescription>
+              <CardDescription>Current workforce allocation breakdown with assignment capabilities</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -221,14 +384,16 @@ const ManagerDashboard = () => {
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">ENGR</th>
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">NC</th>
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">TECH</th>
-                      <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">ENGR</th>
-                      <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">NC</th>
-                      <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">TECH</th>
+                      <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50 border-l-2 border-gray-400">ENGR</th>
+                      <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50">NC</th>
+                      <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50">TECH</th>
+                      <th className="text-center p-2 font-bold">Actions</th>
                     </tr>
                     <tr className="border-b bg-gray-100 dark:bg-gray-800">
                       <th className="text-left p-2"></th>
                       <th className="text-center p-2 text-xs" colSpan={4}>Main</th>
-                      <th className="text-center p-2 text-xs" colSpan={3}>Support</th>
+                      <th className="text-center p-2 text-xs border-l-2 border-gray-400" colSpan={3}>Support</th>
+                      <th className="text-center p-2 text-xs"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -237,10 +402,7 @@ const ManagerDashboard = () => {
                         key={index} 
                         className={`border-b hover:bg-gray-50 dark:hover:bg-gray-800 ${
                           row.isTotal ? 'bg-yellow-100 dark:bg-yellow-900/30 font-bold' :
-                          row.category === 'Available' ? 'bg-gray-100 dark:bg-gray-800' :
-                          row.category === 'Night Shift' ? 'bg-gray-100 dark:bg-gray-800' :
-                          row.category === 'Leave' ? 'bg-red-100 dark:bg-red-900/30' :
-                          row.category.includes('A6-APH') ? 'bg-red-100 dark:bg-red-900/30' :
+                          row.category === 'Available' ? 'bg-green-100 dark:bg-green-800/30' :
                           ''
                         }`}
                       >
@@ -256,9 +418,38 @@ const ManagerDashboard = () => {
                         <td className="text-center p-2">{row.engr || ''}</td>
                         <td className="text-center p-2">{row.nc || ''}</td>
                         <td className="text-center p-2">{row.tech || ''}</td>
-                        <td className="text-center p-2">{row.support_engr || ''}</td>
+                        <td className="text-center p-2 border-l-2 border-gray-400">{row.support_engr || ''}</td>
                         <td className="text-center p-2">{row.support_nc || ''}</td>
                         <td className="text-center p-2">{row.support_tech || ''}</td>
+                        <td className="text-center p-2">
+                          {row.category === 'Available' && row.available_employees && row.available_employees.length > 0 && (
+                            <Select onValueChange={(value) => {
+                              const [employeeId, aircraftReg] = value.split('|');
+                              handleAssignEmployee(parseInt(employeeId), aircraftReg);
+                            }}>
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Assign" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableEmployees.map((emp) => (
+                                  <div key={emp.id}>
+                                    <div className="px-2 py-1 text-xs font-medium text-gray-500 border-b">
+                                      {emp.name} ({emp.job_title})
+                                    </div>
+                                    {maintenanceVisits.map((visit) => (
+                                      <SelectItem 
+                                        key={`${emp.id}-${visit.id}`}
+                                        value={`${emp.id}|${visit.aircraft.registration}`}
+                                      >
+                                        {visit.aircraft.registration}
+                                      </SelectItem>
+                                    ))}
+                                  </div>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -298,18 +489,12 @@ const ManagerDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="divide-y">
-                  <div className="py-3">
-                    <p className="font-medium">A7-BAC (777-300ER)</p>
-                    <p className="text-sm text-gray-500">C-Check, Hangar 2, Due: May 25</p>
-                  </div>
-                  <div className="py-3">
-                    <p className="font-medium">A7-BEF (787-9)</p>
-                    <p className="text-sm text-gray-500">A-Check, Hangar 1, Due: May 22</p>
-                  </div>
-                  <div className="py-3">
-                    <p className="font-medium">A7-BCG (777-200LR)</p>
-                    <p className="text-sm text-gray-500">D-Check, Hangar 3, Due: June 10</p>
-                  </div>
+                  {maintenanceVisits.slice(0, 3).map((visit, index) => (
+                    <div key={visit.id} className="py-3">
+                      <p className="font-medium">{visit.aircraft.registration}</p>
+                      <p className="text-sm text-gray-500">Visit: {visit.visit_number}</p>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
