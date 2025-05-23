@@ -127,6 +127,7 @@ export const AircraftDetailsModal: React.FC<AircraftDetailsModalProps> = ({ airc
       return;
     }
     
+    // Include trade and job title in search as requested
     const filtered = allEmployees.filter(emp => 
       emp.name.toLowerCase().includes(query.toLowerCase()) || 
       emp.e_number.toString().includes(query) || 
