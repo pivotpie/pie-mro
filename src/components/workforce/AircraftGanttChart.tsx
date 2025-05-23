@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addDays, eachDayOfInterval, isWeekend, isSameDay, startOfDay, isEqual } from "date-fns";
+import { format, addDays, eachDayOfInterval, isWeekend, isSameDay, startOfDay, differenceInDays } from "date-fns";
 
 // Helper function to generate days between two dates
 const generateDaysBetween = (startDate: Date, endDate: Date) => {
@@ -351,89 +350,50 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
   }, [scrollLeft]);
 
   const calculatePosition = (schedule: AircraftSchedule) => {
-    // Debug the schedule
-    console.log('Calculating position for schedule:', {
+    console.log('=== Calculating position for schedule ===');
+    console.log('Schedule:', {
       id: schedule.id,
+      registration: schedule.registration,
       start: schedule.start,
       end: schedule.end,
-      registration: schedule.registration
+      startFormatted: format(schedule.start, 'yyyy-MM-dd'),
+      endFormatted: format(schedule.end, 'yyyy-MM-dd')
     });
     
-    // Make sure the dates are processed correctly
-    const scheduleStartDay = startOfDay(new Date(schedule.start));
-    const scheduleEndDay = startOfDay(new Date(schedule.end));
-
-    console.log('Date ranges:', {
-      scheduleStartDay: format(scheduleStartDay, 'yyyy-MM-dd'),
-      scheduleEndDay: format(scheduleEndDay, 'yyyy-MM-dd'),
-      chartFirstDay: days.length > 0 ? format(days[0].date, 'yyyy-MM-dd') : 'none',
-      chartLastDay: days.length > 0 ? format(days[days.length-1].date, 'yyyy-MM-dd') : 'none',
-      totalDays: days.length
+    // Use the first day of our visible range as the reference point
+    const chartStartDate = startOfDay(days[0].date);
+    const scheduleStartDate = startOfDay(new Date(schedule.start));
+    const scheduleEndDate = startOfDay(new Date(schedule.end));
+    
+    console.log('Date comparison:', {
+      chartStartDate: format(chartStartDate, 'yyyy-MM-dd'),
+      scheduleStartDate: format(scheduleStartDate, 'yyyy-MM-dd'),
+      scheduleEndDate: format(scheduleEndDate, 'yyyy-MM-dd')
     });
     
-    let startIdx = -1;
-    let endIdx = -1;
+    // Calculate the difference in days from the chart start
+    const startDaysDifference = differenceInDays(scheduleStartDate, chartStartDate);
+    const endDaysDifference = differenceInDays(scheduleEndDate, chartStartDate);
     
-    // Find exact matches for start and end dates
-    for (let i = 0; i < days.length; i++) {
-      const currentDay = startOfDay(days[i].date);
-      
-      if (startIdx === -1 && isSameDay(currentDay, scheduleStartDay)) {
-        startIdx = i;
-        console.log(`Found start date at index ${i}: ${format(currentDay, 'yyyy-MM-dd')}`);
-      }
-      
-      if (isSameDay(currentDay, scheduleEndDay)) {
-        endIdx = i;
-        console.log(`Found end date at index ${i}: ${format(currentDay, 'yyyy-MM-dd')}`);
-        // Once we find the end date, we can break the loop
-        break;
-      }
-    }
+    console.log('Days difference:', {
+      startDaysDifference,
+      endDaysDifference,
+      totalDaysInChart: days.length
+    });
     
-    // If exact match not found, find closest date (should not happen with correctly formatted dates)
-    if (startIdx === -1) {
-      for (let i = 0; i < days.length; i++) {
-        const currentDay = startOfDay(days[i].date);
-        // If the current day is on or after the schedule start
-        if (currentDay >= scheduleStartDay) {
-          startIdx = i;
-          console.log(`No exact match for start date, using closest date at index ${i}: ${format(currentDay, 'yyyy-MM-dd')}`);
-          break;
-        }
-      }
-      
-      // If still not found, schedule starts before the visible range
-      if (startIdx === -1) {
-        startIdx = 0;
-        console.log('Schedule starts before visible range, using index 0');
-      }
-    }
+    // If schedule starts before our visible range, start from day 0
+    const startIdx = Math.max(0, startDaysDifference);
+    // If schedule ends after our visible range, end at the last day
+    const endIdx = Math.min(days.length - 1, endDaysDifference);
     
-    // If end date not found, find closest date
-    if (endIdx === -1) {
-      for (let i = days.length - 1; i >= 0; i--) {
-        const currentDay = startOfDay(days[i].date);
-        // If the current day is on or before the schedule end
-        if (currentDay <= scheduleEndDay) {
-          endIdx = i;
-          console.log(`No exact match for end date, using closest date at index ${i}: ${format(currentDay, 'yyyy-MM-dd')}`);
-          break;
-        }
-      }
-      
-      // If still not found, schedule ends after the visible range
-      if (endIdx === -1) {
-        endIdx = days.length - 1;
-        console.log('Schedule ends after visible range, using last index');
-      }
-    }
+    // Ensure we have at least 1 day width
+    const finalEndIdx = Math.max(startIdx, endIdx);
     
-    // Ensure endIdx is not before startIdx
-    if (endIdx < startIdx) {
-      console.log(`Fixing invalid range: endIdx (${endIdx}) < startIdx (${startIdx})`);
-      endIdx = startIdx;
-    }
+    console.log('Final indices:', {
+      startIdx,
+      endIdx: finalEndIdx,
+      width: finalEndIdx - startIdx + 1
+    });
     
     // Calculate position - each day column is exactly 40px wide
     const dayWidth = 40;
@@ -441,11 +401,9 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     
     // Position calculation: start at the beginning of the start day
     const startPosition = startIdx * dayWidth + fixedColumnsWidth;
-    const width = (endIdx - startIdx + 1) * dayWidth;
+    const width = Math.max(dayWidth, (finalEndIdx - startIdx + 1) * dayWidth);
     
-    console.log('Final position calculated:', {
-      startIdx,
-      endIdx,
+    console.log('Final position:', {
       startPosition,
       width,
       dayWidth,
@@ -488,7 +446,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
         <div className="min-w-[2800px] h-full">
           <table className="w-full border-collapse h-full">
             <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
-              <tr>
+              <tr className="h-[40px]">
                 <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
                 <th className="p-2 text-left border-r sticky left-[120px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[100px]">Bay</th>
                 
@@ -496,7 +454,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 {days.map((day, index) => (
                   <th 
                     key={`${day.year}-${day.month+1}-${day.day}`} 
-                    className={`p-1 text-center border-r w-[40px] min-w-[40px] max-w-[40px] dark:border-gray-700 dark:text-gray-200
+                    className={`p-1 text-center border-r w-[40px] min-w-[40px] max-w-[40px] h-[40px] dark:border-gray-700 dark:text-gray-200
                       ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                   >
                     <div className="text-xs font-medium">{day.day}</div>
