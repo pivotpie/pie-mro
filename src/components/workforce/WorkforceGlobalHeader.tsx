@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Bell, Moon, Search, Settings, Sun, User, X } from "lucide-react";
+import { Bell, Moon, Search, Settings, Sun, User, X, Home } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -15,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { useTheme } from "next-themes";
 import { supabase } from "@/integrations/supabase/client";
+import { Link, useLocation } from "react-router-dom";
 
 interface WorkforceGlobalHeaderProps {
   user: {
@@ -32,6 +32,8 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const location = useLocation();
+  const isOnDashboard = location.pathname === "/dashboard";
 
   const getInitials = (name: string) => {
     return name
@@ -175,15 +177,12 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
       <div className="w-full px-4 h-16 flex items-center justify-between">
         {/* Logo/Brand */}
         <div className="flex items-center">
-          <span className="text-xl font-semibold flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 mr-2 text-blue-600">
-              <path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2.5" />
-              <path d="M14 2v6h6" />
-              <path d="M9 15v7" />
-              <path d="M4 17h12" />
-            </svg>
-            Workforce Manager
-          </span>
+          <img 
+            src="/lovable-uploads/aed00a77-af60-4ad8-82d2-0d69f8b70a11.png" 
+            alt="Pie-MRO Logo" 
+            className="h-8 w-auto mr-2" 
+          />
+          <span className="text-xl font-semibold">Pie-MRO</span>
         </div>
         
         {/* Center Search Button */}
@@ -205,6 +204,24 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
         
         {/* Right side controls */}
         <div className="flex items-center gap-2">
+          {/* Navigation Button */}
+          {isOnDashboard ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin-workforce">
+                <span className="flex items-center gap-1">
+                  Go to Workforce Manager
+                </span>
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/dashboard">
+                <Home className="h-4 w-4 mr-1" />
+                <span>Dashboard</span>
+              </Link>
+            </Button>
+          )}
+          
           {/* Theme Toggle */}
           <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full text-gray-500">
             {theme === "dark" ? (

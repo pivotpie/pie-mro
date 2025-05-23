@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Search, Menu, Bell, Settings } from "lucide-react";
+import { Search, Menu, Bell, Settings, Home } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Link, useLocation } from "react-router-dom";
 
 interface WorkforceHeaderProps {
   user: {
@@ -33,6 +34,8 @@ export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHe
   // Use username from our custom user object
   const displayName = user.username || 'User';
   const initials = getInitials(displayName);
+  const location = useLocation();
+  const isOnDashboard = location.pathname === "/dashboard";
 
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -43,15 +46,12 @@ export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHe
           </Button>
           
           <div className="flex items-center gap-2">
-            <span className="text-xl font-semibold flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 mr-2 text-blue-600">
-                <path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2.5" />
-                <path d="M14 2v6h6" />
-                <path d="M9 15v7" />
-                <path d="M4 17h12" />
-              </svg>
-              Workforce Manager
-            </span>
+            <img 
+              src="/lovable-uploads/aed00a77-af60-4ad8-82d2-0d69f8b70a11.png" 
+              alt="Pie-MRO Logo" 
+              className="h-8 w-auto mr-2" 
+            />
+            <span className="text-xl font-semibold">Pie-MRO</span>
             <span className="text-xs text-gray-500 font-normal hidden md:inline-block">
               Aircraft Maintenance Management System
             </span>
@@ -59,6 +59,23 @@ export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHe
         </div>
 
         <div className="flex items-center gap-4">
+          {isOnDashboard ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin-workforce">
+                <span className="flex items-center gap-1">
+                  Go to Workforce Manager
+                </span>
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/dashboard">
+                <Home className="h-4 w-4 mr-1" />
+                <span>Dashboard</span>
+              </Link>
+            </Button>
+          )}
+
           <Button variant="ghost" size="icon" className="text-gray-500 relative">
             <Bell className="h-5 w-5" />
             <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>

@@ -452,8 +452,9 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
         </ScrollArea>
       </div>
       
-      {/* Add CSS for tooltip positioning */}
-      <style jsx>{`
+      {/* Fix the style tag to remove the jsx property */}
+      <style>
+        {`
         .status-day-off {
           background-color: #4b5563;
           color: #f3f4f6;
@@ -469,7 +470,8 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
           z-index: 1000;
           pointer-events: none;
         }
-      `}</style>
+        `}
+      </style>
     </div>
   );
 };
