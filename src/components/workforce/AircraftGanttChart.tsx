@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -350,7 +351,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
   }, [scrollLeft]);
 
   const calculatePosition = (schedule: AircraftSchedule) => {
-    // Find the day indexes by matching the exact dates
+    // Find the day indexes by comparing dates
     let startIdx = -1;
     let endIdx = -1;
     
@@ -361,51 +362,59 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
       registration: schedule.registration
     });
     
-    // Find the exact matching dates in the days array
+    // Find start and end indices based on date matching
     for (let i = 0; i < days.length; i++) {
       const dayDate = days[i].date;
       
-      // Check if the schedule start date falls on or after this day
+      // Check if schedule starts on this day or before this day but after previous day
       if (startIdx === -1) {
-        if (isSameDay(dayDate, schedule.start) || 
-            (schedule.start >= dayDate && schedule.start < new Date(dayDate.getTime() + 86400000))) {
+        // If schedule starts on this exact day
+        if (isSameDay(dayDate, schedule.start)) {
+          startIdx = i;
+        }
+        // If schedule starts before this day but we haven't found a start yet
+        else if (schedule.start < dayDate && (i === 0 || schedule.start >= days[i-1].date)) {
           startIdx = i;
         }
       }
       
-      // Check if the schedule end date falls on or before this day
-      if (isSameDay(dayDate, schedule.end) || 
-          (schedule.end >= dayDate && schedule.end < new Date(dayDate.getTime() + 86400000))) {
+      // Check if schedule ends on this day or after this day but before next day
+      if (isSameDay(dayDate, schedule.end)) {
         endIdx = i;
+      }
+      else if (schedule.end < dayDate && endIdx === -1) {
+        endIdx = Math.max(0, i - 1);
       }
     }
     
-    // If start date is before our range, start from the first day
+    // If schedule starts before our date range, start from first day
     if (startIdx === -1 && schedule.start < days[0].date) {
       startIdx = 0;
     }
     
-    // If end date is after our range, end at the last day
-    if (endIdx === -1 && schedule.end > days[days.length - 1].date) {
+    // If schedule ends after our date range, end at last day
+    if (endIdx === -1 && schedule.end >= days[days.length - 1].date) {
       endIdx = days.length - 1;
     }
     
-    // If we still haven't found valid indices, skip this schedule
+    // If we still don't have valid indices, the schedule is outside our range
     if (startIdx === -1 || endIdx === -1) {
-      console.log('Schedule outside date range:', { startIdx, endIdx, schedule });
+      console.log('Schedule outside date range, skipping');
       return null;
     }
     
     // Ensure endIdx is not before startIdx
-    if (endIdx < startIdx) endIdx = startIdx;
+    if (endIdx < startIdx) {
+      endIdx = startIdx;
+    }
     
-    // Calculate position with proper alignment
-    // Each day column is 41px wide (40px + 1px border)
-    const dayWidth = 41;
-    const fixedColumnsWidth = 220; // Width of the fixed columns (Hangar + Bay)
+    // Calculate position - each day column is exactly 40px wide
+    const dayWidth = 40;
+    const fixedColumnsWidth = 220; // Width of Hangar (120px) + Bay (100px) columns
     
+    // Position calculation: start at the beginning of the start day
     const startPosition = startIdx * dayWidth + fixedColumnsWidth;
-    const width = (endIdx - startIdx + 1) * dayWidth - 2; // Subtract 2px for borders
+    const width = (endIdx - startIdx + 1) * dayWidth;
     
     console.log('Position calculated:', {
       startIdx,
@@ -413,7 +422,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
       startPosition,
       width,
       dayWidth,
-      fixedColumnsWidth
+      totalDays: days.length
     });
     
     return { startPosition, width };
@@ -456,11 +465,11 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
                 <th className="p-2 text-left border-r sticky left-[120px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-[100px]">Bay</th>
                 
-                {/* Calendar days */}
+                {/* Calendar days - each column is exactly 40px wide */}
                 {days.map((day, index) => (
                   <th 
                     key={`${day.year}-${day.month+1}-${day.day}`} 
-                    className={`p-2 text-center border-r min-w-[40px] w-[40px] dark:border-gray-700 dark:text-gray-200
+                    className={`p-1 text-center border-r w-[40px] min-w-[40px] max-w-[40px] dark:border-gray-700 dark:text-gray-200
                       ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                   >
                     <div className="text-xs font-medium">{day.day}</div>
@@ -471,19 +480,19 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
             </thead>
             <tbody className="h-full">
               {hangars.map((hangar) => (
-                <tr key={hangar.id} className="border-b h-[50px] dark:border-gray-700">
-                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[0]}</td>
-                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[1]}</td>
+                <tr key={hangar.id} className="border-b h-[45px] dark:border-gray-700">
+                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-[45px]">{hangar.name.split(" ")[0]}</td>
+                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-[45px]">{hangar.name.split(" ")[1]}</td>
                   
                   {/* Gantt chart container cell spanning across all days */}
-                  <td colSpan={days.length} className="relative p-0 h-[50px]">
-                    {/* Render weekend backgrounds */}
+                  <td colSpan={days.length} className="relative p-0 h-[45px]">
+                    {/* Render day grid backgrounds */}
                     {days.map((day, index) => (
                       <div 
                         key={`bg-${day.year}-${day.month}-${day.day}`}
                         className={`absolute top-0 bottom-0 border-r dark:border-gray-700 ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
                         style={{
-                          left: `${index * 41}px`,
+                          left: `${index * 40}px`,
                           width: '40px'
                         }}
                       />
@@ -501,7 +510,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div 
-                                  className={`absolute top-1 h-[40px] ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
+                                  className={`absolute top-[2px] h-[40px] ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
                                   style={{
                                     left: `${position.startPosition}px`,
                                     width: `${position.width}px`,
