@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -104,33 +103,33 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
           name: hangar.hangar_name
         }));
         
-        // Status-based fill color mapping
+        // Status-based fill color mapping - Updated with more vibrant colors
         const getStatusColor = (status: string) => {
           switch (status) {
             case 'Completed':
-              return 'bg-green-200 dark:bg-green-900';
+              return 'bg-emerald-200 dark:bg-emerald-800';
             case 'In Progress':
-              return 'bg-blue-200 dark:bg-blue-900';
+              return 'bg-amber-200 dark:bg-amber-800';
             case 'Scheduled':
-              return 'bg-gray-200 dark:bg-gray-700';
+              return 'bg-slate-200 dark:bg-slate-700';
             default:
-              return 'bg-gray-200 dark:bg-gray-700';
+              return 'bg-slate-200 dark:bg-slate-700';
           }
         };
 
-        // Aircraft model-based border color mapping
+        // Aircraft model-based border color mapping - Updated with new colors
         const getAircraftBorderColor = (aircraftName: string) => {
-          const name = aircraftName.toLowerCase();
+          const name = aircraftName?.toLowerCase() || '';
           if (name.includes('boeing') || name.includes('b737') || name.includes('b777') || name.includes('b787')) {
-            return 'border-blue-500';
+            return 'border-indigo-500'; // Boeing = Indigo
           } else if (name.includes('airbus') || name.includes('a320') || name.includes('a350') || name.includes('a380')) {
-            return 'border-green-500';
+            return 'border-rose-500'; // Airbus = Rose/Pink
           } else if (name.includes('pa-28') || name.includes('cessna')) {
-            return 'border-yellow-500';
-          } else if (name.includes('r44') || name.includes('helicopter')) {
-            return 'border-purple-500';
+            return 'border-amber-500'; // Small Aircraft = Amber
+          } else if (name.includes('r44') || name.includes('helicopter') || name.includes('adhoc')) {
+            return 'border-purple-500'; // Helicopter = Purple
           } else {
-            return 'border-gray-400';
+            return 'border-gray-400 dark:border-gray-500'; // Other
           }
         };
         
@@ -300,13 +299,13 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     const getStatusColor = (status: string) => {
       switch (status) {
         case 'Completed':
-          return 'bg-green-200 dark:bg-green-900';
+          return 'bg-emerald-200 dark:bg-emerald-800';
         case 'In Progress':
-          return 'bg-blue-200 dark:bg-blue-900';
+          return 'bg-amber-200 dark:bg-amber-800';
         case 'Scheduled':
-          return 'bg-gray-200 dark:bg-gray-700';
+          return 'bg-slate-200 dark:bg-slate-700';
         default:
-          return 'bg-gray-200 dark:bg-gray-700';
+          return 'bg-slate-200 dark:bg-slate-700';
       }
     };
 
@@ -314,15 +313,15 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     const getAircraftBorderColor = (aircraftName: string) => {
       const name = aircraftName.toLowerCase();
       if (name.includes('boeing') || name.includes('b737') || name.includes('b777') || name.includes('b787')) {
-        return 'border-blue-500';
+        return 'border-indigo-500';
       } else if (name.includes('airbus') || name.includes('a320') || name.includes('a350') || name.includes('a380')) {
-        return 'border-green-500';
+        return 'border-rose-500';
       } else if (name.includes('pa-28') || name.includes('cessna')) {
-        return 'border-yellow-500';
+        return 'border-amber-500';
       } else if (name.includes('r44') || name.includes('helicopter') || name.includes('adhoc')) {
         return 'border-purple-500';
       } else {
-        return 'border-gray-400';
+        return 'border-gray-400 dark:border-gray-500';
       }
     };
     
@@ -496,7 +495,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div 
-                                    className={`absolute top-1 h-10 ${schedule.color} ${schedule.borderColor} border-2 rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200 pointer-events-auto`}
+                                    className={`absolute top-1 h-10 ${schedule.color} ${schedule.borderColor} border-3 rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200 pointer-events-auto`}
                                     style={{
                                       left: `${position.startPosition}px`,
                                       width: `${position.width}px`,
@@ -517,9 +516,9 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                                   <div className="text-xs">Duration: {position.duration} days</div>
                                   <div className="text-xs font-medium mt-1">
                                     Status: <span className={`${
-                                      schedule.status === 'Completed' ? 'text-green-600 dark:text-green-400' :
-                                      schedule.status === 'In Progress' ? 'text-blue-600 dark:text-blue-400' :
-                                      'text-gray-600 dark:text-gray-400'
+                                      schedule.status === 'Completed' ? 'text-emerald-600 dark:text-emerald-400' :
+                                      schedule.status === 'In Progress' ? 'text-amber-600 dark:text-amber-400' :
+                                      'text-slate-600 dark:text-slate-400'
                                     }`}>{schedule.status}</span>
                                   </div>
                                   <div className="text-xs">Visit: {schedule.visit_number}</div>
@@ -578,9 +577,9 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
                         <p className={`font-medium ${
-                          selectedAircraft.status === 'Completed' ? 'text-green-600 dark:text-green-400' :
-                          selectedAircraft.status === 'In Progress' ? 'text-blue-600 dark:text-blue-400' :
-                          'text-gray-600 dark:text-gray-400'
+                          selectedAircraft.status === 'Completed' ? 'text-emerald-600 dark:text-emerald-400' :
+                          selectedAircraft.status === 'In Progress' ? 'text-amber-600 dark:text-amber-400' :
+                          'text-slate-600 dark:text-slate-400'
                         }`}>{selectedAircraft.status}</p>
                       </div>
                       <div>
