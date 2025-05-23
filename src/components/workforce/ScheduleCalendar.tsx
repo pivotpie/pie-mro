@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -44,6 +43,11 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     schedule: Record<string, string>;
   }[]>([]);
 
+  const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
+  const [supportFilterValues, setSupportFilterValues] = useState<string[]>([]);
+  const [activeCoreFilters, setActiveCoreFilters] = useState<string[]>([]);
+  const [activeSupportFilters, setActiveSupportFilters] = useState<string[]>([]);
+
   const days = generateDays();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
@@ -64,6 +68,14 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
       { id: "EMP010", name: "Michelle Rodriguez", alias: "MR", mobile: "+971 52 012 3456", team: "Team Alpha", core: "A380", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "08:17 AM", e_number: 1010 },
     ];
 
+    // Extract unique core and support values for filters
+    const cores = Array.from(new Set(sampleEmployees.map(emp => emp.core)));
+    const supports = Array.from(new Set(sampleEmployees.map(emp => emp.support)));
+    
+    setCoreFilterValues(cores);
+    setSupportFilterValues(supports);
+
+    // Process employees with schedule
     const employeesWithSchedule = sampleEmployees.map(emp => {
       const schedule: Record<string, string> = {};
       
@@ -101,33 +113,43 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     }
   };
 
-  // Mock filter values for dropdown
-  const getFilterValues = (columnName: string) => {
-    if (columnName === "team") {
-      return ["Team Alpha", "Team Beta", "Team Charlie"];
-    } else if (columnName === "core") {
-      return ["A320", "A380", "B777", "B787"];
-    } else if (columnName === "title") {
-      return ["Technician", "Engineer", "Manager", "Administrator"];
-    }
-    return [];
-  };
-
-  // Filter columns
-  const handleFilter = (column: string, value: string) => {
-    setColumnFilters(prev => ({
-      ...prev,
-      [column]: [...(prev[column] || []), value]
-    }));
-  };
-
-  const clearFilter = (column: string) => {
-    setColumnFilters(prev => {
-      const newFilters = { ...prev };
-      delete newFilters[column];
-      return newFilters;
+  // Filter handling functions
+  const handleCoreFilterSelect = (value: string) => {
+    setActiveCoreFilters(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(v => v !== value);
+      } else {
+        return [...prev, value];
+      }
     });
   };
+
+  const handleSupportFilterSelect = (value: string) => {
+    setActiveSupportFilters(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(v => v !== value);
+      } else {
+        return [...prev, value];
+      }
+    });
+  };
+
+  // Apply filters to columns
+  const filteredColumns = columns.filter(column => {
+    // If no filters are active, show all
+    if (activeCoreFilters.length === 0 && activeSupportFilters.length === 0) {
+      return true;
+    }
+    
+    // Apply core filter
+    const passesCore = activeCoreFilters.length === 0 || activeCoreFilters.includes(column.core);
+    
+    // Apply support filter
+    const passesSupport = activeSupportFilters.length === 0 || activeSupportFilters.includes(column.support);
+    
+    // Item must pass all active filters
+    return passesCore && passesSupport;
+  });
 
   // Cell click handler
   const handleCellClick = (employeeId: string, date: string) => {
@@ -151,6 +173,33 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     { status: "Leave", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
     { status: "Off", color: "bg-gray-600 border border-gray-700 text-gray-100 dark:bg-gray-700 dark:border-gray-800 dark:text-gray-300" },
   ];
+
+  // Filter columns
+  const handleFilter = (column: string, value: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [column]: [...(prev[column] || []), value]
+    }));
+  };
+
+  const clearFilter = (column: string) => {
+    setColumnFilters(prev => {
+      const newFilters = { ...prev };
+      delete newFilters[column];
+      return newFilters;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400">Loading aircraft schedule data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -190,7 +239,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                         </PopoverTrigger>
                         <PopoverContent className="w-40">
                           <div className="space-y-2">
-                            {getFilterValues("team").map((value) => (
+                            {Array.from(new Set(columns.map(col => col.team))).map((value) => (
                               <Button 
                                 key={value} 
                                 variant="ghost" 
@@ -219,37 +268,103 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                       Core
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <Filter className="h-3 w-3" />
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className={cn(
+                              "h-6 w-6", 
+                              activeCoreFilters.length > 0 && "text-primary"
+                            )}
+                          >
+                            <Filter className={cn(
+                              "h-3 w-3",
+                              activeCoreFilters.length > 0 && "text-primary fill-primary"
+                            )} />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-40">
                           <div className="space-y-2">
-                            {getFilterValues("core").map((value) => (
-                              <Button 
+                            {coreFilterValues.map((value) => (
+                              <div 
                                 key={value} 
-                                variant="ghost" 
-                                size="sm"
-                                className="w-full justify-start"
-                                onClick={() => handleFilter("core", value)}
+                                className={cn(
+                                  "px-2 py-1 text-sm hover:bg-muted cursor-pointer flex items-center gap-2",
+                                  activeCoreFilters.includes(value) ? "bg-primary/10" : ""
+                                )}
+                                onClick={() => handleCoreFilterSelect(value)}
                               >
-                                {value}
-                              </Button>
+                                {activeCoreFilters.includes(value) ? (
+                                  <Check className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <div className="w-4" />
+                                )}
+                                <span>{value}</span>
+                              </div>
                             ))}
                             <Button 
                               variant="outline" 
                               size="sm" 
                               className="w-full mt-2"
-                              onClick={() => clearFilter("core")}
+                              onClick={() => setActiveCoreFilters([])}
                             >
-                              Clear Filter
+                              Clear Filters
                             </Button>
                           </div>
                         </PopoverContent>
                       </Popover>
                     </div>
                   </th>
-                  <th className="p-2 text-left border-r sticky left-[680px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Support</th>
+                  <th className="p-2 text-left border-r sticky left-[680px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                    <div className="flex items-center justify-between">
+                      Support
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className={cn(
+                              "h-6 w-6", 
+                              activeSupportFilters.length > 0 && "text-primary"
+                            )}
+                          >
+                            <Filter className={cn(
+                              "h-3 w-3",
+                              activeSupportFilters.length > 0 && "text-primary fill-primary"
+                            )} />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-40">
+                          <div className="space-y-2">
+                            {supportFilterValues.map((value) => (
+                              <div 
+                                key={value} 
+                                className={cn(
+                                  "px-2 py-1 text-sm hover:bg-muted cursor-pointer flex items-center gap-2",
+                                  activeSupportFilters.includes(value) ? "bg-primary/10" : ""
+                                )}
+                                onClick={() => handleSupportFilterSelect(value)}
+                              >
+                                {activeSupportFilters.includes(value) ? (
+                                  <Check className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <div className="w-4" />
+                                )}
+                                <span>{value}</span>
+                              </div>
+                            ))}
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full mt-2"
+                              onClick={() => setActiveSupportFilters([])}
+                            >
+                              Clear Filters
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
                   <th className="p-2 text-left border-r sticky left-[780px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Title</th>
                   <th className="p-2 text-left border-r sticky left-[860px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">N/S</th>
                   <th className="p-2 text-left border-r sticky left-[920px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">FTE</th>
@@ -269,7 +384,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                 </tr>
               </thead>
               <tbody>
-                {columns.map((employee) => (
+                {filteredColumns.map((employee) => (
                   <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                     {/* Fixed columns */}
                     <td 

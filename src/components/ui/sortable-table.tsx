@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Table,
   TableBody,
@@ -16,6 +16,10 @@ interface Column<T> {
   cell: (item: T) => React.ReactNode;
   sortable?: boolean;
   accessorFn?: (item: T) => string | number | Date | null | undefined;
+  hasFilter?: boolean;
+  filterValues?: string[];
+  activeFilters?: string[];
+  onFilterValueSelect?: (value: string) => void;
 }
 
 interface SortableTableProps<T> {
@@ -78,6 +82,10 @@ export function SortableTable<T extends { id: string | number }>({
                 sortable={column.sortable}
                 sorted={sortColumn === column.id ? sortDirection : null}
                 onSortChange={() => column.sortable && toggleSort(column.id)}
+                hasFilter={column.hasFilter}
+                filterValues={column.filterValues}
+                activeFilters={column.activeFilters}
+                onFilterValueSelect={column.onFilterValueSelect}
               >
                 {column.header}
               </TableHead>

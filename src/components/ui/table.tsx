@@ -101,48 +101,124 @@ interface TableHeadProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
   onSortChange?: () => void;
   hasFilter?: boolean;
   onFilterClick?: () => void;
+  filterValues?: string[];
+  activeFilters?: string[];
+  onFilterValueSelect?: (value: string) => void;
 }
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   TableHeadProps
->(({ className, children, sortable, sorted, onSortChange, hasFilter, onFilterClick, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={cn(
-      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-      sortable && "cursor-pointer select-none",
-      className
-    )}
-    onClick={() => sortable && onSortChange && onSortChange()}
-    {...props}
-  >
-    <div className="flex items-center gap-2">
-      <span className="flex-1">{children}</span>
-      {sortable && (
-        <div className="flex flex-col">
-          <ChevronUp className={cn(
-            "h-3 w-3 transition-colors",
-            sorted === "asc" ? "text-foreground" : "text-muted-foreground/30"
-          )} />
-          <ChevronDown className={cn(
-            "h-3 w-3 -mt-0.5 transition-colors",
-            sorted === "desc" ? "text-foreground" : "text-muted-foreground/30"
-          )} />
-        </div>
+>(({ 
+  className, 
+  children, 
+  sortable, 
+  sorted, 
+  onSortChange, 
+  hasFilter, 
+  onFilterClick,
+  filterValues = [],
+  activeFilters = [],
+  onFilterValueSelect,
+  ...props 
+}, ref) => {
+  const [showFilterDropdown, setShowFilterDropdown] = React.useState(false);
+  
+  // Handle filter icon click
+  const handleFilterClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onFilterClick) {
+      onFilterClick();
+    } else if (filterValues && filterValues.length > 0) {
+      setShowFilterDropdown(!showFilterDropdown);
+    }
+  };
+
+  // Handle filter value selection
+  const handleFilterValueSelect = (value: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onFilterValueSelect) {
+      onFilterValueSelect(value);
+    }
+    setShowFilterDropdown(false);
+  };
+
+  return (
+    <th
+      ref={ref}
+      className={cn(
+        "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        sortable && "cursor-pointer select-none",
+        className
       )}
-      {hasFilter && (
-        <ListFilter 
-          className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            onFilterClick && onFilterClick();
-          }}
-        />
-      )}
-    </div>
-  </th>
-))
+      onClick={() => sortable && onSortChange && onSortChange()}
+      {...props}
+    >
+      <div className="flex items-center gap-2 relative">
+        <span className="flex-1">{children}</span>
+        {sortable && (
+          <div className="flex flex-col">
+            <ChevronUp className={cn(
+              "h-3 w-3 transition-colors",
+              sorted === "asc" ? "text-foreground" : "text-muted-foreground/30"
+            )} />
+            <ChevronDown className={cn(
+              "h-3 w-3 -mt-0.5 transition-colors",
+              sorted === "desc" ? "text-foreground" : "text-muted-foreground/30"
+            )} />
+          </div>
+        )}
+        {hasFilter && (
+          <div className="relative">
+            <ListFilter 
+              className={cn(
+                "h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer",
+                (activeFilters && activeFilters.length > 0) && "text-primary"
+              )}
+              onClick={handleFilterClick}
+            />
+            
+            {showFilterDropdown && filterValues && filterValues.length > 0 && (
+              <div 
+                className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg z-50 min-w-[150px] max-h-[300px] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-2 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                  <div className="relative">
+                    <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input 
+                      className="w-full pl-8 pr-2 py-1 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
+                      placeholder="Search..." 
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+                <div className="py-1">
+                  {filterValues.map((value, i) => (
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-2",
+                        activeFilters.includes(value) && "bg-primary/10"
+                      )}
+                      onClick={(e) => handleFilterValueSelect(value, e)}
+                    >
+                      {activeFilters.includes(value) && <Check className="h-3.5 w-3.5 text-primary" />}
+                      <span className={activeFilters.includes(value) ? "ml-0" : "ml-5"}>{value}</span>
+                    </div>
+                  ))}
+                  {filterValues.length === 0 && (
+                    <div className="px-3 py-1.5 text-sm text-muted-foreground">No filter values</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </th>
+  )
+})
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef<
