@@ -407,9 +407,11 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     setModalOpen(true);
   };
 
-  const handleModalClose = () => {
-    setModalOpen(false);
-    setSelectedAircraft(null);
+  const handleModalClose = (open: boolean) => {
+    setModalOpen(open);
+    if (!open) {
+      setSelectedAircraft(null);
+    }
   };
 
   // Handle scroll events from the scrollArea
@@ -546,11 +548,11 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* New Aircraft Details Modal */}
+      {/* Fixed Aircraft Details Modal props */}
       <AircraftDetailsModal 
-        isOpen={modalOpen}
-        onClose={handleModalClose}
         aircraft={selectedAircraft}
+        open={modalOpen}
+        onOpenChange={handleModalClose}
       />
     </div>
   );
