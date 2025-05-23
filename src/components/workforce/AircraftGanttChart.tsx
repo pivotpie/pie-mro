@@ -35,6 +35,8 @@ interface AircraftSchedule {
   registration: string;
   customer: string;
   color: string;
+  visit_number: string;
+  check_type: string;
 }
 
 interface AircraftGanttChartProps {
@@ -100,32 +102,22 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
           name: hangar.hangar_name
         }));
         
-        // Process maintenance visits
-        const schedulesByHangar: { hangarId: number, schedules: AircraftSchedule[] }[] = [];
-        
-        // Color mapping for aircraft
-        const colorMap: Record<string, string> = {
-          'A320': 'bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700',
-          'A350': 'bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700',
-          'A380': 'bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700',
-          'B737': 'bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700',
-          'B777': 'bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700',
-          'B787': 'bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700',
-          'PA28': 'bg-emerald-200 border-emerald-400 dark:bg-emerald-900 dark:border-emerald-700',
-          'R44': 'bg-pink-200 border-pink-400 dark:bg-pink-900 dark:border-pink-700'
+        // Status-based color mapping
+        const getStatusColor = (status: string) => {
+          switch (status) {
+            case 'Completed':
+              return 'bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700';
+            case 'In Progress':
+              return 'bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700';
+            case 'Scheduled':
+              return 'bg-gray-200 border-gray-400 dark:bg-gray-700 dark:border-gray-600';
+            default:
+              return 'bg-gray-200 border-gray-400 dark:bg-gray-700 dark:border-gray-600';
+          }
         };
         
-        // Get aircraft types for color mapping
-        const { data: aircraftTypes } = await supabase
-          .from('aircraft_types')
-          .select('id, type_code');
-        
-        const typeIdToCode: Record<number, string> = {};
-        if (aircraftTypes) {
-          aircraftTypes.forEach((type: any) => {
-            typeIdToCode[type.id] = type.type_code;
-          });
-        }
+        // Process maintenance visits
+        const schedulesByHangar: { hangarId: number, schedules: AircraftSchedule[] }[] = [];
         
         // Group by hangar
         processedHangars.forEach(hangar => {
@@ -144,14 +136,8 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 endDate = new Date(new Date().getTime() + 86400000); // Next day
               }
               
-              // Determine color based on aircraft type
-              let color = 'bg-gray-200 border-gray-400 dark:bg-gray-900 dark:border-gray-700';
-              if (visit.aircraft && visit.aircraft.aircraft_type_id) {
-                const typeCode = typeIdToCode[visit.aircraft.aircraft_type_id];
-                if (typeCode && colorMap[typeCode]) {
-                  color = colorMap[typeCode];
-                }
-              }
+              // Use status-based color instead of aircraft type
+              const color = getStatusColor(visit.status);
               
               return {
                 id: visit.id,
@@ -160,11 +146,13 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 hangar_id: visit.hangar_id,
                 start: startDate,
                 end: endDate,
-                team: null, // We don't have team data yet
+                team: visit.status === 'In Progress' ? 'Assigned Team' : null,
                 status: visit.status || 'Scheduled',
                 registration: visit.aircraft?.registration || 'UNKNOWN',
                 customer: visit.aircraft?.customer || 'Unknown Operator',
-                color
+                color,
+                visit_number: visit.visit_number || 'N/A',
+                check_type: visit.check_type || 'Standard Check'
               };
             });
             
@@ -211,94 +199,95 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     fetchData();
   }, [startDate, endDate]); // Dependency on date range
 
-  // Generate enhanced mock data based on the reference image with more detailed flights
+  // Generate enhanced mock data based on the reference image with status-based colors
   const generateEnhancedMockData = (hangars: HangarData[]) => {
     const mockData: { hangarId: number, schedules: AircraftSchedule[] }[] = [];
     
     // Complete mock data based on reference image
     const aircraftAssignments = [
       // Hangar 4A
-      { hangar: 'Hangar 4A', aircraft: 'AIRBUS 320', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 4A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 4A', aircraft: 'PA-28', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 4A', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 26, startMonth: 4, endDay: 14, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 4A', aircraft: 'BOEING 787', authority: 'UK CAA', startDay: 15, startMonth: 5, endDay: 24, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 4A', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 25, startMonth: 5, endDay: 30, endMonth: 5, year: 2025 },
+      { hangar: 'Hangar 4A', aircraft: 'AIRBUS 320', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 4A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 4A', aircraft: 'PA-28', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 4A', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 26, startMonth: 4, endDay: 14, endMonth: 5, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 4A', aircraft: 'BOEING 787', authority: 'UK CAA', startDay: 15, startMonth: 5, endDay: 24, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 4A', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 25, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' },
       
       // Hangar 4B
-      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 350', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 4B', aircraft: 'BOEING 787', authority: 'EASA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 21, startMonth: 4, endDay: 31, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 4B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 320', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025 },
+      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 350', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 4B', aircraft: 'BOEING 787', authority: 'EASA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 21, startMonth: 4, endDay: 31, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 4B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 4B', aircraft: 'AIRBUS 320', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' },
       
       // Hangar 3A
-      { hangar: 'Hangar 3A', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 3A', aircraft: 'BOEING 787', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 3A', aircraft: 'BOEING 787', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 3A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 26, startMonth: 4, endDay: 10, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 3A', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 3A', aircraft: 'A380', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025 },
+      { hangar: 'Hangar 3A', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 3A', aircraft: 'BOEING 787', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 3A', aircraft: 'BOEING 787', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 3A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 26, startMonth: 4, endDay: 10, endMonth: 5, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 3A', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 3A', aircraft: 'A380', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' },
       
       // Hangar 3B
-      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 320', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'FAA', startDay: 21, startMonth: 4, endDay: 30, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'EASA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 320', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025 },
+      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 320', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'FAA', startDay: 21, startMonth: 4, endDay: 30, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'EASA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 3B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 3B', aircraft: 'AIRBUS 320', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' },
       
       // Hangar 2A
-      { hangar: 'Hangar 2A', aircraft: 'A350', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 5, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 6, startMonth: 4, endDay: 10, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2A', aircraft: 'B787', authority: 'UK CAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2A', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 16, startMonth: 4, endDay: 20, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2A', aircraft: 'BOEING 777', authority: 'EASA', startDay: 26, startMonth: 4, endDay: 31, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2A', aircraft: 'PA-28', authority: 'UKCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 2A', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025 },
+      { hangar: 'Hangar 2A', aircraft: 'A350', authority: 'GCAA', startDay: 1, startMonth: 4, endDay: 5, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 6, startMonth: 4, endDay: 10, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 2A', aircraft: 'B787', authority: 'UK CAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 2A', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 16, startMonth: 4, endDay: 20, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 2A', aircraft: 'BOEING 777', authority: 'EASA', startDay: 26, startMonth: 4, endDay: 31, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 2A', aircraft: 'PA-28', authority: 'UKCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 2A', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 2A', aircraft: 'BOEING 737', authority: 'GCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' },
       
       // Hangar 2B
-      { hangar: 'Hangar 2B', aircraft: 'BOEING 787', authority: 'EASA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2B', aircraft: 'A320', authority: 'UKCAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 16, startMonth: 4, endDay: 20, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2B', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2B', aircraft: 'AIRBUS 350', authority: 'GCAA', startDay: 26, startMonth: 4, endDay: 31, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 2B', aircraft: 'BOEING 787', authority: 'GCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 2B', aircraft: 'BOEING 350', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 2B', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025 },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 787', authority: 'EASA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 2B', aircraft: 'A320', authority: 'UKCAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 16, startMonth: 4, endDay: 20, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 2B', aircraft: 'ADHOC R44', authority: 'GCAA', startDay: 21, startMonth: 4, endDay: 25, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 2B', aircraft: 'AIRBUS 350', authority: 'GCAA', startDay: 26, startMonth: 4, endDay: 31, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 787', authority: 'GCAA', startDay: 1, startMonth: 5, endDay: 10, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 350', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 2B', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' },
       
       // Hangar 1A
-      { hangar: 'Hangar 1A', aircraft: 'B787', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 350', authority: 'FAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 1A', aircraft: 'PA-28', authority: 'GCAA', startDay: 16, startMonth: 4, endDay: 22, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 23, startMonth: 4, endDay: 26, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 1A', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 27, startMonth: 4, endDay: 10, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 1A', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025 },
+      { hangar: 'Hangar 1A', aircraft: 'B787', authority: 'UKCAA', startDay: 1, startMonth: 4, endDay: 10, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 350', authority: 'FAA', startDay: 11, startMonth: 4, endDay: 15, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 1A', aircraft: 'PA-28', authority: 'GCAA', startDay: 16, startMonth: 4, endDay: 22, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 23, startMonth: 4, endDay: 26, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 1A', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 27, startMonth: 4, endDay: 10, endMonth: 5, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 1A', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 11, startMonth: 5, endDay: 20, endMonth: 5, year: 2025, status: 'Scheduled' },
+      { hangar: 'Hangar 1A', aircraft: 'BOEING 737', authority: 'UKCAA', startDay: 21, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' },
       
       // Hangar 1B
-      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 1, startMonth: 4, endDay: 5, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 1B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 6, startMonth: 4, endDay: 10, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 1B', aircraft: 'BOEING 777', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 30, endMonth: 4, year: 2025 },
-      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 1, startMonth: 5, endDay: 15, endMonth: 5, year: 2025 },
-      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 16, startMonth: 5, endDay: 30, endMonth: 5, year: 2025 }
+      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 380', authority: 'EASA', startDay: 1, startMonth: 4, endDay: 5, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 1B', aircraft: 'BOEING 777', authority: 'GCAA', startDay: 6, startMonth: 4, endDay: 10, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 350', authority: 'UK CAA', startDay: 11, startMonth: 4, endDay: 20, endMonth: 4, year: 2025, status: 'Completed' },
+      { hangar: 'Hangar 1B', aircraft: 'BOEING 777', authority: 'UKCAA', startDay: 21, startMonth: 4, endDay: 30, endMonth: 4, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 320', authority: 'FAA', startDay: 1, startMonth: 5, endDay: 15, endMonth: 5, year: 2025, status: 'In Progress' },
+      { hangar: 'Hangar 1B', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 16, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' }
     ];
     
-    // Map aircraft type to color
-    const getColor = (aircraft: string) => {
-      if (aircraft.includes('A320') || aircraft.includes('AIRBUS 320')) return 'bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700';
-      if (aircraft.includes('A350') || aircraft.includes('AIRBUS 350') || aircraft.includes('350')) return 'bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700';
-      if (aircraft.includes('A380') || aircraft.includes('AIRBUS 380') || aircraft.includes('380')) return 'bg-amber-200 border-amber-400 dark:bg-amber-900 dark:border-amber-700';
-      if (aircraft.includes('737') || aircraft.includes('BOEING 737')) return 'bg-purple-200 border-purple-400 dark:bg-purple-900 dark:border-purple-700';
-      if (aircraft.includes('777') || aircraft.includes('BOEING 777')) return 'bg-red-200 border-red-400 dark:bg-red-900 dark:border-red-700';
-      if (aircraft.includes('787') || aircraft.includes('BOEING 787') || aircraft.includes('B787')) return 'bg-cyan-200 border-cyan-400 dark:bg-cyan-900 dark:border-cyan-700';
-      if (aircraft.includes('PA-28') || aircraft.includes('PA28')) return 'bg-emerald-200 border-emerald-400 dark:bg-emerald-900 dark:border-emerald-700';
-      if (aircraft.includes('R44') || aircraft.includes('ADHOC R44')) return 'bg-pink-200 border-pink-400 dark:bg-pink-900 dark:border-pink-700';
-      return 'bg-gray-200 border-gray-400 dark:bg-gray-900 dark:border-gray-700';
+    // Use status-based color mapping
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'Completed':
+          return 'bg-green-200 border-green-400 dark:bg-green-900 dark:border-green-700';
+        case 'In Progress':
+          return 'bg-blue-200 border-blue-400 dark:bg-blue-900 dark:border-blue-700';
+        case 'Scheduled':
+          return 'bg-gray-200 border-gray-400 dark:bg-gray-700 dark:border-gray-600';
+        default:
+          return 'bg-gray-200 border-gray-400 dark:bg-gray-700 dark:border-gray-600';
+      }
     };
     
     // Process assignments into mock data structure
@@ -321,11 +310,13 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
           hangar_id: hangarId,
           start: startDate,
           end: endDate,
-          team: null,
-          status: 'Scheduled',
+          team: assignment.status === 'In Progress' ? 'Assigned Team' : null,
+          status: assignment.status,
           registration: `${assignment.authority}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
           customer: assignment.authority,
-          color: getColor(assignment.aircraft)
+          color: getStatusColor(assignment.status),
+          visit_number: `MV${Math.random().toString(36).substr(2, 4).toUpperCase()}`,
+          check_type: 'Maintenance Check'
         };
         
         if (existingHangarData) {
@@ -488,8 +479,14 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                                   </div>
                                   <div className="text-xs">Duration: {position.duration} days</div>
                                   <div className="text-xs font-medium mt-1">
-                                    Status: <span className="text-blue-600 dark:text-blue-400">{schedule.status}</span>
+                                    Status: <span className={`${
+                                      schedule.status === 'Completed' ? 'text-green-600 dark:text-green-400' :
+                                      schedule.status === 'In Progress' ? 'text-blue-600 dark:text-blue-400' :
+                                      'text-gray-600 dark:text-gray-400'
+                                    }`}>{schedule.status}</span>
                                   </div>
+                                  <div className="text-xs">Visit: {schedule.visit_number}</div>
+                                  <div className="text-xs">Check: {schedule.check_type}</div>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -543,7 +540,11 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-                        <p className="font-medium dark:text-gray-200">{selectedAircraft.status}</p>
+                        <p className={`font-medium ${
+                          selectedAircraft.status === 'Completed' ? 'text-green-600 dark:text-green-400' :
+                          selectedAircraft.status === 'In Progress' ? 'text-blue-600 dark:text-blue-400' :
+                          'text-gray-600 dark:text-gray-400'
+                        }`}>{selectedAircraft.status}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Customer</p>
@@ -585,7 +586,12 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                         </div>
                       </>
                     ) : (
-                      <div className="text-amber-600 dark:text-amber-500 font-medium">No team assigned</div>
+                      <div className={`font-medium ${
+                        selectedAircraft.status === 'Scheduled' ? 'text-amber-600 dark:text-amber-500' : 
+                        'text-red-600 dark:text-red-500'
+                      }`}>
+                        {selectedAircraft.status === 'Scheduled' ? 'No team assigned' : 'Team assignment required'}
+                      </div>
                     )}
                     
                     <div className="mt-4">
