@@ -419,28 +419,29 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                       const status = employee.schedule[dateKey];
                       
                       return (
-                        <TooltipProvider key={dateKey}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <td 
-                                className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700
-                                  ${day.isWeekend ? 'weekend-shade' : ''} 
-                                  ${status ? statusColors[status] : ''}`}
-                                onClick={() => handleCellClick(employee.id, dateKey)}
-                              >
+                        <td 
+                          key={dateKey}
+                          className={`p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700 relative
+                            ${day.isWeekend ? 'weekend-shade' : ''} 
+                            ${status ? statusColors[status] : ''}`}
+                          onClick={() => handleCellClick(employee.id, dateKey)}
+                        >
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger className="w-full h-full flex items-center justify-center">
                                 {status}
-                              </td>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="text-sm font-medium">{employee.name}</div>
-                              <div className="text-xs">May {day.day}, 2025</div>
-                              {status === 'D' && <div className="text-green-600">On Duty</div>}
-                              {status === 'L' && <div className="text-red-600">On Leave</div>}
-                              {status === 'T' && <div className="text-purple-600">In Training</div>}
-                              {status === 'O' && <div className="text-gray-600 font-semibold">Day Off</div>}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="tooltip-content">
+                                <div className="text-sm font-medium">{employee.name}</div>
+                                <div className="text-xs">May {day.day}, 2025</div>
+                                {status === 'D' && <div className="text-green-600">On Duty</div>}
+                                {status === 'L' && <div className="text-red-600">On Leave</div>}
+                                {status === 'T' && <div className="text-purple-600">In Training</div>}
+                                {status === 'O' && <div className="text-gray-600 font-semibold">Day Off</div>}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </td>
                       );
                     })}
                   </tr>
@@ -450,6 +451,25 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
           </div>
         </ScrollArea>
       </div>
+      
+      {/* Add CSS for tooltip positioning */}
+      <style jsx>{`
+        .status-day-off {
+          background-color: #4b5563;
+          color: #f3f4f6;
+        }
+        .weekend-shade {
+          background-color: rgba(243, 244, 246, 0.2);
+        }
+        .tooltip-content {
+          position: absolute;
+          top: -80px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 1000;
+          pointer-events: none;
+        }
+      `}</style>
     </div>
   );
 };
