@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -355,50 +354,67 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     let startIdx = -1;
     let endIdx = -1;
     
+    console.log('Calculating position for schedule:', {
+      id: schedule.id,
+      start: schedule.start,
+      end: schedule.end,
+      registration: schedule.registration
+    });
+    
     // Find the exact matching dates in the days array
     for (let i = 0; i < days.length; i++) {
       const dayDate = days[i].date;
       
-      if (startIdx === -1 && isSameDay(dayDate, schedule.start)) {
-        startIdx = i;
+      // Check if the schedule start date falls on or after this day
+      if (startIdx === -1) {
+        if (isSameDay(dayDate, schedule.start) || 
+            (schedule.start >= dayDate && schedule.start < new Date(dayDate.getTime() + 86400000))) {
+          startIdx = i;
+        }
       }
       
-      if (endIdx === -1 && isSameDay(dayDate, schedule.end)) {
+      // Check if the schedule end date falls on or before this day
+      if (isSameDay(dayDate, schedule.end) || 
+          (schedule.end >= dayDate && schedule.end < new Date(dayDate.getTime() + 86400000))) {
         endIdx = i;
       }
-      
-      if (startIdx !== -1 && endIdx !== -1) break;
     }
     
-    // If start date wasn't found, find the closest date
-    if (startIdx === -1) {
-      for (let i = 0; i < days.length; i++) {
-        if (days[i].date >= schedule.start) {
-          startIdx = i;
-          break;
-        }
-      }
-      // If still not found, use the first day
-      if (startIdx === -1) startIdx = 0;
+    // If start date is before our range, start from the first day
+    if (startIdx === -1 && schedule.start < days[0].date) {
+      startIdx = 0;
     }
     
-    // If end date wasn't found, find the closest date
-    if (endIdx === -1) {
-      for (let i = days.length - 1; i >= 0; i--) {
-        if (days[i].date <= schedule.end) {
-          endIdx = i;
-          break;
-        }
-      }
-      // If still not found, use the last day
-      if (endIdx === -1) endIdx = days.length - 1;
+    // If end date is after our range, end at the last day
+    if (endIdx === -1 && schedule.end > days[days.length - 1].date) {
+      endIdx = days.length - 1;
+    }
+    
+    // If we still haven't found valid indices, skip this schedule
+    if (startIdx === -1 || endIdx === -1) {
+      console.log('Schedule outside date range:', { startIdx, endIdx, schedule });
+      return null;
     }
     
     // Ensure endIdx is not before startIdx
     if (endIdx < startIdx) endIdx = startIdx;
     
-    const startPosition = startIdx * 41 + 220; // 40px for column width + 1px for border, starting after fixed columns
-    const width = (endIdx - startIdx + 1) * 41 - 1; // Subtract 1px to account for border
+    // Calculate position with proper alignment
+    // Each day column is 41px wide (40px + 1px border)
+    const dayWidth = 41;
+    const fixedColumnsWidth = 220; // Width of the fixed columns (Hangar + Bay)
+    
+    const startPosition = startIdx * dayWidth + fixedColumnsWidth;
+    const width = (endIdx - startIdx + 1) * dayWidth - 2; // Subtract 2px for borders
+    
+    console.log('Position calculated:', {
+      startIdx,
+      endIdx,
+      startPosition,
+      width,
+      dayWidth,
+      fixedColumnsWidth
+    });
     
     return { startPosition, width };
   };
@@ -444,7 +460,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                 {days.map((day, index) => (
                   <th 
                     key={`${day.year}-${day.month+1}-${day.day}`} 
-                    className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200
+                    className={`p-2 text-center border-r min-w-[40px] w-[40px] dark:border-gray-700 dark:text-gray-200
                       ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                   >
                     <div className="text-xs font-medium">{day.day}</div>
@@ -455,12 +471,12 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
             </thead>
             <tbody className="h-full">
               {hangars.map((hangar) => (
-                <tr key={hangar.id} className="border-b h-[40px] dark:border-gray-700">
+                <tr key={hangar.id} className="border-b h-[50px] dark:border-gray-700">
                   <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[0]}</td>
                   <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{hangar.name.split(" ")[1]}</td>
                   
                   {/* Gantt chart container cell spanning across all days */}
-                  <td colSpan={days.length} className="relative p-0 h-[40px]">
+                  <td colSpan={days.length} className="relative p-0 h-[50px]">
                     {/* Render weekend backgrounds */}
                     {days.map((day, index) => (
                       <div 
@@ -485,14 +501,14 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div 
-                                  className={`absolute top-1 h-[32px] ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
+                                  className={`absolute top-1 h-[40px] ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
                                   style={{
                                     left: `${position.startPosition}px`,
                                     width: `${position.width}px`,
                                   }}
                                   onClick={() => handleAircraftClick(schedule)}
                                 >
-                                  <span className="truncate px-1">{schedule.registration}</span>
+                                  <span className="truncate px-1 font-medium">{schedule.registration}</span>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
