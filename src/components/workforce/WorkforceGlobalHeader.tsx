@@ -23,9 +23,18 @@ interface WorkforceGlobalHeaderProps {
     employee: any;
   };
   onLogout: () => void;
+  onEmployeeSelect?: (employee: any) => void;
+  onAircraftSelect?: (aircraft: any) => void;
+  onCertificationSelect?: (certification: any) => void;
 }
 
-export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderProps) => {
+export const WorkforceGlobalHeader = ({ 
+  user, 
+  onLogout, 
+  onEmployeeSelect, 
+  onAircraftSelect, 
+  onCertificationSelect 
+}: WorkforceGlobalHeaderProps) => {
   const { theme, setTheme } = useTheme();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -137,6 +146,18 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
     }
   };
 
+  const handleItemClick = (item: any) => {
+    setIsSearchOpen(false);
+    
+    if (item.type === 'employee' && onEmployeeSelect) {
+      onEmployeeSelect(item.rawData);
+    } else if (item.type === 'aircraft' && onAircraftSelect) {
+      onAircraftSelect(item.rawData);
+    } else if (item.type === 'certification' && onCertificationSelect) {
+      onCertificationSelect(item.rawData);
+    }
+  };
+
   const toggleSelected = (item: any) => {
     if (selectedItems.some(selected => selected.id === item.id)) {
       setSelectedItems(selectedItems.filter(selected => selected.id !== item.id));
@@ -171,6 +192,17 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Auto-search as user types
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleSearch(searchQuery);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm w-full">
@@ -322,39 +354,6 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
           </form>
 
           <div className="mt-4">
-            {/* Selected Items Section */}
-            {selectedItems.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">Selected Items</h3>
-                <div className="space-y-1">
-                  {selectedItems.map(item => (
-                    <div 
-                      key={`selected-${item.id}`}
-                      className="flex items-center justify-between p-2 rounded bg-blue-50 border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800"
-                    >
-                      <div className="flex items-center">
-                        <div className={`h-2 w-2 rounded-full mr-2 ${
-                          item.type === 'employee' ? 'bg-green-500' :
-                          item.type === 'aircraft' ? 'bg-amber-500' :
-                          'bg-purple-500'
-                        }`} />
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{item.subtitle}</span>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 hover:text-red-500"
-                        onClick={() => toggleSelected(item)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Search Results */}
             {isSearching ? (
               <div className="h-40 flex items-center justify-center">
@@ -364,38 +363,36 @@ export const WorkforceGlobalHeader = ({ user, onLogout }: WorkforceGlobalHeaderP
               <div>
                 <h3 className="text-sm font-medium mb-2">Search Results</h3>
                 <div className="border dark:border-gray-700 rounded-lg divide-y dark:divide-gray-700 max-h-[300px] overflow-y-auto">
-                  {searchResults
-                    .filter(item => !selectedItems.some(selected => selected.id === item.id))
-                    .map(item => (
-                      <div 
-                        key={item.id}
-                        className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                        onClick={() => toggleSelected(item)}
-                      >
-                        <div>
-                          <div className="flex items-center">
-                            <div className={`h-2 w-2 rounded-full mr-2 ${
-                              item.type === 'employee' ? 'bg-green-500' :
-                              item.type === 'aircraft' ? 'bg-amber-500' :
-                              'bg-purple-500'
-                            }`} />
-                            <span className="font-medium">{item.name}</span>
-                            <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded ml-2">
-                              {item.type}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400 ml-4 mt-1">
-                            {item.subtitle}
-                            {item.type === 'employee' && item.metadata.team && (
-                              <span className="ml-2">• Team: {item.metadata.team}</span>
-                            )}
-                            {item.type === 'aircraft' && item.metadata.customer && (
-                              <span className="ml-2">• {item.metadata.customer}</span>
-                            )}
-                          </div>
+                  {searchResults.map(item => (
+                    <div 
+                      key={item.id}
+                      className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                      onClick={() => handleItemClick(item)}
+                    >
+                      <div>
+                        <div className="flex items-center">
+                          <div className={`h-2 w-2 rounded-full mr-2 ${
+                            item.type === 'employee' ? 'bg-green-500' :
+                            item.type === 'aircraft' ? 'bg-amber-500' :
+                            'bg-purple-500'
+                          }`} />
+                          <span className="font-medium">{item.name}</span>
+                          <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded ml-2">
+                            {item.type}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 ml-4 mt-1">
+                          {item.subtitle}
+                          {item.type === 'employee' && item.metadata.team && (
+                            <span className="ml-2">• Team: {item.metadata.team}</span>
+                          )}
+                          {item.type === 'aircraft' && item.metadata.customer && (
+                            <span className="ml-2">• {item.metadata.customer}</span>
+                          )}
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : searchQuery ? (

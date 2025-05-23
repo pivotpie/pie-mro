@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
@@ -9,10 +9,19 @@ import { WorkforceTabs } from "@/components/workforce/WorkforceTabs";
 import { FloatingActionMenu } from "@/components/workforce/FloatingActionMenu";
 import { ManagementShortcuts } from "@/components/workforce/ManagementShortcuts";
 import { CertificationList } from "@/components/workforce/CertificationList";
+import { EmployeeDetailPanel } from "@/components/workforce/employee/EmployeeDetailPanel";
+import { CertificationDetailPanel } from "@/components/workforce/certification/CertificationDetailPanel";
+import { AircraftDetailsModal } from "@/components/workforce/schedule/AircraftDetailsModal";
 
 const AdminWorkforce = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [selectedCertification, setSelectedCertification] = useState<any>(null);
+  const [selectedAircraft, setSelectedAircraft] = useState<any>(null);
+  const [isEmployeeDetailOpen, setIsEmployeeDetailOpen] = useState(false);
+  const [isCertificationDetailOpen, setIsCertificationDetailOpen] = useState(false);
+  const [isAircraftDetailOpen, setIsAircraftDetailOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -40,6 +49,21 @@ const AdminWorkforce = () => {
     toast.success("Logged out successfully");
   };
 
+  const handleEmployeeSelect = (employee: any) => {
+    setSelectedEmployee(employee);
+    setIsEmployeeDetailOpen(true);
+  };
+
+  const handleCertificationSelect = (certification: any) => {
+    setSelectedCertification(certification);
+    setIsCertificationDetailOpen(true);
+  };
+
+  const handleAircraftSelect = (aircraft: any) => {
+    setSelectedAircraft(aircraft);
+    setIsAircraftDetailOpen(true);
+  };
+
   if (!user) {
     return null;
   }
@@ -50,6 +74,9 @@ const AdminWorkforce = () => {
       <WorkforceGlobalHeader 
         user={user}
         onLogout={handleLogout}
+        onEmployeeSelect={handleEmployeeSelect}
+        onCertificationSelect={handleCertificationSelect}
+        onAircraftSelect={handleAircraftSelect}
       />
 
       {/* Main Content - Allow both x and y scrolling */}
@@ -77,6 +104,25 @@ const AdminWorkforce = () => {
       
       {/* Floating Action Menu for Quick Actions */}
       <FloatingActionMenu />
+
+      {/* Detail Panels */}
+      <EmployeeDetailPanel
+        employee={selectedEmployee}
+        open={isEmployeeDetailOpen}
+        onOpenChange={setIsEmployeeDetailOpen}
+      />
+
+      <CertificationDetailPanel
+        certification={selectedCertification}
+        open={isCertificationDetailOpen}
+        onOpenChange={setIsCertificationDetailOpen}
+      />
+
+      <AircraftDetailsModal
+        aircraft={selectedAircraft}
+        open={isAircraftDetailOpen}
+        onOpenChange={setIsAircraftDetailOpen}
+      />
 
       {/* Add global styles for Dialog/Modal components */}
       <style dangerouslySetInnerHTML={{ 
