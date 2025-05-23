@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -104,17 +103,17 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
           name: hangar.hangar_name
         }));
         
-        // Status-based fill color mapping
+        // Status-based fill color mapping with vibrant colors
         const getStatusColor = (status: string) => {
           switch (status) {
             case 'Completed':
-              return 'bg-green-200 dark:bg-green-900';
+              return 'bg-emerald-400 dark:bg-emerald-600';
             case 'In Progress':
-              return 'bg-blue-200 dark:bg-blue-900';
+              return 'bg-amber-400 dark:bg-amber-600';
             case 'Scheduled':
-              return 'bg-gray-200 dark:bg-gray-700';
+              return 'bg-slate-400 dark:bg-slate-600';
             default:
-              return 'bg-gray-200 dark:bg-gray-700';
+              return 'bg-slate-400 dark:bg-slate-600';
           }
         };
 
@@ -296,17 +295,17 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
       { hangar: 'Hangar 1B', aircraft: 'AIRBUS 380', authority: 'GCAA', startDay: 16, startMonth: 5, endDay: 30, endMonth: 5, year: 2025, status: 'Scheduled' }
     ];
     
-    // Use status-based fill color mapping
+    // Use status-based fill color mapping with vibrant colors
     const getStatusColor = (status: string) => {
       switch (status) {
         case 'Completed':
-          return 'bg-green-200 dark:bg-green-900';
+          return 'bg-emerald-400 dark:bg-emerald-600';
         case 'In Progress':
-          return 'bg-blue-200 dark:bg-blue-900';
+          return 'bg-amber-400 dark:bg-amber-600';
         case 'Scheduled':
-          return 'bg-gray-200 dark:bg-gray-700';
+          return 'bg-slate-400 dark:bg-slate-600';
         default:
-          return 'bg-gray-200 dark:bg-gray-700';
+          return 'bg-slate-400 dark:bg-slate-600';
       }
     };
 
@@ -517,9 +516,9 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                                   <div className="text-xs">Duration: {position.duration} days</div>
                                   <div className="text-xs font-medium mt-1">
                                     Status: <span className={`${
-                                      schedule.status === 'Completed' ? 'text-green-600 dark:text-green-400' :
-                                      schedule.status === 'In Progress' ? 'text-blue-600 dark:text-blue-400' :
-                                      'text-gray-600 dark:text-gray-400'
+                                      schedule.status === 'Completed' ? 'text-emerald-600 dark:text-emerald-400' :
+                                      schedule.status === 'In Progress' ? 'text-amber-600 dark:text-amber-400' :
+                                      'text-slate-600 dark:text-slate-400'
                                     }`}>{schedule.status}</span>
                                   </div>
                                   <div className="text-xs">Visit: {schedule.visit_number}</div>
@@ -578,9 +577,9 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
                         <p className={`font-medium ${
-                          selectedAircraft.status === 'Completed' ? 'text-green-600 dark:text-green-400' :
-                          selectedAircraft.status === 'In Progress' ? 'text-blue-600 dark:text-blue-400' :
-                          'text-gray-600 dark:text-gray-400'
+                          selectedAircraft.status === 'Completed' ? 'text-emerald-600 dark:text-emerald-400' :
+                          selectedAircraft.status === 'In Progress' ? 'text-amber-600 dark:text-amber-400' :
+                          'text-slate-600 dark:text-slate-400'
                         }`}>{selectedAircraft.status}</p>
                       </div>
                       <div>

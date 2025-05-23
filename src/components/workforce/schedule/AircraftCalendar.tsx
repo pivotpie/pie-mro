@@ -46,15 +46,15 @@ export const AircraftCalendar = () => {
       <div className="flex items-center justify-between mb-4">
         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-green-200 dark:bg-green-900 border border-green-400 dark:border-green-700"></span>
+            <span className="w-3 h-3 mr-1 rounded-sm bg-emerald-400 dark:bg-emerald-600 border border-emerald-500"></span>
             <span>Completed</span>
           </div>
           <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-blue-200 dark:bg-blue-900 border border-blue-400 dark:border-blue-700"></span>
+            <span className="w-3 h-3 mr-1 rounded-sm bg-amber-400 dark:bg-amber-600 border border-amber-500"></span>
             <span>In Progress</span>
           </div>
           <div className="flex items-center">
-            <span className="w-3 h-3 mr-1 rounded-sm bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-600"></span>
+            <span className="w-3 h-3 mr-1 rounded-sm bg-slate-400 dark:bg-slate-600 border border-slate-500"></span>
             <span>Scheduled</span>
           </div>
         </div>
