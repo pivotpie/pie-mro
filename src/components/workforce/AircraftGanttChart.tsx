@@ -351,59 +351,25 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
 
   // Calculate position based on days from start date
   const calculatePosition = (schedule: AircraftSchedule) => {
-    console.log('=== Calculating position for schedule ===');
-    console.log('Schedule:', {
-      id: schedule.id,
-      registration: schedule.registration,
-      start: schedule.start,
-      end: schedule.end,
-      startFormatted: format(schedule.start, 'yyyy-MM-dd'),
-      endFormatted: format(schedule.end, 'yyyy-MM-dd')
-    });
-    
     const chartStartDate = startOfDay(days[0].date);
     const scheduleStartDate = startOfDay(new Date(schedule.start));
     const scheduleEndDate = startOfDay(new Date(schedule.end));
     
-    console.log('Date comparison:', {
-      chartStartDate: format(chartStartDate, 'yyyy-MM-dd'),
-      scheduleStartDate: format(scheduleStartDate, 'yyyy-MM-dd'),
-      scheduleEndDate: format(scheduleEndDate, 'yyyy-MM-dd')
-    });
-    
     const startDaysDifference = differenceInDays(scheduleStartDate, chartStartDate);
     const endDaysDifference = differenceInDays(scheduleEndDate, chartStartDate);
-    
-    console.log('Days difference:', {
-      startDaysDifference,
-      endDaysDifference,
-      totalDaysInChart: days.length
-    });
     
     const startIdx = Math.max(0, startDaysDifference);
     const endIdx = Math.min(days.length - 1, endDaysDifference);
     const finalEndIdx = Math.max(startIdx, endIdx);
     
-    console.log('Final indices:', {
-      startIdx,
-      endIdx: finalEndIdx,
-      width: finalEndIdx - startIdx + 1
-    });
-    
-    // Each day column is exactly 48px wide
+    // Each day column is exactly 48px wide (w-12 = 3rem = 48px)
     const dayWidth = 48;
     
-    // Calculate the start position for the card (column width * days from start)
+    // Calculate the start position for the card
     const startPosition = startIdx * dayWidth;
     
     // Calculate the width (at least one day width)
     const width = Math.max(dayWidth, (finalEndIdx - startIdx + 1) * dayWidth);
-    
-    console.log('Final position:', {
-      startPosition,
-      width,
-      dayWidth
-    });
     
     return { startPosition, width };
   };
@@ -438,86 +404,96 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
         ref={scrollAreaRef}
         onScroll={handleScroll}
       >
-        <div className="min-w-[2800px] h-full">
-          <table className="w-full border-collapse h-full table-fixed">
-            <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
-              <tr className="h-12">
-                <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-30">Hangar</th>
-                <th className="p-2 text-left border-r sticky left-[120px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 w-25">Bay</th>
-                
-                {/* Calendar days - each column is exactly 48px wide (w-12) */}
-                {days.map((day, index) => (
-                  <th 
-                    key={`${day.year}-${day.month+1}-${day.day}`} 
-                    className={`p-1 text-center border-r w-12 h-12 dark:border-gray-700 dark:text-gray-200
-                      ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
-                  >
-                    <div className="text-xs font-medium">{day.day}</div>
-                    <div className="text-xs">{format(day.date, 'MMM')}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="h-full">
-              {hangars.map((hangar) => (
-                <tr key={hangar.id} className="border-b h-12 dark:border-gray-700">
-                  <td className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-12 w-30">{hangar.name.split(" ")[0]}</td>
-                  <td className="p-2 border-r sticky left-[120px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 h-12 w-25">{hangar.name.split(" ")[1]}</td>
-                  
-                  {/* Gantt chart container cell spanning across all days */}
-                  <td colSpan={days.length} className="relative p-0 h-12">
-                    {/* Render day grid backgrounds */}
-                    {days.map((day, index) => (
-                      <div 
-                        key={`bg-${day.year}-${day.month}-${day.day}`}
-                        className={`absolute top-0 bottom-0 border-r dark:border-gray-700 w-12 ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
-                        style={{
-                          left: `${index * 48}px`
-                        }}
-                      />
-                    ))}
-                    
-                    {/* Render aircraft schedules */}
-                    {aircraftSchedules
-                      .find(item => item.hangarId === hangar.id)
-                      ?.schedules.map(schedule => {
-                        const position = calculatePosition(schedule);
-                        if (!position) return null;
-                        
-                        return (
-                          <TooltipProvider key={schedule.id}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div 
-                                  className={`absolute top-1 h-10 ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200`}
-                                  style={{
-                                    left: `${position.startPosition}px`,
-                                    width: `${position.width}px`,
-                                  }}
-                                  onClick={() => handleAircraftClick(schedule)}
-                                >
-                                  <span className="truncate px-1 font-medium">{schedule.registration}</span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <div className="text-sm font-medium">{schedule.aircraft}</div>
-                                <div className="text-xs">{schedule.registration} - {schedule.customer}</div>
-                                <div className="text-xs">
-                                  {format(schedule.start, 'dd MMM yyyy')} - {format(schedule.end, 'dd MMM yyyy')}
-                                </div>
-                                <div className="text-xs font-medium mt-1">
-                                  Status: <span className="text-blue-600 dark:text-blue-400">{schedule.status}</span>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        );
-                      })}
-                  </td>
+        <div className="flex">
+          {/* Fixed left columns */}
+          <div className="flex-shrink-0 bg-white dark:bg-gray-900">
+            <table className="border-collapse">
+              <thead className="bg-gray-100 dark:bg-gray-800">
+                <tr className="h-12">
+                  <th className="p-2 text-left border-r dark:border-gray-700 dark:text-gray-200 w-[120px]">Hangar</th>
+                  <th className="p-2 text-left border-r dark:border-gray-700 dark:text-gray-200 w-[100px]">Bay</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {hangars.map((hangar) => (
+                  <tr key={hangar.id} className="border-b h-12 dark:border-gray-700">
+                    <td className="p-2 border-r dark:border-gray-700 dark:text-gray-300 h-12">{hangar.name.split(" ")[0]}</td>
+                    <td className="p-2 border-r dark:border-gray-700 dark:text-gray-300 h-12">{hangar.name.split(" ")[1]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Scrollable calendar section */}
+          <div className="flex-1 overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead className="bg-gray-100 dark:bg-gray-800">
+                <tr className="h-12">
+                  {days.map((day, index) => (
+                    <th 
+                      key={`${day.year}-${day.month+1}-${day.day}`} 
+                      className={`p-1 text-center border-r w-12 h-12 dark:border-gray-700 dark:text-gray-200
+                        ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                    >
+                      <div className="text-xs font-medium">{day.day}</div>
+                      <div className="text-xs">{format(day.date, 'MMM')}</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {hangars.map((hangar) => (
+                  <tr key={hangar.id} className="border-b h-12 dark:border-gray-700">
+                    {/* Individual day cells for background */}
+                    {days.map((day, dayIndex) => (
+                      <td 
+                        key={`${hangar.id}-${day.year}-${day.month}-${day.day}`}
+                        className={`relative p-0 h-12 w-12 border-r dark:border-gray-700 ${day.isWeekend ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
+                      >
+                        {/* Render aircraft schedules only on the first day cell */}
+                        {dayIndex === 0 && aircraftSchedules
+                          .find(item => item.hangarId === hangar.id)
+                          ?.schedules.map(schedule => {
+                            const position = calculatePosition(schedule);
+                            if (!position) return null;
+                            
+                            return (
+                              <TooltipProvider key={schedule.id}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div 
+                                      className={`absolute top-1 h-10 ${schedule.color} border rounded cursor-pointer flex items-center justify-center overflow-hidden transition-shadow hover:shadow-md text-xs dark:text-gray-200 z-10`}
+                                      style={{
+                                        left: `${position.startPosition}px`,
+                                        width: `${position.width}px`,
+                                      }}
+                                      onClick={() => handleAircraftClick(schedule)}
+                                    >
+                                      <span className="truncate px-1 font-medium">{schedule.registration}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <div className="text-sm font-medium">{schedule.aircraft}</div>
+                                    <div className="text-xs">{schedule.registration} - {schedule.customer}</div>
+                                    <div className="text-xs">
+                                      {format(schedule.start, 'dd MMM yyyy')} - {format(schedule.end, 'dd MMM yyyy')}
+                                    </div>
+                                    <div className="text-xs font-medium mt-1">
+                                      Status: <span className="text-blue-600 dark:text-blue-400">{schedule.status}</span>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </ScrollArea>
 
