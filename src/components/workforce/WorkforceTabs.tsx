@@ -25,51 +25,8 @@ export const WorkforceTabs = () => {
       className="mt-4"
     >
       <div className="flex items-center justify-between mb-2">
-        <TabsList>
-          <TabsTrigger value="employee" className="flex items-center gap-2">
-            <User2 className="h-4 w-4" />
-            <span>Employee Schedule</span>
-          </TabsTrigger>
-          <TabsTrigger value="aircraft" className="flex items-center gap-2">
-            <Briefcase className="h-4 w-4" />
-            <span>Aircraft Schedule</span>
-          </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center gap-2">
-            <UsersRound className="h-4 w-4" />
-            <span>Team View</span>
-          </TabsTrigger>
-          <TabsTrigger value="certification" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            <span>Certifications</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={handleExport}
-        >
-          <Download className="h-4 w-4" />
-          Export Data
-        </Button>
+</TabsContent>
       </div>
-
-      <TabsContent value="employee" className="mt-0">
-        <EmployeeScheduleView />
-      </TabsContent>
       
-      <TabsContent value="aircraft" className="mt-0">
-        <AircraftScheduleView />
-      </TabsContent>
-
-      <TabsContent value="team" className="mt-0">
-        <TeamView />
-      </TabsContent>
-
-      <TabsContent value="certification" className="mt-0">
-        <CertificationView />
-      </TabsContent>
-    </Tabs>
   );
 };
