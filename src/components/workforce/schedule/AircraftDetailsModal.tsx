@@ -945,7 +945,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                 </div>
 
                 {/* Employee Table */}
-                <div className="overflow-auto max-h-[300px]">
+                <div className="overflow-auto">
                   {loading ? (
                     <div className="flex justify-center items-center h-[200px]">
                       <div className="animate-spin h-6 w-6 border-2 border-blue-600 rounded-full border-t-transparent"></div>
