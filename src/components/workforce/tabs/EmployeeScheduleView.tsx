@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
 import { EmployeeCalendar } from "../schedule/EmployeeCalendar";
 import { AircraftScheduleView } from "./AircraftScheduleView";
+import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
 
 export const EmployeeScheduleView = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
 
   // Handler to receive scroll position updates from the employee calendar
   const handleCalendarScroll = (position: number) => {
@@ -39,6 +42,12 @@ export const EmployeeScheduleView = () => {
     console.log("Export requested");
   };
 
+  // Open employee detail panel
+  const handleEmployeeSelect = (employee: any) => {
+    setSelectedEmployee(employee);
+    setIsDetailOpen(true);
+  };
+
   return (
     <div className="space-y-6 w-full">
       <div>
@@ -60,12 +69,22 @@ export const EmployeeScheduleView = () => {
           <EmployeeCalendar 
             onScroll={handleCalendarScroll} 
             currentDate={currentDate}
+            onEmployeeSelect={handleEmployeeSelect}
           />
         </div>
       </div>
       
       {/* Since we don't have access to modify AircraftScheduleView.tsx, we'll remove the scrollPosition prop */}
       <AircraftScheduleView />
+
+      {/* Employee Detail Panel */}
+      {selectedEmployee && (
+        <EmployeeDetailPanel
+          employee={selectedEmployee}
+          open={isDetailOpen}
+          onOpenChange={setIsDetailOpen}
+        />
+      )}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -280,9 +279,10 @@ const DateColumnFilter = ({
 interface EmployeeCalendarProps {
   onScroll: (position: number) => void;
   currentDate?: Date;
+  onEmployeeSelect?: (employee: any) => void;
 }
 
-export const EmployeeCalendar = ({ onScroll, currentDate = new Date() }: EmployeeCalendarProps) => {
+export const EmployeeCalendar = ({ onScroll, currentDate = new Date(), onEmployeeSelect }: EmployeeCalendarProps) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -705,11 +705,16 @@ export const EmployeeCalendar = ({ onScroll, currentDate = new Date() }: Employe
     setIsDetailOpen(true);
   };
 
-  // Handle profile click
+  // Handle profile click - updated to also call the onEmployeeSelect callback
   const handleProfileClick = (employee: Employee) => {
     setSelectedEmployee(employee);
     setSelectedDate(null);
-    setIsDetailOpen(true);
+    // Call the external handler if it exists
+    if (onEmployeeSelect) {
+      onEmployeeSelect(employee);
+    } else {
+      setIsDetailOpen(true);
+    }
   };
 
   // Get unique values for a column
@@ -1102,98 +1107,100 @@ export const EmployeeCalendar = ({ onScroll, currentDate = new Date() }: Employe
         </table>
       </div>
 
-      {/* Employee Detail Sheet */}
-      <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>Employee {selectedDate ? 'Schedule' : 'Profile'} Detail</SheetTitle>
-          </SheetHeader>
-          
-          {selectedEmployee && (
-            <div className="space-y-6 mt-6">
-              <div className="grid gap-4">
-                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium mb-2">Employee Information</h3>
-                  <dl className="grid grid-cols-2 gap-3">
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">Name</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.name}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">ID</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.e_number}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">Team</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.team?.team_name || '-'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">Position</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.job_title?.job_description || '-'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">Core</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.cores?.join(', ') || '-'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">Support</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.supports?.join(', ') || '-'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">Night Shift</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.night_shift_ok ? 'Yes' : 'No'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.fte_date ? format(new Date(selectedEmployee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">Mobile</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.mobile_number || '-'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">Alias</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.key_name || '-'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm text-gray-500 dark:text-gray-400">TTL</dt>
-                      <dd className="font-medium dark:text-gray-200">{selectedEmployee.ttl || '-'}</dd>
-                    </div>
-                  </dl>
-                </div>
-
-                {selectedDate && selectedEmployee.schedule?.[selectedDate] && (
+      {/* Employee Detail Sheet - only show this if onEmployeeSelect is not provided */}
+      {!onEmployeeSelect && (
+        <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+          <SheetContent className="w-full sm:max-w-lg">
+            <SheetHeader>
+              <SheetTitle>Employee {selectedDate ? 'Schedule' : 'Profile'} Detail</SheetTitle>
+            </SheetHeader>
+            
+            {selectedEmployee && (
+              <div className="space-y-6 mt-6">
+                <div className="grid gap-4">
                   <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium mb-2">Schedule for {selectedDate}</h3>
-                    <div className="space-y-3">
+                    <h3 className="text-lg font-medium mb-2">Employee Information</h3>
+                    <dl className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-                        <p className="font-medium dark:text-gray-200">
-                          {selectedEmployee.schedule?.[selectedDate] === 'D' && 'On Duty'}
-                          {selectedEmployee.schedule?.[selectedDate] === 'AL' && 'Annual Leave'}
-                          {selectedEmployee.schedule?.[selectedDate] === 'L' && 'On Leave'}
-                          {selectedEmployee.schedule?.[selectedDate] === 'TR' && 'Training'}
-                          {selectedEmployee.schedule?.[selectedDate] === 'T' && 'Training'}
-                          {selectedEmployee.schedule?.[selectedDate] === 'O' && 'Day Off'}
-                          {selectedEmployee.schedule?.[selectedDate] === 'B1' && 'Half Day'}
-                          {selectedEmployee.schedule?.[selectedDate] === 'SK' && 'Sick Leave'}
-                          {selectedEmployee.schedule?.[selectedDate] === 'DO' && 'Overtime'}
-                        </p>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Name</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.name}</dd>
                       </div>
-                      
-                      <div className="pt-2">
-                        <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
-                          Edit Schedule
-                        </Button>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">ID</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.e_number}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Team</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.team?.team_name || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Position</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.job_title?.job_description || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Core</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.cores?.join(', ') || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Support</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.supports?.join(', ') || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Night Shift</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.night_shift_ok ? 'Yes' : 'No'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.fte_date ? format(new Date(selectedEmployee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Mobile</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.mobile_number || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Alias</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.key_name || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">TTL</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.ttl || '-'}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  
+                  {selectedDate && selectedEmployee.schedule?.[selectedDate] && (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                      <h3 className="text-lg font-medium mb-2">Schedule for {selectedDate}</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                          <p className="font-medium dark:text-gray-200">
+                            {selectedEmployee.schedule?.[selectedDate] === 'D' && 'On Duty'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'AL' && 'Annual Leave'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'L' && 'On Leave'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'TR' && 'Training'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'T' && 'Training'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'O' && 'Day Off'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'B1' && 'Half Day'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'SK' && 'Sick Leave'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'DO' && 'Overtime'}
+                          </p>
+                        </div>
+                        
+                        <div className="pt-2">
+                          <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
+                            Edit Schedule
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+            )}
+          </SheetContent>
+        </Sheet>
+      )}
 
       <style>
         {`
