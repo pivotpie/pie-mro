@@ -54,7 +54,7 @@ export const CertificationView = () => {
             <SelectValue placeholder="Filter by type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Types</SelectItem>
+            <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="Aircraft">Aircraft</SelectItem>
             <SelectItem value="Engine">Engine</SelectItem>
             <SelectItem value="Cabin">Cabin</SelectItem>
