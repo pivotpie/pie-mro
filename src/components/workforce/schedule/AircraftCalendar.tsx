@@ -115,7 +115,7 @@ export const AircraftCalendar = () => {
       </div>
       
       {/* Set fixed height for the chart container */}
-      <div className="w-full h-[700px] border rounded-lg dark:border-gray-700 overflow-x-auto">
+      <div className="w-full border rounded-lg dark:border-gray-700 overflow-x-auto">
         <ScrollArea className="h-full">
           <div className="min-w-full h-full">
             <AircraftGanttChart 
