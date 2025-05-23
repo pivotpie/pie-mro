@@ -137,19 +137,7 @@ export default function WorkforceMetrics() {
           }
         }
 
-        // 4. Fetch aircraft metrics directly from maintenance_visits table
-        // Grounded Aircraft (status = "Grounded")
-        const { data: groundedData, error: groundedError } = await supabase
-          .from('maintenance_visits')
-          .select('id')
-          .eq('status', 'Grounded');
-        
-        if (!groundedError && groundedData) {
-          const groundedIndex = updatedMetrics.findIndex(m => m.title === "Grounded Aircraft");
-          if (groundedIndex !== -1) {
-            updatedMetrics[groundedIndex].value = groundedData.length;
-          }
-        }
+        // 4. Fetch aircraft metrics from maintenance_visits table
 
         // Aircraft with Teams (status = "In Service" or "Assigned")
         const { data: assignedData, error: assignedError } = await supabase
@@ -175,6 +163,16 @@ export default function WorkforceMetrics() {
           if (pendingIndex !== -1) {
             updatedMetrics[pendingIndex].value = pendingData.length;
           }
+        }
+
+        // Calculate Grounded Aircraft as the sum of aircraft with teams and pending assignments
+        const groundedIndex = updatedMetrics.findIndex(m => m.title === "Grounded Aircraft");
+        const withTeamsIndex = updatedMetrics.findIndex(m => m.title === "Aircraft w/ Teams");
+        const pendingIndex = updatedMetrics.findIndex(m => m.title === "Pending Assignment");
+        
+        if (groundedIndex !== -1 && withTeamsIndex !== -1 && pendingIndex !== -1) {
+          updatedMetrics[groundedIndex].value = 
+            updatedMetrics[withTeamsIndex].value + updatedMetrics[pendingIndex].value;
         }
 
         // Update the state with the new metrics

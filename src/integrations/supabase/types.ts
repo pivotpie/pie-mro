@@ -512,16 +512,19 @@ export type Database = {
       }
       employee_cores: {
         Row: {
+          assignment_date: string | null
           core_id: number | null
           employee_id: number | null
           id: number
         }
         Insert: {
+          assignment_date?: string | null
           core_id?: number | null
           employee_id?: number | null
           id?: number
         }
         Update: {
+          assignment_date?: string | null
           core_id?: number | null
           employee_id?: number | null
           id?: number
@@ -545,16 +548,19 @@ export type Database = {
       }
       employee_supports: {
         Row: {
+          assignment_date: string | null
           employee_id: number | null
           id: number
           support_id: number | null
         }
         Insert: {
+          assignment_date?: string | null
           employee_id?: number | null
           id?: number
           support_id?: number | null
         }
         Update: {
+          assignment_date?: string | null
           employee_id?: number | null
           id?: number
           support_id?: number | null
@@ -1151,6 +1157,10 @@ export type Database = {
           percentage: number
         }[]
       }
+      assign_employees_to_codes_with_dates: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       authenticate_user: {
         Args: { p_username: string; p_password: string }
         Returns: {
@@ -1158,6 +1168,14 @@ export type Database = {
           user_name: string
           authenticated: boolean
         }[]
+      }
+      clear_aircraft_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_schedule_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       generate_all_personnel_requirements: {
         Args: Record<PropertyKey, never>
@@ -1223,6 +1241,10 @@ export type Database = {
       generate_realistic_roster_may_june_2025: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      generate_registration_by_authority: {
+        Args: { authority: string }
+        Returns: string
       }
       generate_roster_may_june_2025: {
         Args: Record<PropertyKey, never>
@@ -1310,6 +1332,46 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      populate_aircraft_from_schedule: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_aircraft_models: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_aircraft_types: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_assignment_codes: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_authorities_and_validity: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_engine_types: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_hangars: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_maintenance_visits_from_schedule: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      populate_personnel_requirements_only: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      setup_aircraft_maintenance_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       show_employee_pattern: {
         Args: { emp_num: number; start_date?: string; days_to_show?: number }
         Returns: {
@@ -1329,6 +1391,10 @@ export type Database = {
           roster_code: string
           day_of_week: string
         }[]
+      }
+      update_certifications_with_new_aircraft: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       validate_roster_patterns: {
         Args: Record<PropertyKey, never>
