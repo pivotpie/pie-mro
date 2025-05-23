@@ -24,6 +24,22 @@ export const WorkforceTabs = () => {
       onValueChange={setCurrentView} 
       className="mt-4"
     >
+      <div className="flex items-center justify-between mb-2">
+        <TabsList className="h-10">
+          <TabsTrigger value="employee" className="flex items-center gap-1">
+            <User2 className="h-4 w-4" />
+            Employee View
+          </TabsTrigger>
+        </TabsList>
+        <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={handleExport}>
+          <Download className="h-4 w-4" />
+          Export Data
+        </Button>
+      </div>
+
+      <TabsContent value="employee" className="mt-2 space-y-4">
+        <EmployeeScheduleView />
+      </TabsContent>
     </Tabs>
   );
 };
