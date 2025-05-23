@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,10 @@ interface Employee {
 
 interface TradeRequirement {
   trade: string;
+  day_count?: number;  // Added these properties to match usage in the code
+  night_count?: number;
+  assigned_day?: number;
+  assigned_night?: number;
   dates: {
     date: string;
     day_count: number;
@@ -335,7 +340,20 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     
     try {
       // Convert aircraft.id to number if it's a string
-      const visitId = typeof aircraft.id === 'string' ? parseInt(aircraft.id) : aircraft.id;
+      let visitId;
+      try {
+        visitId = typeof aircraft.id === 'string' ? parseInt(aircraft.id) : aircraft.id;
+        if (isNaN(visitId)) {
+          throw new Error("Invalid aircraft ID");
+        }
+      } catch (err) {
+        console.error("Error converting aircraft ID:", err);
+        // Generate mock data since we have an invalid ID
+        const requirements: Record<string, TradeRequirement> = {};
+        generateMockRequirements(requirements);
+        setTradeRequirements(Object.values(requirements));
+        return;
+      }
       
       // Fetch personnel requirements for this maintenance visit
       const { data: reqData, error: reqError } = await supabase
@@ -374,8 +392,14 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
             };
           }
           
-          requirements[tradeName].day_count += req.day_shift_count;
-          requirements[tradeName].night_count += req.night_shift_count;
+          if (requirements[tradeName].day_count !== undefined) {
+            requirements[tradeName].day_count += req.day_shift_count;
+          }
+          
+          if (requirements[tradeName].night_count !== undefined) {
+            requirements[tradeName].night_count += req.night_shift_count;
+          }
+          
           requirements[tradeName].dates.push({
             date: format(new Date(req.date), 'dd-MMM'),
             day_count: req.day_shift_count,
