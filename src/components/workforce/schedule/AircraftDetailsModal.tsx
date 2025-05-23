@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,7 @@ interface Employee {
 
 interface TradeRequirement {
   trade: string;
-  day_count?: number;  // Added these properties to match usage in the code
+  day_count?: number;  
   night_count?: number;
   assigned_day?: number;
   assigned_night?: number;
@@ -82,7 +83,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       const currentDate = new Date().toISOString().split('T')[0];
       
       // Enhanced authorization data for G-FVWF aircraft (Boeing 737)
-      if (aircraft.registration === 'G-FVWF') {
+      if (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) {
         await enhanceAuthorizationsForGFVWF();
       }
       
@@ -225,8 +226,8 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
           availability: emp.availability,
           match_score: matchScore,
           current_roster: emp.current_roster,
-          support: empSupports.map(s => s.support_codes?.support_code).filter(Boolean).join(', ') || 'None',
-          core: empCores.map(c => c.core_codes?.core_code).filter(Boolean).join(', ') || 'None',
+          support: empSupports.map((s: any) => s.support_codes?.support_code).filter(Boolean).join(', ') || 'None',
+          core: empCores.map((c: any) => c.core_codes?.core_code).filter(Boolean).join(', ') || 'None',
           trade: determineTrade(empAuths, emp.job_titles?.job_description, tradesData)
         };
       });
@@ -250,7 +251,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       if (aircraft.status === 'Completed' || aircraft.status === 'In Progress') {
         // Mock assigned team for completed/in-progress visits
         assigned = generateMockAssignedTeam(availableEmps, aircraft);
-      } else if (aircraft.status === 'Scheduled' && aircraft.registration === 'G-FVWF') {
+      } else if (aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA'))) {
         // For G-FVWF scheduled visits, show high-matching employees as potentially assigned
         assigned = availableEmps
           .filter(emp => emp.match_score && emp.match_score > 70)
@@ -278,7 +279,9 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         { employee_id: 5, authorization_basis: 'B1', aircraft_model_id: 1 },
         { employee_id: 6, authorization_basis: 'B2', aircraft_model_id: 1 },
         { employee_id: 7, authorization_basis: 'B1', aircraft_model_id: 1 },
-        { employee_id: 8, authorization_basis: 'B2', aircraft_model_id: 1 }
+        { employee_id: 8, authorization_basis: 'B2', aircraft_model_id: 1 },
+        { employee_id: 9, authorization_basis: 'B1', aircraft_model_id: 1 },
+        { employee_id: 10, authorization_basis: 'B2', aircraft_model_id: 1 }
       ];
 
       // Update employee supports for better matching
@@ -287,7 +290,11 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         { employee_id: 2, support_id: 2 },
         { employee_id: 3, support_id: 1 },
         { employee_id: 4, support_id: 3 },
-        { employee_id: 5, support_id: 1 }
+        { employee_id: 5, support_id: 1 },
+        { employee_id: 7, support_id: 2 },
+        { employee_id: 8, support_id: 3 },
+        { employee_id: 9, support_id: 1 },
+        { employee_id: 10, support_id: 2 }
       ];
 
       // Update employee cores
@@ -296,7 +303,20 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
         { employee_id: 2, core_id: 2 },
         { employee_id: 3, core_id: 1 },
         { employee_id: 4, core_id: 3 },
-        { employee_id: 5, core_id: 1 }
+        { employee_id: 5, core_id: 1 },
+        { employee_id: 6, core_id: 2 },
+        { employee_id: 7, core_id: 1 },
+        { employee_id: 9, core_id: 3 },
+        { employee_id: 10, core_id: 2 }
+      ];
+
+      // Add certifications
+      const mockCertifications = [
+        { employee_id: 1, certification_code_id: 1, aircraft_id: 1, expiry_date: '2026-12-31' },
+        { employee_id: 2, certification_code_id: 2, aircraft_id: 1, expiry_date: '2026-12-31' },
+        { employee_id: 3, certification_code_id: 3, aircraft_id: 1, expiry_date: '2026-12-31' },
+        { employee_id: 5, certification_code_id: 1, aircraft_id: 1, expiry_date: '2026-12-31' },
+        { employee_id: 8, certification_code_id: 2, aircraft_id: 1, expiry_date: '2026-12-31' }
       ];
 
       console.log("Enhanced authorizations for G-FVWF aircraft demo");
@@ -308,7 +328,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
   const generateMockAssignedTeam = (employees: Employee[], aircraft: AircraftSchedule): Employee[] => {
     // Filter employees with good availability and high match scores
     const goodMatches = employees.filter(emp => 
-      emp.availability?.includes('Available') && 
+      (emp.availability?.includes('Available') || aircraft.status === 'Completed') && 
       emp.match_score && emp.match_score > 50
     );
 
@@ -340,6 +360,14 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       } else {
         break;
       }
+    }
+
+    // For completed visits, mark all as available since they've completed the work
+    if (aircraft.status === 'Completed') {
+      return assignedTeam.map(emp => ({
+        ...emp,
+        availability: 'Completed work'
+      }));
     }
 
     return assignedTeam;
@@ -403,6 +431,14 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     
     if (relevantTitles.some(title => jobTitle.includes(title))) {
       score += 10;
+    }
+
+    // Special boost for G-FVWF aircraft to ensure we have good matches
+    if (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) {
+      // Boost scores for employees with IDs 1-10 (for demo purposes)
+      if (employee.id && employee.id <= 10) {
+        score = Math.min(score + 30, maxScore);
+      }
     }
 
     return Math.min(score, maxScore);
@@ -534,7 +570,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
           assignedDay = dayCount; // Fully assigned for completed visits
         } else if (aircraft.status === 'In Progress') {
           assignedDay = Math.floor(dayCount * 0.8); // 80% assigned for in-progress
-        } else if (aircraft.status === 'Scheduled' && aircraft.registration === 'G-FVWF') {
+        } else if (aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA'))) {
           assignedDay = Math.floor(dayCount * 0.6); // 60% assigned for G-FVWF scheduled
         } else {
           assignedDay = trade === 'B1 Tech' ? Math.floor(dayCount * 0.3) : 
@@ -553,7 +589,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
       
       const totalAssignedDay = aircraft.status === 'Completed' ? totalDay :
                               aircraft.status === 'In Progress' ? Math.floor(totalDay * 0.8) :
-                              aircraft.status === 'Scheduled' && aircraft.registration === 'G-FVWF' ? Math.floor(totalDay * 0.6) :
+                              aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) ? Math.floor(totalDay * 0.6) :
                               Math.floor(totalDay * 0.2);
       
       requirements[trade] = {
@@ -577,11 +613,6 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
     setAssignedEmployees(prev => prev.filter(emp => emp.id !== employee.id));
     setAvailableEmployees(prev => [...prev, {...employee, match_score: calculateEmployeeMatchScore(employee)}]);
     toast.info(`${employee.name} removed from ${aircraft?.registration}`);
-  };
-
-  const calculateMatchScore = (authorizations: any[], aircraft: AircraftSchedule): number => {
-    // This is now handled by calculateEnhancedMatchScore
-    return calculateEnhancedMatchScore(authorizations, [], aircraft, {});
   };
 
   const calculateEmployeeMatchScore = (employee: Employee): number => {
@@ -776,8 +807,9 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
             {/* Left Column (30%) - Assigned Employees */}
             <div className="lg:col-span-3 space-y-4">
               <h3 className="text-lg font-semibold">
-                {aircraft.status === 'Completed' || aircraft.status === 'In Progress' ? 'Assigned Team' : 
-                 aircraft.status === 'Scheduled' && aircraft.registration === 'G-FVWF' ? 'Recommended Team' : 
+                {aircraft.status === 'Completed' ? 'Team that Completed Work' : 
+                 aircraft.status === 'In Progress' ? 'Currently Assigned Team' : 
+                 aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) ? 'Recommended Team' : 
                  'Assigned Team'}
               </h3>
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg min-h-[300px]">
@@ -791,11 +823,14 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                         <div className="flex-1">
                           <p className="font-medium dark:text-gray-200">{employee.name}</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{employee.role}</p>
-                          {employee.match_score && (
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                              {employee.match_score}% match
-                            </p>
-                          )}
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs">{employee.trade}</p>
+                            {employee.match_score && (
+                              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                                {employee.match_score}% match
+                              </p>
+                            )}
+                          </div>
                         </div>
                         {aircraft.status === 'Scheduled' && (
                           <Button 
@@ -918,6 +953,7 @@ export const AircraftDetailsModal = ({ isOpen, onClose, aircraft }: AircraftDeta
                                   onClick={() => handleAssignEmployee(employee)}
                                   disabled={!employee.availability?.includes('Available')}
                                 >
+                                  <Check className="h-3 w-3 mr-1" />
                                   Assign
                                 </Button>
                               ) : (
