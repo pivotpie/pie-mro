@@ -1287,3 +1287,5 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     </div>
   );
 };
+
+</edits_to_apply>
