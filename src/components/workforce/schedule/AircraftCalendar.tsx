@@ -106,8 +106,8 @@ export const AircraftCalendar = () => {
         </div>
       </div>
       
-      {/* Increased height to 100vh (doubled from previous 50vh) */}
-      <div className="w-full h-[100vh] border rounded-lg dark:border-gray-700">
+      {/* Set fixed height for the chart container */}
+      <div className="w-full h-[600px] border rounded-lg dark:border-gray-700">
         <ScrollArea className="h-full">
           <div className="min-w-full h-full">
             <AircraftGanttChart 

@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addDays, eachDayOfInterval, isWeekend, isSameDay, startOfDay } from "date-fns";
+import { format, addDays, eachDayOfInterval, isWeekend, isSameDay, startOfDay, isEqual } from "date-fns";
 
 // Helper function to generate days between two dates
 const generateDaysBetween = (startDate: Date, endDate: Date) => {
@@ -350,6 +351,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
   }, [scrollLeft]);
 
   const calculatePosition = (schedule: AircraftSchedule) => {
+    // Debug the schedule
     console.log('Calculating position for schedule:', {
       id: schedule.id,
       start: schedule.start,
@@ -357,60 +359,79 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
       registration: schedule.registration
     });
     
-    // Find the exact day indexes based on date matching
-    let startIdx = -1;
-    let endIdx = -1;
-    
-    const scheduleStartDay = startOfDay(schedule.start);
-    const scheduleEndDay = startOfDay(schedule.end);
-    
-    console.log('Looking for dates:', {
+    // Make sure the dates are processed correctly
+    const scheduleStartDay = startOfDay(new Date(schedule.start));
+    const scheduleEndDay = startOfDay(new Date(schedule.end));
+
+    console.log('Date ranges:', {
       scheduleStartDay: format(scheduleStartDay, 'yyyy-MM-dd'),
       scheduleEndDay: format(scheduleEndDay, 'yyyy-MM-dd'),
+      chartFirstDay: days.length > 0 ? format(days[0].date, 'yyyy-MM-dd') : 'none',
+      chartLastDay: days.length > 0 ? format(days[days.length-1].date, 'yyyy-MM-dd') : 'none',
       totalDays: days.length
     });
     
-    // Find start and end indices based on exact date matching
+    let startIdx = -1;
+    let endIdx = -1;
+    
+    // Find exact matches for start and end dates
     for (let i = 0; i < days.length; i++) {
-      const dayDate = startOfDay(days[i].date);
-      const dayDateStr = format(dayDate, 'yyyy-MM-dd');
+      const currentDay = startOfDay(days[i].date);
       
-      // Check if schedule starts on this day
-      if (startIdx === -1 && isSameDay(dayDate, scheduleStartDay)) {
+      if (startIdx === -1 && isSameDay(currentDay, scheduleStartDay)) {
         startIdx = i;
-        console.log(`Found start date at index ${i}: ${dayDateStr}`);
+        console.log(`Found start date at index ${i}: ${format(currentDay, 'yyyy-MM-dd')}`);
       }
       
-      // Check if schedule ends on this day
-      if (isSameDay(dayDate, scheduleEndDay)) {
+      if (isSameDay(currentDay, scheduleEndDay)) {
         endIdx = i;
-        console.log(`Found end date at index ${i}: ${dayDateStr}`);
+        console.log(`Found end date at index ${i}: ${format(currentDay, 'yyyy-MM-dd')}`);
+        // Once we find the end date, we can break the loop
+        break;
       }
     }
     
-    // Handle edge cases where dates are outside our visible range
+    // If exact match not found, find closest date (should not happen with correctly formatted dates)
     if (startIdx === -1) {
-      if (scheduleStartDay < startOfDay(days[0].date)) {
+      for (let i = 0; i < days.length; i++) {
+        const currentDay = startOfDay(days[i].date);
+        // If the current day is on or after the schedule start
+        if (currentDay >= scheduleStartDay) {
+          startIdx = i;
+          console.log(`No exact match for start date, using closest date at index ${i}: ${format(currentDay, 'yyyy-MM-dd')}`);
+          break;
+        }
+      }
+      
+      // If still not found, schedule starts before the visible range
+      if (startIdx === -1) {
         startIdx = 0;
         console.log('Schedule starts before visible range, using index 0');
-      } else {
-        console.log('Schedule start date not found in range, skipping');
-        return null;
       }
     }
     
+    // If end date not found, find closest date
     if (endIdx === -1) {
-      if (scheduleEndDay > startOfDay(days[days.length - 1].date)) {
+      for (let i = days.length - 1; i >= 0; i--) {
+        const currentDay = startOfDay(days[i].date);
+        // If the current day is on or before the schedule end
+        if (currentDay <= scheduleEndDay) {
+          endIdx = i;
+          console.log(`No exact match for end date, using closest date at index ${i}: ${format(currentDay, 'yyyy-MM-dd')}`);
+          break;
+        }
+      }
+      
+      // If still not found, schedule ends after the visible range
+      if (endIdx === -1) {
         endIdx = days.length - 1;
         console.log('Schedule ends after visible range, using last index');
-      } else {
-        console.log('Schedule end date not found in range, skipping');
-        return null;
       }
     }
     
     // Ensure endIdx is not before startIdx
     if (endIdx < startIdx) {
+      console.log(`Fixing invalid range: endIdx (${endIdx}) < startIdx (${startIdx})`);
       endIdx = startIdx;
     }
     
