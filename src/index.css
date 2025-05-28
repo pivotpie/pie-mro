@@ -134,10 +134,12 @@ html, body {
 /* Custom employee highlighting */
 .core-support-different {
   background-color: rgba(219, 234, 254) !important;
+  border-left: 4px solid #ef4444 !important;
 }
 
 .dark .core-support-different {
   background-color: rgba(37, 99, 235) !important;
+  border-left: 4px solid #ef4444 !important;
 }
 
 /* Fix popover z-index to appear above sticky elements */
