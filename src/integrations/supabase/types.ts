@@ -1185,6 +1185,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      generate_employee_assignments: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_employee_authorizations: {
         Args: { p_number_of_records: number }
         Returns: undefined
@@ -1318,6 +1322,18 @@ export type Database = {
           "May-15": string
         }[]
       }
+      get_employee_project_assignments: {
+        Args: { p_date?: string }
+        Returns: {
+          employee_id: number
+          employee_number: number
+          employee_name: string
+          assignment_type: string
+          assignment_code: string
+          assignment_date: string
+          project_details: string
+        }[]
+      }
       get_employee_roster: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1326,6 +1342,17 @@ export type Database = {
           date: string
           status_code: string
           notes: string
+        }[]
+      }
+      get_project_assignment_summary: {
+        Args: { p_start_date?: string; p_end_date?: string }
+        Returns: {
+          assignment_date: string
+          total_working_employees: number
+          core_assignments: number
+          support_assignments: number
+          available_assignments: number
+          unassigned_employees: number
         }[]
       }
       migrate_certifications_to_authorizations: {

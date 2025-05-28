@@ -247,7 +247,7 @@ const DateColumnFilter = ({
           )} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-40 popover-content" align="center">
+      <PopoverContent className="w-40 z-[9998]" align="center">
         <div className="space-y-2">
           <h4 className="font-medium text-sm">Status Filter</h4>
           <div className="max-h-40 overflow-y-auto">
@@ -810,12 +810,12 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         ))}
       </div>
       
-      {/* Simple table with direct scrolling */}
-      <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
-        <table className="w-full border-collapse">
+      {/* Optimized table with fixed positioning to prevent layout shifts */}
+      <div className="table-container" style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
+        <table className="w-full border-collapse table-fixed">
           <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
             <tr>
-              {/* Fixed columns */}
+              {/* Fixed columns with proper sizing and positioning */}
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
                 <div className="flex items-center justify-between">
@@ -971,7 +971,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               
-              {/* Calendar days */}
+              {/* Calendar days with optimized positioning */}
               {days.map((day) => {
                 const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                 const dateStatuses = dateStatusValues[dateKey] || [];
@@ -1008,7 +1008,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
               
               return (
                 <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                  {/* Fixed columns */}
+                  {/* Fixed columns with proper layout stability */}
                   <td 
                     className={cn(
                       "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
@@ -1090,7 +1090,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     {employee.ttl || '-'}
                   </td>
                   
-                  {/* Calendar days with tooltips - Updated for no layout shift */}
+                  {/* Calendar days with optimized tooltip implementation to prevent layout shifts */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                     const status = employee.schedule?.[dateKey] || '';
@@ -1107,13 +1107,19 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                                 hasStatus ? statusColors[status] || '' : '',
                                 day.isToday ? 'today-highlight' : ''
                               )}
-                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
+                              style={{ 
+                                width: `${columnWidths.date}px`,
+                                minWidth: `${columnWidths.date}px`,
+                                maxWidth: `${columnWidths.date}px`
+                              }}
                               onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
                             >
-                              {status}
+                              <div className="flex items-center justify-center h-full w-full">
+                                {status}
+                              </div>
                             </td>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
+                          <TooltipContent side="top" className="z-[9999]" sideOffset={8}>
                             <div className="space-y-1">
                               <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
                               <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
@@ -1260,42 +1266,81 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
 
       <style>
         {`
+          .table-container {
+            contain: layout style;
+            overflow-x: auto;
+            overflow-y: visible;
+          }
+          
+          .table-container table {
+            border-collapse: collapse;
+            table-layout: fixed;
+          }
+          
+          .table-container td,
+          .table-container th {
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            border-right: 1px solid #e5e7eb;
+          }
+          
+          .dark .table-container td,
+          .dark .table-container th {
+            border-right-color: #374151;
+          }
+          
           .weekend-shade {
             background-color: rgba(107, 114, 128, 0.8);
             color: white;
           }
+          
           .dark .weekend-shade {
             background-color: rgba(75, 85, 99, 0.9);
             color: rgba(229, 231, 235, 1);
           }
+          
           .today-highlight {
             border: 2px solid #3b82f6;
           }
+          
           .status-day-off {
             background-color: rgba(75, 85, 99, 0.9);
             color: white;
           }
+          
           .dark .status-day-off {
             background-color: rgba(55, 65, 81, 1);
             color: rgba(229, 231, 235, 1);
           }
+          
           .core-support-different {
             border-left: 4px solid #ef4444;
           }
-          .tooltip-fixed {
-            position: absolute !important; 
-            pointer-events: none !important;
-            z-index: 100 !important;
-            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
+          
+          /* Optimize tooltip rendering to prevent layout shifts */
+          [data-radix-tooltip-content] {
+            transform-origin: var(--radix-tooltip-content-transform-origin);
+            will-change: transform, opacity;
+            animation-duration: 0.1s;
+            animation-timing-function: ease-out;
           }
-          .popover-content {
-            z-index: 100;
+          
+          /* Ensure popovers have proper z-index */
+          [data-radix-popover-content] {
+            z-index: 9998 !important;
           }
-          .fixed-tooltip {
-            position: absolute !important; 
-            pointer-events: none !important;
-            z-index: 1000 !important;
-            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
+          
+          /* Prevent text selection on interactive elements */
+          .table-container th,
+          .table-container td {
+            user-select: none;
+          }
+          
+          /* Stabilize layout during hover states */
+          .table-container tr:hover td {
+            will-change: background-color;
           }
         `}
       </style>

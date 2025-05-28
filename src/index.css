@@ -140,9 +140,14 @@ html, body {
   background-color: rgba(37, 99, 235, 0.2) !important;
 }
 
-/* Fix popover z-index to appear above sticky elements */
-.popover-content {
-  z-index: 50 !important;
+/* Enhanced tooltip and popover z-index management */
+[data-radix-tooltip-content] {
+  z-index: 9999 !important;
+  pointer-events: none !important;
+}
+
+[data-radix-popover-content] {
+  z-index: 9998 !important;
 }
 
 /* Update status colors with darker Off day (O) shade */
@@ -154,4 +159,66 @@ html, body {
 .dark .status-day-off {
   background-color: rgba(55, 65, 81, 0.95) !important;
   color: rgba(229, 231, 235, 1) !important;
+}
+
+/* Performance optimizations for table layout stability */
+.table-container {
+  contain: layout style;
+  will-change: scroll-position;
+}
+
+.table-container table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Optimize tooltip animations to prevent layout shifts */
+[data-radix-tooltip-content] {
+  transform-origin: var(--radix-tooltip-content-transform-origin);
+  will-change: transform, opacity;
+  animation-duration: 150ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-radix-tooltip-content][data-state="delayed-open"] {
+  animation-name: slideUpAndFade;
+}
+
+[data-radix-tooltip-content][data-state="instant-open"] {
+  animation-name: slideUpAndFade;
+}
+
+@keyframes slideUpAndFade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Prevent layout shift during tooltip interactions */
+[data-radix-tooltip-trigger] {
+  outline: none;
+}
+
+/* Stabilize sticky positioning */
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
+  will-change: auto;
+}
+
+/* Improve table cell stability */
+.table-container td,
+.table-container th {
+  contain: layout style;
+  box-sizing: border-box;
+}
+
+/* Optimize hover states */
+.table-container tr:hover {
+  contain: layout style;
 }
