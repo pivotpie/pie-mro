@@ -971,33 +971,38 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               
-              {/* Calendar days */}
+              // Replace the tooltip section in your calendar days rendering
               {days.map((day) => {
                 const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                const dateStatuses = dateStatusValues[dateKey] || [];
+                const status = employee.schedule?.[dateKey] || '';
+                const hasStatus = status !== '';
                 
                 return (
-                  <th 
-                    key={dateKey}
-                    className={cn(
-                      "p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200",
-                      day.isWeekend ? 'weekend-shade' : '',
-                      day.isToday ? 'today-highlight' : ''
-                    )}
-                    style={{ width: `${columnWidths.date}px` }}
-                  >
-                    <div className="flex flex-col items-center">
-                      <div className="text-xs font-medium">{day.day}</div>
-                      <div className="text-xs">{day.monthName}</div>
-                      <DateColumnFilter 
-                        dateKey={dateKey}
-                        values={dateStatuses}
-                        activeValues={dateColumnFilters[dateKey] || []}
-                        onValueSelect={(value) => handleDateFilterSelect(dateKey, value)}
-                        onClearAll={() => clearDateFilter(dateKey)}
-                      />
-                    </div>
-                  </th>
+                  <TooltipProvider key={dateKey}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <td 
+                          className={cn(
+                            "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700 relative hover:z-50", // Add hover:z-50
+                            day.isWeekend ? 'weekend-shade' : '',
+                            hasStatus ? statusColors[status] || '' : '',
+                            day.isToday ? 'today-highlight' : ''
+                          )}
+                          style={{ width: `${columnWidths.date}px` }}
+                          onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
+                        >
+                          {status}
+                        </td>
+                      </TooltipTrigger>
+                      <TooltipContent 
+                        side="top" 
+                        className="z-[9999] pointer-events-none fixed" // Increased z-index and fixed positioning
+                        sideOffset={5}
+                      >
+                        {/* Your tooltip content */}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 );
               })}
             </tr>
