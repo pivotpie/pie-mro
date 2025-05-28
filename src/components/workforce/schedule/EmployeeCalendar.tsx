@@ -1090,7 +1090,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     {employee.ttl || '-'}
                   </td>
                   
-                  {/* Calendar days with tooltips - Updated for no layout shift */}
+                  {/* Calendar days with fixed tooltips - UPDATED SECTION */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                     const status = employee.schedule?.[dateKey] || '';
@@ -1102,18 +1102,22 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                           <TooltipTrigger asChild>
                             <td 
                               className={cn(
-                                "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
+                                "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700 relative hover:z-50", // Add hover:z-50
                                 day.isWeekend ? 'weekend-shade' : '',
                                 hasStatus ? statusColors[status] || '' : '',
                                 day.isToday ? 'today-highlight' : ''
                               )}
-                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
+                              style={{ width: `${columnWidths.date}px` }}
                               onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
                             >
                               {status}
                             </td>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
+                          <TooltipContent 
+                            side="top" 
+                            className="z-[9999] pointer-events-none fixed" // Increased z-index and fixed positioning
+                            sideOffset={5}
+                          >
                             <div className="space-y-1">
                               <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
                               <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
@@ -1282,20 +1286,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           .core-support-different {
             border-left: 4px solid #ef4444;
           }
-          .tooltip-fixed {
-            position: absolute !important; 
-            pointer-events: none !important;
-            z-index: 100 !important;
-            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
-          }
           .popover-content {
             z-index: 100;
-          }
-          .fixed-tooltip {
-            position: absolute !important; 
-            pointer-events: none !important;
-            z-index: 1000 !important;
-            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
           }
         `}
       </style>
