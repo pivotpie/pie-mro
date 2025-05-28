@@ -65,6 +65,21 @@ const columnWidths = {
   date: 45 // Width of each date column
 };
 
+// Hard-coded left positions for sticky columns
+const columnLeftPositions = {
+  id: 0,        // First column starts at 0
+  name: 80,     // 0 + 80 (id width)
+  alias: 280,   // 80 + 200 (name width)
+  mobile: 350,  // 280 + 70 (alias width)  
+  team: 480,    // 350 + 130 (mobile width)
+  core: 580,    // 480 + 100 (team width)
+  support: 680, // 580 + 100 (core width)
+  title: 780,   // 680 + 100 (support width)
+  night_shift: 880, // 780 + 100 (title width)
+  fte: 950,     // 880 + 70 (night_shift width)
+  ttl: 1030     // 950 + 80 (fte width)
+};
+
 // Helper function to calculate the total width of the table
 const calculateTotalWidth = (days: any[]) => {
   // Calculate the width of all fixed columns
@@ -802,7 +817,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             <tr>
               {/* Fixed columns */}
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.id}px`, left: 0 }}>
+                style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Emp#</span>
                   <ColumnFilter 
@@ -816,7 +831,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.name}px`, left: 80px }}>
+                style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Name</span>
                   <ColumnFilter 
@@ -830,7 +845,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.alias}px`, left: 280px }}>
+                style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Alias</span>
                   <ColumnFilter 
@@ -844,7 +859,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.mobile}px`, left: getLeftPositionStyle(3) }}>
+                style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Mobile</span>
                   <ColumnFilter 
@@ -858,7 +873,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.team}px`, left: getLeftPositionStyle(4) }}>
+                style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Team</span>
                   <ColumnFilter 
@@ -872,7 +887,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.core}px`, left: getLeftPositionStyle(5) }}>
+                style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Core</span>
                   <ColumnFilter 
@@ -886,7 +901,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.support}px`, left: getLeftPositionStyle(6) }}>
+                style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Support</span>
                   <ColumnFilter 
@@ -900,7 +915,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.title}px`, left: getLeftPositionStyle(7) }}>
+                style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Title</span>
                   <ColumnFilter 
@@ -914,7 +929,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.night_shift}px`, left: getLeftPositionStyle(8) }}>
+                style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Night</span>
                   <ColumnFilter 
@@ -928,7 +943,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.fte}px`, left: getLeftPositionStyle(9) }}>
+                style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}>
                 <div className="flex items-center justify-between">
                   <span>FTE</span>
                   <ColumnFilter 
@@ -942,7 +957,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.ttl}px`, left: getLeftPositionStyle(10) }}>
+                style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}>
                 <div className="flex items-center justify-between">
                   <span>TTL</span>
                   <ColumnFilter 
