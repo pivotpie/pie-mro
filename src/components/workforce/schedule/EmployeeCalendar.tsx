@@ -1,443 +1,791 @@
-import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, Filter, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Check, Filter, Search, X } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
-  SheetTitle 
-} from "@/components/ui/sheet";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
+import { cn } from "@/lib/utils";
 
-// Helper function to determine if a date is a weekend
-const isWeekend = (date: Date) => {
-  const day = date.getDay();
-  return day === 0 || day === 6;
+// Define interfaces for better type safety - updated to match DB types
+interface EmployeeRoster {
+  id: number; // Changed from string to number to match bigint from database
+  employee_id: number; // Changed from string to number to match bigint
+  date: string;
+  status_code: string;
+  notes: string | null;
+}
+
+interface EmployeeCore {
+  id: string;
+  employee_id: string;
+  core_code: string;
+}
+
+interface EmployeeSupport {
+  id: string;
+  employee_id: string;
+  support_code: string;
+}
+
+interface Employee {
+  id: string;
+  e_number?: string | null;
+  name: string;
+  mobile_number?: string | null;
+  team?: { team_name: string } | null;
+  job_title?: { job_description: string; job_code: string } | null;
+  employee_status?: string | null;
+  key_name?: string | null;
+  night_shift_ok?: boolean | null;
+  fte_date?: string | null;
+  ttl?: string | null;
+  cores?: string[];
+  supports?: string[];
+  schedule?: Record<string, string>;
+}
+
+// Define column widths for calculating total width
+const columnWidths = {
+  id: 80,
+  name: 200,
+  alias: 70,
+  mobile: 130,
+  team: 100,
+  core: 100,
+  support: 100,
+  title: 100,
+  night_shift: 70,
+  fte: 80,
+  ttl: 80,
+  date: 45 // Width of each date column
 };
 
-// Helper function to determine if a date is today
-const isToday = (date: Date) => {
-  const today = new Date();
-  return date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear();
+// Hard-coded left positions for sticky columns
+const columnLeftPositions = {
+  id: 0,        // First column starts at 0
+  name: 80,     // 0 + 80 (id width)
+  alias: 265,   // 80 + 200 (name width)
+  mobile: 350,  // 280 + 70 (alias width)  
+  team: 470,    // 350 + 130 (mobile width)
+  core: 567,    // 480 + 100 (team width)
+  support: 660, // 580 + 100 (core width)
+  title: 760,   // 680 + 100 (support width)
+  night_shift: 855, // 780 + 100 (title width)
+  fte: 930,     // 880 + 70 (night_shift width)
+  ttl: 1005     // 950 + 80 (fte width)
 };
 
-// Helper function to get month name
-const getMonthName = (month: number) => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return months[month];
+// Helper function to calculate the total width of the table
+const calculateTotalWidth = (days: any[]) => {
+  // Calculate the width of all fixed columns
+  const fixedColumnsWidth = Object.values(columnWidths).reduce((sum, width) => sum + width, 0) - columnWidths.date;
+  // Add width for each day column
+  const daysWidth = days.length * columnWidths.date;
+  return fixedColumnsWidth + daysWidth;
 };
 
-// Generate days for the current month and next month
-const generateDays = (currentDate: Date) => {
-  const days = [];
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  
-  // Current month
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let i = 1; i <= daysInMonth; i++) {
-    const date = new Date(year, month, i);
-    days.push({
-      day: i,
-      month: month,
-      year: year,
-      isWeekend: isWeekend(date),
-      isToday: isToday(date),
-      monthName: getMonthName(month)
-    });
+// Helper function to calculate left position for sticky columns
+const getLeftPositionStyle = (index: number) => {
+  let position = 0;
+  for (let i = 0; i < index; i++) {
+    position += Object.values(columnWidths)[i];
   }
+  return `${position}px`;
+};
+
+// Generate days for a two-month period based on current date parameter
+const generateTwoMonthDays = (currentDate: Date) => {
+  const currentMonth = startOfMonth(currentDate);
+  const nextMonth = addMonths(currentMonth, 1);
+  const endOfNextMonth = endOfMonth(nextMonth);
   
-  // Next month
-  const nextMonth = month === 11 ? 0 : month + 1;
-  const nextYear = month === 11 ? year + 1 : year;
-  const daysInNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
-  for (let i = 1; i <= daysInNextMonth; i++) {
-    const date = new Date(nextYear, nextMonth, i);
-    days.push({
-      day: i,
-      month: nextMonth,
-      year: nextYear,
-      isWeekend: isWeekend(date),
-      isToday: isToday(date),
-      monthName: getMonthName(nextMonth)
-    });
-  }
+  const dateRange = eachDayOfInterval({
+    start: currentMonth,
+    end: endOfNextMonth
+  });
   
-  return days;
+  return dateRange.map(date => ({
+    date,
+    day: date.getDate(),
+    month: date.getMonth(),
+    year: date.getFullYear(),
+    isWeekend: isWeekend(date),
+    isToday: isToday(date),
+    monthName: format(date, 'MMM')
+  }));
+};
+
+// Column Filter Component
+const ColumnFilter = ({ 
+  column, 
+  label, 
+  values, 
+  activeValues, 
+  onValueSelect, 
+  onClearAll 
+}: { 
+  column: string; 
+  label: string; 
+  values: string[];
+  activeValues: string[];
+  onValueSelect: (value: string) => void;
+  onClearAll: () => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Filter values by search term
+  const filteredValues = searchTerm ? 
+    values.filter(value => value.toLowerCase().includes(searchTerm.toLowerCase())) : 
+    values;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className={cn(
+            "p-0 h-5 w-5", 
+            activeValues.length > 0 && "text-primary"
+          )}
+        >
+          <Filter className={cn(
+            "h-3 w-3",
+            activeValues.length > 0 && "text-primary fill-primary"
+          )} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-60" align="end">
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm">{label} Filter</h4>
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+            <Input 
+              placeholder="Search..." 
+              className="pl-8 h-9" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto">
+            {filteredValues.length > 0 ? (
+              filteredValues.map((value) => (
+                <div key={value} className="flex items-center py-1">
+                  <Button
+                    variant="ghost"
+                    className="px-2 py-1 h-auto justify-start text-left w-full"
+                    onClick={() => onValueSelect(value)}
+                  >
+                    <span className={cn(
+                      "mr-2 h-4 w-4 rounded border flex items-center justify-center",
+                      activeValues.includes(value) ? "bg-blue-500 border-blue-500" : "border-gray-300"
+                    )}>
+                      {activeValues.includes(value) && <Check className="h-3 w-3 text-white" />}
+                    </span>
+                    <span className="truncate">{value}</span>
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 py-2">No filter options available</p>
+            )}
+          </div>
+          {activeValues.length > 0 && (
+            <div className="pt-2 border-t flex justify-end">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={onClearAll}
+                className="text-sm text-red-500"
+              >
+                Clear filters
+              </Button>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// Date Column Filter Component for filtering calendar days
+const DateColumnFilter = ({ 
+  dateKey, 
+  values, 
+  activeValues, 
+  onValueSelect, 
+  onClearAll 
+}: { 
+  dateKey: string; 
+  values: string[];
+  activeValues: string[];
+  onValueSelect: (value: string) => void;
+  onClearAll: () => void;
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className={cn(
+            "p-0 h-4 w-4", 
+            activeValues.length > 0 && "text-primary"
+          )}
+        >
+          <Filter className={cn(
+            "h-3 w-3",
+            activeValues.length > 0 && "text-primary fill-primary"
+          )} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-40 popover-content" align="center">
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm">Status Filter</h4>
+          <div className="max-h-40 overflow-y-auto">
+            {values.length > 0 ? (
+              values.map((status) => (
+                <div key={status} className="flex items-center py-1">
+                  <Button
+                    variant="ghost"
+                    className="px-2 py-1 h-auto justify-start text-left w-full"
+                    onClick={() => onValueSelect(status)}
+                  >
+                    <span className={cn(
+                      "mr-2 h-4 w-4 rounded border flex items-center justify-center",
+                      activeValues.includes(status) ? "bg-blue-500 border-blue-500" : "border-gray-300"
+                    )}>
+                      {activeValues.includes(status) && <Check className="h-3 w-3 text-white" />}
+                    </span>
+                    <span className="truncate">{status}</span>
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 py-2">No status data</p>
+            )}
+          </div>
+          {activeValues.length > 0 && (
+            <div className="pt-2 border-t flex justify-end">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={onClearAll}
+                className="text-sm text-red-500"
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 };
 
 interface EmployeeCalendarProps {
-  onScroll: (scrollLeft: number) => void;
-  currentDate: Date;
+  onScroll: (position: number) => void;
+  currentDate?: Date;
   onEmployeeSelect?: (employee: any) => void;
   onCellClick?: (employee: any, date: string, status: string) => void;
-  refreshKey?: number;
+  refreshKey?: number; // Add refreshKey prop
 }
 
-export const EmployeeCalendar = forwardRef<any, EmployeeCalendarProps>(({
-  onScroll,
-  currentDate,
-  onEmployeeSelect,
-  onCellClick,
-  refreshKey = 0
-}, ref) => {
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [idFilterValues, setIdFilterValues] = useState<string[]>([]);
-  const [nameFilterValues, setNameFilterValues] = useState<string[]>([]);
-  const [activeIdFilters, setActiveIdFilters] = useState<string[]>([]);
-  const [activeNameFilters, setActiveNameFilters] = useState<string[]>([]);
-  const [activeDateFilters, setActiveDateFilters] = useState<Record<string, string[]>>({});
-  const [dateStatusValues, setDateStatusValues] = useState<Record<string, string[]>>({});
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
+  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [isSheetOpen, setIsSheetOpen] = useState<boolean>(false);
-  const [isUpdateLoading, setIsUpdateLoading] = useState<boolean>(false);
-  
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const days = useMemo(() => generateTwoMonthDays(currentDate), [currentDate]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const days = generateDays(currentDate);
-  const isMobile = useIsMobile();
+  
+  // Filter states
+  const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
+  const [supportFilterValues, setSupportFilterValues] = useState<string[]>([]);
+  const [activeCoreFilters, setActiveCoreFilters] = useState<string[]>([]);
+  const [activeSupportFilters, setActiveSupportFilters] = useState<string[]>([]);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [dateColumnFilters, setDateColumnFilters] = useState<Record<string, string[]>>({});
+  const [dateStatusValues, setDateStatusValues] = useState<Record<string, string[]>>({});
 
-  // Column widths for consistent layout
-  const columnWidths = {
-    id: 80,
-    name: 200,
-    alias: 70,
-    mobile: 130,
-    team: 100,
-    core: 100,
-    support: 100,
-    title: 80,
-    nightShift: 60,
-    fte: 60,
-    ttl: 60,
-    date: 50
+  // Calculate total width for the table
+  const totalWidth = calculateTotalWidth(days);
+
+  // Updated useEffect to also respond to refreshKey changes
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch all employees with their related data
+        const { data: employeesData, error: employeesError } = await supabase
+          .from('employees')
+          .select(`
+            id,
+            e_number,
+            name,
+            mobile_number,
+            key_name,
+            night_shift_ok,
+            fte_date,
+            team:team_id(team_name),
+            job_title:job_title_id(job_code, job_description),
+            employee_status
+          `)
+          .order('e_number'); // Sort by e_number in ascending order
+        
+        if (employeesError) {
+          throw employeesError;
+        }
+
+        // Convert the employee data to match our Employee interface
+        const typedEmployees: Employee[] = employeesData.map(emp => ({
+          ...emp,
+          id: String(emp.id), // Convert id to string
+          e_number: emp.e_number?.toString(), // Convert e_number to string
+          cores: [],
+          supports: [],
+          schedule: {}
+        }));
+
+        console.log("Fetched employees:", typedEmployees);
+        console.log("Total employee count:", typedEmployees.length);
+
+        // Fetch employee cores
+        const { data: coresData, error: coresError } = await supabase
+          .from('employee_cores')
+          .select(`
+            id,
+            employee_id,
+            core:core_id(core_code)
+          `);
+          
+        if (coresError) {
+          console.error("Error fetching employee cores:", coresError);
+        } else if (coresData) {
+          // Assign cores to employees
+          const employeesCoreMap: Record<string, string[]> = {};
+          const allCores = new Set<string>();
+          
+          coresData.forEach((coreData: any) => {
+            const employeeId = String(coreData.employee_id);
+            if (employeeId) {
+              if (!employeesCoreMap[employeeId]) {
+                employeesCoreMap[employeeId] = [];
+              }
+              if (coreData.core?.core_code) {
+                const coreCode = coreData.core.core_code;
+                employeesCoreMap[employeeId].push(coreCode);
+                allCores.add(coreCode);
+              }
+            }
+          });
+          
+          // Update core filter values
+          setCoreFilterValues(Array.from(allCores).sort());
+          
+          // Add cores to employees
+          typedEmployees.forEach(emp => {
+            if (employeesCoreMap[emp.id]) {
+              emp.cores = employeesCoreMap[emp.id];
+            }
+          });
+        }
+        
+        // Fetch employee supports
+        const { data: supportsData, error: supportsError } = await supabase
+          .from('employee_supports')
+          .select(`
+            id,
+            employee_id,
+            support:support_id(support_code)
+          `);
+          
+        if (supportsError) {
+          console.error("Error fetching employee supports:", supportsError);
+        } else if (supportsData) {
+          // Assign supports to employees
+          const employeesSupportsMap: Record<string, string[]> = {};
+          const allSupports = new Set<string>();
+          
+          supportsData.forEach((supportData: any) => {
+            const employeeId = String(supportData.employee_id);
+            if (employeeId) {
+              if (!employeesSupportsMap[employeeId]) {
+                employeesSupportsMap[employeeId] = [];
+              }
+              if (supportData.support?.support_code) {
+                const supportCode = supportData.support.support_code;
+                employeesSupportsMap[employeeId].push(supportCode);
+                allSupports.add(supportCode);
+              }
+            }
+          });
+          
+          // Update support filter values
+          setSupportFilterValues(Array.from(allSupports).sort());
+          
+          // Add supports to employees
+          typedEmployees.forEach(emp => {
+            if (employeesSupportsMap[emp.id]) {
+              emp.supports = employeesSupportsMap[emp.id];
+            }
+          });
+        }
+
+        // Fetch attendance data for today to get TTL (time to location)
+        const today = new Date();
+        const todayString = format(today, 'yyyy-MM-dd');
+        
+        const { data: attendanceData, error: attendanceError } = await supabase
+          .from('attendance')
+          .select(`
+            employee_id,
+            check_in_time
+          `)
+          .eq('date', todayString);
+          
+        if (attendanceError) {
+          console.error("Error fetching attendance data:", attendanceError);
+        } else if (attendanceData) {
+          // Create a map of employee ID to check-in time
+          const checkInMap: Record<string, string> = {};
+          
+          attendanceData.forEach((attendance: any) => {
+            const employeeId = String(attendance.employee_id);
+            if (employeeId && attendance.check_in_time) {
+              const checkInTime = new Date(attendance.check_in_time);
+              checkInMap[employeeId] = format(checkInTime, 'hh:mm a');
+            }
+          });
+          
+          // Add TTL to employees
+          typedEmployees.forEach(emp => {
+            if (checkInMap[emp.id]) {
+              emp.ttl = checkInMap[emp.id];
+            }
+          });
+        }
+
+        // Get employee roster data using direct query
+        console.log("Fetching roster data...");
+        console.log("Using refreshKey:", refreshKey);
+        
+        const { data: rosterData, error: rosterError } = await supabase
+          .from('roster_assignments')
+          .select(`
+            id,
+            employee_id,
+            date_references!inner(actual_date),
+            roster_codes!inner(roster_code)
+          `)
+          .order('employee_id', { ascending: true })
+          .order('date_references(actual_date)', { ascending: true });
+        
+        if (rosterError) {
+          console.error("Error fetching roster data:", rosterError);
+          toast.error(`Error fetching roster assignments: ${rosterError.message}`);
+          setEmployees(typedEmployees);
+          setFilteredEmployees(typedEmployees);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Raw roster data:", rosterData);
+        console.log("Total roster records fetched:", rosterData ? rosterData.length : 0);
+        
+        // Process employees with the roster data if available
+        if (rosterData && rosterData.length > 0) {
+          const scheduleMap: Record<string, Record<string, string>> = {};
+          const dateStatusMap: Record<string, Set<string>> = {};
+          
+          // Process roster data to create a map of employee schedules
+          rosterData.forEach((roster: any) => {
+            // Convert numbers to strings for keys
+            const employeeId = String(roster.employee_id);
+            const date = new Date(roster.date_references.actual_date);
+            const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
+            const status = roster.roster_codes.roster_code;
+            
+            if (!scheduleMap[employeeId]) {
+              scheduleMap[employeeId] = {};
+            }
+            
+            scheduleMap[employeeId][dateKey] = status;
+            
+            // Track unique statuses for each date
+            if (!dateStatusMap[dateKey]) {
+              dateStatusMap[dateKey] = new Set<string>();
+            }
+            dateStatusMap[dateKey].add(status);
+          });
+          
+          // Convert status sets to arrays
+          const processedDateStatusValues: Record<string, string[]> = {};
+          Object.entries(dateStatusMap).forEach(([dateKey, statuses]) => {
+            processedDateStatusValues[dateKey] = Array.from(statuses).sort();
+          });
+          setDateStatusValues(processedDateStatusValues);
+          
+          console.log("Processed schedule map:", scheduleMap);
+          
+          // Update employees with their schedules
+          const employeesWithSchedule = typedEmployees.map(emp => {
+            return {
+              ...emp,
+              schedule: scheduleMap[emp.id] || {}
+            };
+          });
+          
+          setEmployees(employeesWithSchedule);
+          setFilteredEmployees(employeesWithSchedule);
+        } else {
+          console.log("No roster data returned or empty array");
+          // If no roster data, create empty schedules
+          const employeesWithEmptySchedule = typedEmployees.map(emp => {
+            return {
+              ...emp,
+              schedule: {}
+            };
+          });
+          
+          setEmployees(employeesWithEmptySchedule);
+          setFilteredEmployees(employeesWithEmptySchedule);
+        }
+      } catch (error: any) {
+        toast.error(`Error loading employees: ${error.message}`);
+        console.error("Error fetching employees:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, [currentDate, refreshKey]); // Add refreshKey as a dependency
+
+  // Apply filters to employees
+  useEffect(() => {
+    let result = [...employees];
+    
+    // Apply core filters
+    if (activeCoreFilters.length > 0) {
+      result = result.filter(emp => {
+        if (!emp.cores || emp.cores.length === 0) return false;
+        return emp.cores.some(core => activeCoreFilters.includes(core));
+      });
+    }
+    
+    // Apply support filters
+    if (activeSupportFilters.length > 0) {
+      result = result.filter(emp => {
+        if (!emp.supports || emp.supports.length === 0) return false;
+        return emp.supports.some(support => activeSupportFilters.includes(support));
+      });
+    }
+    
+    // Apply column filters
+    Object.entries(columnFilters).forEach(([column, values]) => {
+      if (values.length > 0) {
+        result = result.filter(emp => {
+          if (column === 'team') {
+            return values.includes(emp.team?.team_name || '');
+          }
+          if (column === 'job_title') {
+            return values.includes(emp.job_title?.job_description || '');
+          }
+          if (column === 'night_shift') {
+            const nightShiftValue = emp.night_shift_ok ? 'Yes' : 'No';
+            return values.includes(nightShiftValue);
+          }
+          const empValue = emp[column as keyof Employee];
+          return values.includes(String(empValue || ''));
+        });
+      }
+    });
+    
+    // Apply date column filters
+    Object.entries(dateColumnFilters).forEach(([dateKey, values]) => {
+      if (values.length > 0) {
+        result = result.filter(emp => {
+          const status = emp.schedule?.[dateKey] || '';
+          return values.includes(status);
+        });
+      }
+    });
+    
+    setFilteredEmployees(result);
+  }, [employees, activeCoreFilters, activeSupportFilters, columnFilters, dateColumnFilters]);
+
+  // Handle scroll events
+  const handleScroll = () => {
+    if (scrollAreaRef.current) {
+      onScroll(scrollAreaRef.current.scrollLeft || 0);
+    }
   };
 
-  // Calculate left positions for sticky columns
-  const columnLeftPositions = {
-    id: 0,
-    name: columnWidths.id,
-    alias: columnWidths.id + columnWidths.name,
-    mobile: columnWidths.id + columnWidths.name + columnWidths.alias,
-    team: columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile,
-    core: columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team,
-    support: columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core,
-    title: columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support,
-    nightShift: columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title,
-    fte: columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title + columnWidths.nightShift,
-    ttl: columnWidths.id + columnWidths.name + columnWidths.alias + columnWidths.mobile + columnWidths.team + columnWidths.core + columnWidths.support + columnWidths.title + columnWidths.nightShift + columnWidths.fte
+  // Handle core filter selection
+  const handleCoreFilterSelect = (value: string) => {
+    setActiveCoreFilters(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(v => v !== value);
+      } else {
+        return [...prev, value];
+      }
+    });
   };
 
-  const totalFixedWidth = Object.values(columnLeftPositions).reduce((max, pos) => Math.max(max, pos), 0) + columnWidths.ttl;
-  const totalWidth = totalFixedWidth + (days.length * columnWidths.date);
+  // Handle support filter selection
+  const handleSupportFilterSelect = (value: string) => {
+    setActiveSupportFilters(prev => {
+      if (prev.includes(value)) {
+        return prev.filter(v => v !== value);
+      } else {
+        return [...prev, value];
+      }
+    });
+  };
+
+  // Clear core filters
+  const clearCoreFilters = () => {
+    setActiveCoreFilters([]);
+  };
+
+  // Clear support filters
+  const clearSupportFilters = () => {
+    setActiveSupportFilters([]);
+  };
+
+  // Handle column filter changes
+  const handleColumnFilterSelect = (column: string, value: string) => {
+    setColumnFilters(prev => {
+      const currentValues = prev[column] || [];
+      if (currentValues.includes(value)) {
+        return {
+          ...prev,
+          [column]: currentValues.filter(v => v !== value)
+        };
+      } else {
+        return {
+          ...prev,
+          [column]: [...currentValues, value]
+        };
+      }
+    });
+  };
+  
+  // Clear column filter
+  const clearColumnFilter = (column: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [column]: []
+    }));
+  };
+
+  // Handle date filter selection
+  const handleDateFilterSelect = (dateKey: string, value: string) => {
+    setDateColumnFilters(prev => {
+      const currentValues = prev[dateKey] || [];
+      if (currentValues.includes(value)) {
+        return {
+          ...prev,
+          [dateKey]: currentValues.filter(v => v !== value)
+        };
+      } else {
+        return {
+          ...prev,
+          [dateKey]: [...currentValues, value]
+        };
+      }
+    });
+  };
+  
+  // Clear date filter
+  const clearDateFilter = (dateKey: string) => {
+    setDateColumnFilters(prev => ({
+      ...prev,
+      [dateKey]: []
+    }));
+  };
+
+  // Cell click handler
+  const handleCellClick = (employee: Employee, date: string) => {
+    setSelectedEmployee(employee);
+    setSelectedDate(date);
+    setIsDetailOpen(true);
+  };
+
+  // Handle profile click - updated to also call the onEmployeeSelect callback
+  const handleProfileClick = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setSelectedDate(null);
+    // Call the external handler if it exists
+    if (onEmployeeSelect) {
+      onEmployeeSelect(employee);
+    } else {
+      setIsDetailOpen(true);
+    }
+  };
+
+  // Get unique values for a column
+  const getUniqueValuesForColumn = (columnName: string): string[] => {
+    const values = employees.map(emp => {
+      if (columnName === 'team') return emp.team?.team_name || '';
+      if (columnName === 'job_title') return emp.job_title?.job_description || '';
+      if (columnName === 'night_shift') {
+        return emp.night_shift_ok ? 'Yes' : 'No';
+      }
+      return String(emp[columnName as keyof Employee] || '');
+    }).filter(Boolean);
+    
+    return [...new Set(values)].sort();
+  };
 
   // Status color mapping
   const statusColors: Record<string, string> = {
     "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
     "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "status-day-off",
+    "O": "status-day-off", // Using custom class for darker shade
     "B1": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+    "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
     "DO": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+    "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
   };
 
-  // Legend for status colors
+  // Legend for status codes
   const statusLegend = [
     { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
-    { status: "Leave", code: "L/AL", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
-    { status: "Training", code: "TR", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
-    { status: "Off Duty", code: "O", color: "bg-gray-600 border border-gray-700 text-gray-100 dark:bg-gray-700 dark:border-gray-800 dark:text-gray-300" },
     { status: "Half Day", code: "B1", color: "bg-blue-100 border border-blue-300 dark:bg-blue-900 dark:border-blue-700" },
-    { status: "Sick", code: "SK", color: "bg-orange-100 border border-orange-300 dark:bg-orange-900 dark:border-orange-700" },
+    { status: "Annual Leave", code: "AL", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
+    { status: "Sick Leave", code: "SK", color: "bg-orange-100 border border-orange-300 dark:bg-orange-900 dark:border-orange-700" },
+    { status: "Training", code: "TR", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
+    { status: "Day Off", code: "O", color: "bg-gray-600 border border-gray-700 text-white dark:bg-gray-700 dark:border-gray-800 dark:text-gray-200" },
     { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
   ];
 
-  // Expose methods to parent component
-  useImperativeHandle(ref, () => ({
-    refreshData: () => {
-      fetchEmployeeData();
-    }
-  }));
-
-  // Handle scroll events
-  const handleScroll = () => {
-    if (scrollAreaRef.current) {
-      onScroll(scrollAreaRef.current.scrollLeft);
-    }
-  };
-
-  // Fetch employee data
-  const fetchEmployeeData = async () => {
-    setIsLoading(true);
-    try {
-      // In a real app, fetch this data from the database
-      // For now, we'll use sample data
-      const sampleEmployees = [
-        { id: "EMP001", name: "Michael Johnson", alias: "MJ", mobile: "+971 52 123 4567", team: "Team Alpha", core: "A320", support: "Available", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "07:30 AM", e_number: 1001 },
-        { id: "EMP002", name: "Sarah Williams", alias: "SW", mobile: "+971 52 234 5678", team: "Team Beta", core: "A380", support: "Maintenance", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "07:30 AM", e_number: 1002 },
-        { id: "EMP003", name: "David Brown", alias: "DB", mobile: "+971 55 345 6789", team: "Team Charlie", core: "B787", support: "Leave", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM", e_number: 1003 },
-        { id: "EMP004", name: "Emily Taylor", alias: "ET", mobile: "+971 54 456 7890", team: "Team Alpha", core: "A320", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "07:30 AM", e_number: 1004 },
-        { id: "EMP005", name: "James Davis", alias: "JD", mobile: "+971 50 567 8901", team: "Team Beta", core: "B777", support: "Training", title: "Manager", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM", e_number: 1005 },
-        { id: "EMP006", name: "Jennifer Wilson", alias: "JW", mobile: "+971 52 678 9012", team: "Team Charlie", core: "A380", support: "Maintenance", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "08:30 AM", e_number: 1006 },
-        { id: "EMP007", name: "Robert Martinez", alias: "RM", mobile: "+971 55 789 0123", team: "Team Alpha", core: "A320", support: "Maintenance", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "07:25 AM", e_number: 1007 },
-        { id: "EMP008", name: "Lisa Anderson", alias: "LA", mobile: "+971 54 890 1234", team: "Team Beta", core: "A380", support: "Available", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "07:00 AM", e_number: 1008 },
-        { id: "EMP009", name: "Thomas Clark", alias: "TC", mobile: "+971 55 901 2345", team: "Team Alpha", core: "A380", support: "Training", title: "Engineer", night_shift: "Yes", fte: "Valid", ttl: "08:45 AM", e_number: 1009 },
-        { id: "EMP010", name: "Michelle Rodriguez", alias: "MR", mobile: "+971 52 012 3456", team: "Team Alpha", core: "A380", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "08:17 AM", e_number: 1010 },
-      ];
-
-      // Extract unique ID and name values for filters
-      const ids = Array.from(new Set(sampleEmployees.map(emp => emp.id)));
-      const names = Array.from(new Set(sampleEmployees.map(emp => emp.name)));
-      
-      setIdFilterValues(ids);
-      setNameFilterValues(names);
-
-      // Process employees with schedule
-      const employeesWithSchedule = sampleEmployees.map(emp => {
-        const schedule: Record<string, string> = {};
-        const dateStatuses: Record<string, string[]> = { ...dateStatusValues };
-        
-        days.forEach(day => {
-          const randomValue = Math.random();
-          const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-          
-          let status = '';
-          if (randomValue < 0.1) {
-            status = "L"; // Leave
-          } else if (randomValue < 0.2) {
-            status = "T"; // Training
-          } else if (randomValue < 0.8) {
-            status = "D"; // Duty
-          } else {
-            status = "O"; // Off
-          }
-          
-          schedule[dateKey] = status;
-          
-          // Collect all statuses for each date for filtering
-          if (!dateStatuses[dateKey]) {
-            dateStatuses[dateKey] = [];
-          }
-          if (!dateStatuses[dateKey].includes(status)) {
-            dateStatuses[dateKey].push(status);
-          }
-        });
-        
-        return {
-          ...emp,
-          schedule
-        };
-      });
-      
-      // Update date status values for filtering
-      setDateStatusValues(prevStatuses => {
-        const newStatuses: Record<string, string[]> = {};
-        days.forEach(day => {
-          const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-          const statuses = new Set<string>();
-          
-          employeesWithSchedule.forEach(emp => {
-            const status = emp.schedule[dateKey];
-            if (status) {
-              statuses.add(status);
-            }
-          });
-          
-          newStatuses[dateKey] = Array.from(statuses);
-        });
-        return newStatuses;
-      });
-      
-      // Sort employees by e_number
-      const sortedEmployees = employeesWithSchedule.sort((a, b) => a.e_number - b.e_number);
-      
-      setEmployees(sortedEmployees);
-      setFilteredEmployees(sortedEmployees);
-    } catch (error) {
-      console.error("Error fetching employee data:", error);
-      toast.error("Failed to load employee data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Filter handling functions
-  const handleIdFilterSelect = (value: string) => {
-    setActiveIdFilters(prev => {
-      if (prev.includes(value)) {
-        return prev.filter(v => v !== value);
-      } else {
-        return [...prev, value];
-      }
-    });
-  };
-
-  const handleNameFilterSelect = (value: string) => {
-    setActiveNameFilters(prev => {
-      if (prev.includes(value)) {
-        return prev.filter(v => v !== value);
-      } else {
-        return [...prev, value];
-      }
-    });
-  };
-
-  const handleDateFilterSelect = (dateKey: string, status: string) => {
-    setActiveDateFilters(prev => {
-      const currentFilters = prev[dateKey] || [];
-      if (currentFilters.includes(status)) {
-        return {
-          ...prev,
-          [dateKey]: currentFilters.filter(s => s !== status)
-        };
-      } else {
-        return {
-          ...prev,
-          [dateKey]: [...currentFilters, status]
-        };
-      }
-    });
-  };
-
-  const clearDateFilter = (dateKey: string) => {
-    setActiveDateFilters(prev => {
-      const newFilters = { ...prev };
-      delete newFilters[dateKey];
-      return newFilters;
-    });
-  };
-
-  // Handle cell click to open detail sheet
-  const handleCellClick = (employee: any, date: string, status: string) => {
-    setSelectedEmployee(employee);
-    setSelectedDate(date);
-    setSelectedStatus(status);
-    setIsSheetOpen(true);
+  // Add a function to check if core and support are different
+  const hasDifferentCoreSupport = (employee: Employee) => {
+    if (!employee.cores || !employee.supports) return false;
+    if (employee.cores.length === 0 || employee.supports.length === 0) return false;
     
-    // If parent component provided a callback, call it
-    if (onCellClick) {
-      onCellClick(employee, date, status);
-    }
+    // Check if there's any overlap between cores and supports
+    const hasOverlap = employee.cores.some(core => employee.supports?.includes(core));
+    
+    // If there's no overlap and both have values, they're different
+    return !hasOverlap && employee.cores.length > 0 && employee.supports.length > 0;
   };
-
-  // Handle schedule update
-  const handleUpdateSchedule = async () => {
-    if (!selectedEmployee?.id || !selectedDate) return;
-
-    try {
-      setIsUpdateLoading(true);
-
-      // In a real app, this would update the database
-      // For now, we'll just simulate an update
-      setTimeout(() => {
-        // Update the local state
-        setEmployees(prevEmployees => {
-          return prevEmployees.map(emp => {
-            if (emp.id === selectedEmployee.id) {
-              return {
-                ...emp,
-                schedule: {
-                  ...emp.schedule,
-                  [selectedDate]: selectedStatus
-                }
-              };
-            }
-            return emp;
-          });
-        });
-
-        // Also update filtered employees
-        setFilteredEmployees(prevEmployees => {
-          return prevEmployees.map(emp => {
-            if (emp.id === selectedEmployee.id) {
-              return {
-                ...emp,
-                schedule: {
-                  ...emp.schedule,
-                  [selectedDate]: selectedStatus
-                }
-              };
-            }
-            return emp;
-          });
-        });
-
-        // Update date status values for filtering
-        setDateStatusValues(prevStatuses => {
-          const newStatuses = { ...prevStatuses };
-          if (!newStatuses[selectedDate]?.includes(selectedStatus)) {
-            newStatuses[selectedDate] = [...(newStatuses[selectedDate] || []), selectedStatus];
-          }
-          return newStatuses;
-        });
-
-        toast.success("Schedule updated successfully");
-        setIsSheetOpen(false);
-        setIsUpdateLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error("Error updating schedule:", error);
-      toast.error("Failed to update schedule");
-      setIsUpdateLoading(false);
-    }
-  };
-
-  // Apply filters to employees
-  useEffect(() => {
-    let filtered = [...employees];
-    
-    // Apply ID filters
-    if (activeIdFilters.length > 0) {
-      filtered = filtered.filter(emp => activeIdFilters.includes(emp.id));
-    }
-    
-    // Apply name filters
-    if (activeNameFilters.length > 0) {
-      filtered = filtered.filter(emp => activeNameFilters.includes(emp.name));
-    }
-    
-    // Apply date filters
-    if (Object.keys(activeDateFilters).length > 0) {
-      filtered = filtered.filter(emp => {
-        // Employee must match all date filters
-        return Object.entries(activeDateFilters).every(([dateKey, statuses]) => {
-          // If no statuses are selected for this date, don't filter
-          if (statuses.length === 0) return true;
-          
-          // Check if employee's status for this date is in the selected statuses
-          return statuses.includes(emp.schedule[dateKey]);
-        });
-      });
-    }
-    
-    setFilteredEmployees(filtered);
-  }, [employees, activeIdFilters, activeNameFilters, activeDateFilters]);
-
-  // Fetch data on mount and when refreshKey changes
-  useEffect(() => {
-    fetchEmployeeData();
-  }, [currentDate, refreshKey]);
 
   if (isLoading) {
     return (
@@ -451,470 +799,506 @@ export const EmployeeCalendar = forwardRef<any, EmployeeCalendarProps>(({
   }
 
   return (
-    <div className="relative">
-      {/* Status Legend - Fixed position outside scrollable area */}
-      <div className="sticky top-0 bg-white dark:bg-gray-900 z-50 border-b dark:border-gray-700 pb-2 mb-2">
-        <div className="flex items-center gap-4 px-2 flex-wrap">
-          {statusLegend.map((item) => (
-            <div key={item.status} className="flex items-center">
-              <span className={`inline-block w-3 h-3 rounded-full mr-1 ${item.color}`}></span>
-              <span className="text-xs text-gray-600 dark:text-gray-400">{item.status} ({item.code})</span>
-            </div>
-          ))}
-        </div>
+    <div>
+      {/* Status Legend */}
+      <div className="flex items-center gap-4 mb-2 px-2 flex-wrap">
+        {statusLegend.map((item) => (
+          <div key={item.status} className="flex items-center">
+            <span className={`inline-block w-3 h-3 rounded-full mr-1 ${item.color}`}></span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">{item.status} ({item.code})</span>
+          </div>
+        ))}
       </div>
       
-      {/* Table Container - Scrollable area */}
-      <div className="border rounded-lg dark:border-gray-700">
-        <div 
-          className="overflow-auto relative"
-          style={{ width: '100%', height: '400px' }}
-          ref={scrollAreaRef}
-          onScroll={handleScroll}
-        >
-          <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
-            <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-              <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
-                <tr>
-                  {/* Fixed columns with proper z-index */}
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px`, zIndex: 100 }}>
-                    EMP#
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className={cn("h-6 w-6 ml-1", activeIdFilters.length > 0 && "text-primary")}
-                        >
-                          <Filter className={cn("h-3 w-3", activeIdFilters.length > 0 && "text-primary fill-primary")} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-40">
-                        <div className="space-y-2">
-                          {idFilterValues.map((value) => (
-                            <div 
-                              key={value} 
-                              className={cn(
-                                "px-2 py-1 text-sm hover:bg-muted cursor-pointer flex items-center gap-2",
-                                activeIdFilters.includes(value) ? "bg-primary/10" : ""
-                              )}
-                              onClick={() => handleIdFilterSelect(value)}
-                            >
-                              {activeIdFilters.includes(value) ? (
-                                <Check className="h-4 w-4 text-primary" />
-                              ) : (
-                                <div className="w-4" />
-                              )}
-                              <span>{value}</span>
-                            </div>
-                          ))}
-                          <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setActiveIdFilters([])}>
-                            Clear Filters
-                          </Button>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+      {/* Simple table with direct scrolling */}
+      <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
+        <table className="w-full border-collapse">
+          <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
+            <tr>
+              {/* Fixed columns */}
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Emp#</span>
+                  <ColumnFilter 
+                    column="e_number" 
+                    label="ID" 
+                    values={getUniqueValuesForColumn('e_number')}
+                    activeValues={columnFilters['e_number'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('e_number', value)}
+                    onClearAll={() => clearColumnFilter('e_number')}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Name</span>
+                  <ColumnFilter 
+                    column="name" 
+                    label="Name" 
+                    values={getUniqueValuesForColumn('name')}
+                    activeValues={columnFilters['name'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('name', value)}
+                    onClearAll={() => clearColumnFilter('name')}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Alias</span>
+                  <ColumnFilter 
+                    column="key_name" 
+                    label="Alias" 
+                    values={getUniqueValuesForColumn('key_name')}
+                    activeValues={columnFilters['key_name'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('key_name', value)}
+                    onClearAll={() => clearColumnFilter('key_name')}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Mobile</span>
+                  <ColumnFilter 
+                    column="mobile_number" 
+                    label="Mobile" 
+                    values={getUniqueValuesForColumn('mobile_number')}
+                    activeValues={columnFilters['mobile_number'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('mobile_number', value)}
+                    onClearAll={() => clearColumnFilter('mobile_number')}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Team</span>
+                  <ColumnFilter 
+                    column="team" 
+                    label="Team" 
+                    values={getUniqueValuesForColumn('team')}
+                    activeValues={columnFilters['team'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('team', value)}
+                    onClearAll={() => clearColumnFilter('team')}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Core</span>
+                  <ColumnFilter 
+                    column="core" 
+                    label="Core" 
+                    values={coreFilterValues}
+                    activeValues={activeCoreFilters}
+                    onValueSelect={handleCoreFilterSelect}
+                    onClearAll={clearCoreFilters}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Support</span>
+                  <ColumnFilter 
+                    column="support" 
+                    label="Support" 
+                    values={supportFilterValues}
+                    activeValues={activeSupportFilters}
+                    onValueSelect={handleSupportFilterSelect}
+                    onClearAll={clearSupportFilters}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Title</span>
+                  <ColumnFilter 
+                    column="job_title" 
+                    label="Title" 
+                    values={getUniqueValuesForColumn('job_title')}
+                    activeValues={columnFilters['job_title'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('job_title', value)}
+                    onClearAll={() => clearColumnFilter('job_title')}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>Night</span>
+                  <ColumnFilter 
+                    column="night_shift" 
+                    label="Night Shift" 
+                    values={getUniqueValuesForColumn('night_shift')}
+                    activeValues={columnFilters['night_shift'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('night_shift', value)}
+                    onClearAll={() => clearColumnFilter('night_shift')}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>FTE</span>
+                  <ColumnFilter 
+                    column="fte_date" 
+                    label="FTE Date" 
+                    values={getUniqueValuesForColumn('fte_date')}
+                    activeValues={columnFilters['fte_date'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('fte_date', value)}
+                    onClearAll={() => clearColumnFilter('fte_date')}
+                  />
+                </div>
+              </th>
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}>
+                <div className="flex items-center justify-between">
+                  <span>TTL</span>
+                  <ColumnFilter 
+                    column="ttl" 
+                    label="Time to Location" 
+                    values={getUniqueValuesForColumn('ttl')}
+                    activeValues={columnFilters['ttl'] || []}
+                    onValueSelect={(value) => handleColumnFilterSelect('ttl', value)}
+                    onClearAll={() => clearColumnFilter('ttl')}
+                  />
+                </div>
+              </th>
+              
+              {/* Calendar days */}
+              {days.map((day) => {
+                const dateKey = `${day.month+1}-${day.day}-${day.year}`;
+                const dateStatuses = dateStatusValues[dateKey] || [];
+                
+                return (
+                  <th 
+                    key={dateKey}
+                    className={cn(
+                      "p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200",
+                      day.isWeekend ? 'weekend-shade' : '',
+                      day.isToday ? 'today-highlight' : ''
+                    )}
+                    style={{ width: `${columnWidths.date}px` }}
+                  >
+                    <div className="flex flex-col items-center">
+                      <div className="text-xs font-medium">{day.day}</div>
+                      <div className="text-xs">{day.monthName}</div>
+                      <DateColumnFilter 
+                        dateKey={dateKey}
+                        values={dateStatuses}
+                        activeValues={dateColumnFilters[dateKey] || []}
+                        onValueSelect={(value) => handleDateFilterSelect(dateKey, value)}
+                        onClearAll={() => clearDateFilter(dateKey)}
+                      />
+                    </div>
                   </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEmployees.map((employee) => {
+              const isDifferent = hasDifferentCoreSupport(employee);
+              
+              return (
+                <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
+                  {/* Fixed columns */}
+                  <td 
+                    className={cn(
+                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
+                      isDifferent ? 'core-support-different' : ''
+                    )}
+                    style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.e_number || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.name || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.key_name || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.mobile_number || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.team?.team_name || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.cores?.join(', ') || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.supports?.join(', ') || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.job_title?.job_description || '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.night_shift_ok ? 'Yes' : 'No'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
+                  </td>
+                  <td 
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                  >
+                    {employee.ttl || '-'}
+                  </td>
                   
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px`, zIndex: 100 }}>
-                    Name
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className={cn("h-6 w-6 ml-1", activeNameFilters.length > 0 && "text-primary")}
-                        >
-                          <Filter className={cn("h-3 w-3", activeNameFilters.length > 0 && "text-primary fill-primary")} />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-40">
-                        <div className="space-y-2">
-                          {nameFilterValues.map((value) => (
-                            <div 
-                              key={value} 
-                              className={cn(
-                                "px-2 py-1 text-sm hover:bg-muted cursor-pointer flex items-center gap-2",
-                                activeNameFilters.includes(value) ? "bg-primary/10" : ""
-                              )}
-                              onClick={() => handleNameFilterSelect(value)}
-                            >
-                              {activeNameFilters.includes(value) ? (
-                                <Check className="h-4 w-4 text-primary" />
-                              ) : (
-                                <div className="w-4" />
-                              )}
-                              <span>{value}</span>
-                            </div>
-                          ))}
-                          <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setActiveNameFilters([])}>
-                            Clear Filters
-                          </Button>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </th>
-
-                  {/* Continue with other fixed columns following the same pattern */}
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px`, zIndex: 100 }}>
-                    Alias
-                  </th>
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px`, zIndex: 100 }}>
-                    Mobile
-                  </th>
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px`, zIndex: 100 }}>
-                    Team
-                  </th>
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px`, zIndex: 100 }}>
-                    Core
-                  </th>
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px`, zIndex: 100 }}>
-                    Support
-                  </th>
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px`, zIndex: 100 }}>
-                    Title
-                  </th>
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.nightShift}px`, left: `${columnLeftPositions.nightShift}px`, zIndex: 100 }}>
-                    N/S
-                  </th>
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px`, zIndex: 100 }}>
-                    FTE
-                  </th>
-                  <th className="p-2 text-left border-r sticky top-0 sticky-header-fixed dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                    style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px`, zIndex: 100 }}>
-                    TTL
-                  </th>
-                  
-                  {/* Calendar days with higher z-index */}
+                  {/* Calendar days with tooltips - Updated for no layout shift */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                    const dateStatuses = dateStatusValues[dateKey] || [];
+                    const status = employee.schedule?.[dateKey] || '';
+                    const hasStatus = status !== '';
                     
                     return (
-                      <th 
-                        key={dateKey}
-                        className={cn(
-                          "p-2 text-center border-r sticky top-0 sticky-header-date dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800",
-                          day.isWeekend ? 'weekend-shade' : '',
-                          day.isToday ? 'today-highlight' : ''
-                        )}
-                        style={{ width: `${columnWidths.date}px`, zIndex: 90 }}
-                      >
-                        <div className="text-xs font-medium">{day.day}</div>
-                        <div className="text-xs">{day.monthName}</div>
-                        {dateStatuses.length > 0 && (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className={cn("h-4 w-4 mt-1", activeDateFilters[dateKey]?.length > 0 && "text-primary")}
-                              >
-                                <Filter className={cn("h-2 w-2", activeDateFilters[dateKey]?.length > 0 && "text-primary fill-primary")} />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-32">
-                              <div className="space-y-1">
-                                {dateStatuses.map((status) => (
-                                  <div 
-                                    key={status} 
-                                    className={cn(
-                                      "px-2 py-1 text-xs hover:bg-muted cursor-pointer flex items-center gap-2",
-                                      activeDateFilters[dateKey]?.includes(status) ? "bg-primary/10" : ""
-                                    )}
-                                    onClick={() => handleDateFilterSelect(dateKey, status)}
-                                  >
-                                    {activeDateFilters[dateKey]?.includes(status) ? (
-                                      <Check className="h-3 w-3 text-primary" />
-                                    ) : (
-                                      <div className="w-3" />
-                                    )}
-                                    <span>{status}</span>
-                                  </div>
-                                ))}
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="w-full mt-2 text-xs"
-                                  onClick={() => clearDateFilter(dateKey)}
-                                >
-                                  Clear
-                                </Button>
+                      <TooltipProvider key={dateKey}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <td 
+                              className={cn(
+                                "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
+                                day.isWeekend ? 'weekend-shade' : '',
+                                hasStatus ? statusColors[status] || '' : '',
+                                day.isToday ? 'today-highlight' : ''
+                              )}
+                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
+                              onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
+                            >
+                              {status}
+                            </td>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
+                            <div className="space-y-1">
+                              <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
+                              <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
+                              <div className="flex items-center gap-2">
+                                <span>Status:</span> 
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full text-xs",
+                                  status === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
+                                  status === 'AL' || status === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
+                                  status === 'TR' || status === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
+                                  status === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
+                                  status === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                                  status === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+                                  status === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                                )}>
+                                  {status === 'D' && 'On Duty'}
+                                  {status === 'AL' && 'Annual Leave'}
+                                  {status === 'L' && 'On Leave'}
+                                  {status === 'TR' || status === 'T' ? 'Training' : ''}
+                                  {status === 'O' && 'Off Duty'}
+                                  {status === 'B1' && 'Half Day'}
+                                  {status === 'SK' && 'Sick Leave'}
+                                  {status === 'DO' && 'Overtime'}
+                                  {!status && 'Not Assigned'}
+                                </span>
                               </div>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                      </th>
+                              <p className="text-xs text-gray-500">Click to edit</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     );
                   })}
                 </tr>
-              </thead>
-              <tbody>
-                {filteredEmployees.map((employee) => (
-                  <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                    {/* Fixed columns with proper positioning and red border fix */}
-                    <td 
-                      className={cn(
-                        "p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 cursor-pointer",
-                        employee.core !== employee.support ? "core-support-different" : ""
-                      )}
-                      style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px`, zIndex: 10 }}
-                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                    >
-                      {employee.e_number}
-                    </td>
-                    
-                    <td 
-                      className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 cursor-pointer"
-                      style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px`, zIndex: 10 }}
-                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                    >
-                      {employee.name}
-                    </td>
-
-                    {/* Continue with other fixed columns */}
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px`, zIndex: 10 }}>
-                      {employee.alias}
-                    </td>
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px`, zIndex: 10 }}>
-                      {employee.mobile}
-                    </td>
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px`, zIndex: 10 }}>
-                      {employee.team}
-                    </td>
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px`, zIndex: 10 }}>
-                      {employee.core}
-                    </td>
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px`, zIndex: 10 }}>
-                      {employee.support}
-                    </td>
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px`, zIndex: 10 }}>
-                      {employee.title}
-                    </td>
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.nightShift}px`, left: `${columnLeftPositions.nightShift}px`, zIndex: 10 }}>
-                      {employee.night_shift ? 'Yes' : 'No'}
-                    </td>
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px`, zIndex: 10 }}>
-                      {employee.fte}
-                    </td>
-                    <td className="p-2 border-r sticky bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300" 
-                      style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px`, zIndex: 10 }}>
-                      {employee.ttl}
-                    </td>
-                    
-                    {/* Calendar days with fixed tooltip implementation */}
-                    {days.map((day) => {
-                      const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                      const status = employee.schedule?.[dateKey] || '';
-                      const hasStatus = status !== '';
-                      
-                      return (
-                        <TooltipProvider key={dateKey}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <td 
-                                className={cn(
-                                  "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700 relative hover:z-50",
-                                  day.isWeekend ? 'weekend-shade' : '',
-                                  hasStatus ? statusColors[status] || '' : '',
-                                  day.isToday ? 'today-highlight' : ''
-                                )}
-                                style={{ width: `${columnWidths.date}px` }}
-                                onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
-                              >
-                                {status}
-                              </td>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="top" 
-                              className="z-[9999] pointer-events-none fixed"
-                              sideOffset={5}
-                            >
-                              <div className="text-sm font-medium">{employee.name}</div>
-                              <div className="text-xs">{day.monthName} {day.day}, {day.year}</div>
-                              {status === 'D' && <div className="text-green-600">On Duty</div>}
-                              {status === 'AL' && <div className="text-red-600">Annual Leave</div>}
-                              {status === 'L' && <div className="text-red-600">On Leave</div>}
-                              {status === 'TR' || status === 'T' ? <div className="text-purple-600">In Training</div> : ''}
-                              {status === 'O' && <div className="text-gray-600 font-semibold">Day Off</div>}
-                              {status === 'B1' && <div className="text-blue-600">Half Day</div>}
-                              {status === 'SK' && <div className="text-orange-600">Sick Leave</div>}
-                              {status === 'DO' && <div className="text-yellow-600">Overtime</div>}
-                              {!status && <div className="text-gray-500">Not Assigned</div>}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              );
+            })}
+            
+            {filteredEmployees.length === 0 && (
+              <tr>
+                <td colSpan={12 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
+                  {employees.length > 0 ? 'No matching employees found.' : 'No employees found.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-      
-      {/* Fixed styles with improved CSS */}
+
+      {/* Employee Detail Sheet - only show this if onEmployeeSelect is not provided */}
+      {!onEmployeeSelect && (
+        <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+          <SheetContent className="w-full sm:max-w-lg">
+            <SheetHeader>
+              <SheetTitle>Employee {selectedDate ? 'Schedule' : 'Profile'} Detail</SheetTitle>
+            </SheetHeader>
+            
+            {selectedEmployee && (
+              <div className="space-y-6 mt-6">
+                <div className="grid gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="text-lg font-medium mb-2">Employee Information</h3>
+                    <dl className="grid grid-cols-2 gap-3">
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Name</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.name}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">ID</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.e_number}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Team</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.team?.team_name || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Position</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.job_title?.job_description || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Core</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.cores?.join(', ') || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Support</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.supports?.join(', ') || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Night Shift</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.night_shift_ok ? 'Yes' : 'No'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.fte_date ? format(new Date(selectedEmployee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Mobile</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.mobile_number || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">Alias</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.key_name || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm text-gray-500 dark:text-gray-400">TTL</dt>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.ttl || '-'}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  
+                  {selectedDate && selectedEmployee.schedule?.[selectedDate] && (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                      <h3 className="text-lg font-medium mb-2">Schedule for {selectedDate}</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                          <p className="font-medium dark:text-gray-200">
+                            {selectedEmployee.schedule?.[selectedDate] === 'D' && 'On Duty'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'AL' && 'Annual Leave'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'L' && 'On Leave'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'TR' && 'Training'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'T' && 'Training'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'O' && 'Day Off'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'B1' && 'Half Day'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'SK' && 'Sick Leave'}
+                            {selectedEmployee.schedule?.[selectedDate] === 'DO' && 'Overtime'}
+                          </p>
+                        </div>
+                        
+                        <div className="pt-2">
+                          <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
+                            Edit Schedule
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
+      )}
+
       <style>
         {`
-          .core-support-different {
-            border-left: 4px solid #ef4444 !important;
-            position: relative;
-          }
-          
-          .core-support-different::before {
-            content: '';
-            position: absolute;
-            left: -4px;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: #ef4444;
-            z-index: 1;
-          }
-          
           .weekend-shade {
             background-color: rgba(107, 114, 128, 0.8);
             color: white;
           }
-          
           .dark .weekend-shade {
             background-color: rgba(75, 85, 99, 0.9);
             color: rgba(229, 231, 235, 1);
           }
-          
           .today-highlight {
-            border: 2px solid #3b82f6 !important;
-            font-weight: bold;
+            border: 2px solid #3b82f6;
           }
-          
           .status-day-off {
-            background-color: rgba(75, 85, 99, 0.9) !important;
-            color: white !important;
+            background-color: rgba(75, 85, 99, 0.9);
+            color: white;
           }
-          
           .dark .status-day-off {
-            background-color: rgba(55, 65, 81, 1) !important;
-            color: rgba(229, 231, 235, 1) !important;
+            background-color: rgba(55, 65, 81, 1);
+            color: rgba(229, 231, 235, 1);
           }
-          
-          /* Higher z-index for sticky headers */
-          .sticky-header-fixed {
-            z-index: 100 !important;
+          .core-support-different {
+            border-left: 4px solid #ef4444;
           }
-          
-          .sticky-header-date {
-            z-index: 90 !important;
-          }
-          
-          /* Tooltip positioning fixes */
           .tooltip-fixed {
-            position: fixed !important; 
+            position: absolute !important; 
             pointer-events: none !important;
-            z-index: 9999 !important;
+            z-index: 100 !important;
+            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
+          }
+          .popover-content {
+            z-index: 100;
+          }
+          .fixed-tooltip {
+            position: absolute !important; 
+            pointer-events: none !important;
+            z-index: 1000 !important;
+            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
           }
         `}
       </style>
-
-      {/* Sheet component for schedule details */}
-      {selectedEmployee && selectedDate && (
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetContent className={`w-full ${isMobile ? '' : 'sm:max-w-lg'}`}>
-            <SheetHeader>
-              <SheetTitle>Schedule Details</SheetTitle>
-            </SheetHeader>
-            
-            <div className="space-y-6 mt-6">
-              <div className="flex flex-col space-y-2">
-                <h3 className="text-lg font-semibold">{selectedEmployee.name}</h3>
-                <div className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm px-2 py-1 rounded inline-block w-fit">
-                  {selectedEmployee.e_number || 'No ID'}
-                </div>
-              </div>
-              
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Date</p>
-                <p className="font-medium">{selectedDate}</p>
-              </div>
-              
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Current Status</p>
-                <div className={`mt-1 px-3 py-1 rounded-full text-sm inline-flex items-center ${
-                  selectedStatus === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                  selectedStatus === 'AL' || selectedStatus === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
-                  selectedStatus === 'TR' || selectedStatus === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
-                  selectedStatus === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
-                  selectedStatus === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-                  selectedStatus === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
-                  selectedStatus === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
-                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                }`}>
-                  {selectedStatus === 'D' && 'On Duty'}
-                  {selectedStatus === 'AL' && 'Annual Leave'}
-                  {selectedStatus === 'L' && 'On Leave'}
-                  {selectedStatus === 'TR' || selectedStatus === 'T' ? 'Training' : ''}
-                  {selectedStatus === 'O' && 'Off Duty'}
-                  {selectedStatus === 'B1' && 'Half Day'}
-                  {selectedStatus === 'SK' && 'Sick Leave'}
-                  {selectedStatus === 'DO' && 'Overtime'}
-                  {!selectedStatus && 'Not Assigned'}
-                </div>
-              </div>
-              
-              <div className="border-t pt-4 mt-4">
-                <h4 className="font-medium mb-2">Update Status</h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm text-gray-500 dark:text-gray-400">Status for {selectedDate}</label>
-                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                      <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="D">On Duty (D)</SelectItem>
-                        <SelectItem value="B1">Half Day (B1)</SelectItem>
-                        <SelectItem value="O">Off Duty (O)</SelectItem>
-                        <SelectItem value="AL">Annual Leave (AL)</SelectItem>
-                        <SelectItem value="SK">Sick Leave (SK)</SelectItem>
-                        <SelectItem value="TR">Training (TR)</SelectItem>
-                        <SelectItem value="DO">Overtime (DO)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <Button 
-                    className="w-full"
-                    onClick={handleUpdateSchedule}
-                    disabled={isUpdateLoading}
-                  >
-                    {isUpdateLoading ? 'Updating...' : 'Update Schedule'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
-      )}
     </div>
   );
 });
-
-EmployeeCalendar.displayName = 'EmployeeCalendar';
