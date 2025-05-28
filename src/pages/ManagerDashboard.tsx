@@ -82,12 +82,13 @@ const ManagerDashboard = () => {
 
   const fetchWorkforceSummary = async () => {
     try {
-      // Fetch employees with their current assignments and maintenance visits
+      // Fetch employees with their current assignments from employee_supports
       const { data: employeeData, error: employeeError } = await supabase
         .from('employees')
         .select(`
           id,
           name,
+          e_number,
           job_titles:job_title_id (
             job_description
           ),
@@ -102,22 +103,6 @@ const ManagerDashboard = () => {
       if (employeeError) throw employeeError;
 
       console.log('Total active employees from DB:', employeeData?.length);
-
-      // Fetch real employee assignments by aircraft (support codes)
-      const { data: assignmentData, error: assignmentError } = await supabase
-        .from('employee_supports')
-        .select(`
-          support_codes:support_id (
-            support_code
-          ),
-          employees:employee_id (
-            job_titles:job_title_id (
-              job_description
-            )
-          )
-        `);
-
-      if (assignmentError) throw assignmentError;
 
       // Process the data to create summary
       const summary: SummaryData[] = [];
@@ -135,75 +120,49 @@ const ManagerDashboard = () => {
       const aircraftCodes: string[] = [];
       const mainAssignments: AircraftAssignment = {};
 
-      // Count available employees and categorize them using updated job descriptions
-      // Only count employees with AV or AVAILABLE-SLOT support codes for the "Available" row
-      let availableEmployeeCount = 0;
+      // Count available employees and categorize assignments
+      const aircraftAssignmentCounts: { [key: string]: { cc: number, engr: number, nc: number, tech: number } } = {};
+
       employeeData?.forEach((emp: any) => {
         const jobTitle = emp.job_titles?.job_description || 'Unknown';
         const supportCode = emp.employee_supports?.[0]?.support_codes?.support_code || 'Unassigned';
         
         console.log(`Employee: ${emp.name}, Job Title: ${jobTitle}, Support Code: ${supportCode}`);
         
-        // Only count employees that are actually available (not all employees)
-        if (supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
-          availableEmployeeCount++;
-          
-          // Determine role category using the new simplified job descriptions
-          let roleCategory = 'tech'; // default
-          if (jobTitle === 'CC') {
-            roleCategory = 'cc';
-          } else if (jobTitle === 'ENG') {
-            roleCategory = 'engr';
-          } else if (jobTitle === 'NC') {
-            roleCategory = 'nc';
-          } else if (jobTitle === 'TECH') {
-            roleCategory = 'tech';
-          }
+        // Determine role category using the job descriptions
+        let roleCategory = 'tech'; // default
+        if (jobTitle === 'CC') {
+          roleCategory = 'cc';
+        } else if (jobTitle === 'ENG') {
+          roleCategory = 'engr';
+        } else if (jobTitle === 'NC') {
+          roleCategory = 'nc';
+        } else if (jobTitle === 'TECH') {
+          roleCategory = 'tech';
+        }
 
+        // Count employees by their support assignments
+        if (supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
+          // Available employees
           availableCount[roleCategory as keyof typeof availableCount]++;
+        } else if (supportCode && supportCode !== 'Unassigned') {
+          // Aircraft assignments
+          if (!aircraftAssignmentCounts[supportCode]) {
+            aircraftAssignmentCounts[supportCode] = { cc: 0, engr: 0, nc: 0, tech: 0 };
+            aircraftCodes.push(supportCode);
+          }
+          aircraftAssignmentCounts[supportCode][roleCategory as keyof typeof aircraftAssignmentCounts[typeof supportCode]]++;
         }
       });
 
       console.log('Available employees count by role:', availableCount);
-      console.log('Total available employees:', availableEmployeeCount);
+      console.log('Aircraft assignments:', aircraftAssignmentCounts);
 
       // Set support available counts equal to main available counts initially
       availableCount.support_cc = availableCount.cc;
       availableCount.support_engr = availableCount.engr;
       availableCount.support_nc = availableCount.nc;
       availableCount.support_tech = availableCount.tech;
-
-      // Process real aircraft assignments from employee_supports
-      const aircraftAssignmentCounts: { [key: string]: { cc: number, engr: number, nc: number, tech: number } } = {};
-
-      assignmentData?.forEach((assignment: any) => {
-        const supportCode = assignment.support_codes?.support_code;
-        const jobTitle = assignment.employees?.job_titles?.job_description;
-
-        // Skip if this is not an aircraft assignment (AV, etc.)
-        if (!supportCode || supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
-          return;
-        }
-
-        // Initialize aircraft if not seen before
-        if (!aircraftAssignmentCounts[supportCode]) {
-          aircraftAssignmentCounts[supportCode] = { cc: 0, engr: 0, nc: 0, tech: 0 };
-          aircraftCodes.push(supportCode);
-        }
-
-        // Count by job title
-        if (jobTitle === 'CC') {
-          aircraftAssignmentCounts[supportCode].cc++;
-        } else if (jobTitle === 'ENG') {
-          aircraftAssignmentCounts[supportCode].engr++;
-        } else if (jobTitle === 'NC') {
-          aircraftAssignmentCounts[supportCode].nc++;
-        } else if (jobTitle === 'TECH') {
-          aircraftAssignmentCounts[supportCode].tech++;
-        }
-      });
-
-      console.log('Real aircraft assignments:', aircraftAssignmentCounts);
 
       // Convert to the format expected by the rest of the code
       Object.keys(aircraftAssignmentCounts).forEach(aircraftCode => {
@@ -252,7 +211,7 @@ const ManagerDashboard = () => {
         isAvailable: true
       });
 
-      // Add aircraft assignment rows with real assignments
+      // Add aircraft assignment rows with actual assignments from employee_supports
       aircraftCodes.forEach(aircraftCode => {
         const mainAssignment = mainAssignments[aircraftCode] || {
           cc: 0, engr: 0, nc: 0, tech: 0, support_cc: 0, support_engr: 0, support_nc: 0, support_tech: 0
