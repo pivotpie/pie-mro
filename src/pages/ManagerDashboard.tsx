@@ -136,19 +136,21 @@ const ManagerDashboard = () => {
       const mainAssignments: AircraftAssignment = {};
       const initialSupportAssignments: AircraftAssignment = {};
 
-      // Count available employees and categorize them
+      // Count available employees and categorize them using updated job descriptions
       employeeData?.forEach((emp: any) => {
         const jobTitle = emp.job_titles?.job_description || 'Unknown';
         const supportCode = emp.employee_supports?.[0]?.support_codes?.support_code || 'Unassigned';
         
-        // Determine role category
+        // Determine role category using the new simplified job descriptions
         let roleCategory = 'tech'; // default
-        if (jobTitle.toLowerCase().includes('commander') || jobTitle.toLowerCase().includes('cc')) {
+        if (jobTitle === 'CC') {
           roleCategory = 'cc';
-        } else if (jobTitle.toLowerCase().includes('engineer')) {
+        } else if (jobTitle === 'ENG') {
           roleCategory = 'engr';
-        } else if (jobTitle.toLowerCase().includes('navigator') || jobTitle.toLowerCase().includes('nc')) {
+        } else if (jobTitle === 'NC') {
           roleCategory = 'nc';
+        } else if (jobTitle === 'TECH') {
+          roleCategory = 'tech';
         }
 
         // Count available employees (those with AV or AVAILABLE-SLOT support codes)
