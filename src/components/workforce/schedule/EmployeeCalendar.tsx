@@ -816,7 +816,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.name}px`, left: getLeftPositionStyle(1) }}>
+                style={{ width: `${columnWidths.name}px`, left: 80px }}>
                 <div className="flex items-center justify-between">
                   <span>Name</span>
                   <ColumnFilter 
@@ -830,7 +830,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.alias}px`, left: getLeftPositionStyle(2) }}>
+                style={{ width: `${columnWidths.alias}px`, left: 280px }}>
                 <div className="flex items-center justify-between">
                   <span>Alias</span>
                   <ColumnFilter 
