@@ -4,11 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
 import WorkforceMetrics from "@/components/workforce/WorkforceMetrics";
 import { toast } from "sonner";
 import { SortableTable } from "@/components/ui/sortable-table";
 import { supabase } from "@/integrations/supabase/client";
+import { Save } from "lucide-react";
 
 interface SummaryData {
   category: string;
@@ -17,6 +19,7 @@ interface SummaryData {
   engr: number;
   nc: number;
   tech: number;
+  support_cc: number;
   support_engr: number;
   support_nc: number;
   support_tech: number;
@@ -34,6 +37,7 @@ interface AircraftAssignment {
     engr: number;
     nc: number;
     tech: number;
+    support_cc: number;
     support_engr: number;
     support_nc: number;
     support_tech: number;
@@ -50,6 +54,7 @@ const ManagerDashboard = () => {
   const [aircraftAssignments, setAircraftAssignments] = useState<AircraftAssignment>({});
   const [aircraftList, setAircraftList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -96,6 +101,8 @@ const ManagerDashboard = () => {
 
       if (employeeError) throw employeeError;
 
+      console.log('Total employees from DB:', employeeData?.length);
+
       // Fetch aircraft assignments (maintenance visits) with personnel requirements
       const { data: maintenanceData, error: maintenanceError } = await supabase
         .from('maintenance_visits')
@@ -127,6 +134,7 @@ const ManagerDashboard = () => {
         engr: 0,
         nc: 0,
         tech: 0,
+        support_cc: 0,
         support_engr: 0,
         support_nc: 0,
         support_tech: 0
@@ -137,29 +145,35 @@ const ManagerDashboard = () => {
       const initialSupportAssignments: AircraftAssignment = {};
 
       // Count available employees and categorize them using updated job descriptions
+      // Only count employees with AV or AVAILABLE-SLOT support codes for the "Available" row
       employeeData?.forEach((emp: any) => {
         const jobTitle = emp.job_titles?.job_description || 'Unknown';
         const supportCode = emp.employee_supports?.[0]?.support_codes?.support_code || 'Unassigned';
         
-        // Determine role category using the new simplified job descriptions
-        let roleCategory = 'tech'; // default
-        if (jobTitle === 'CC') {
-          roleCategory = 'cc';
-        } else if (jobTitle === 'ENG') {
-          roleCategory = 'engr';
-        } else if (jobTitle === 'NC') {
-          roleCategory = 'nc';
-        } else if (jobTitle === 'TECH') {
-          roleCategory = 'tech';
-        }
-
-        // Count available employees (those with AV or AVAILABLE-SLOT support codes)
+        console.log(`Employee: ${emp.name}, Job Title: ${jobTitle}, Support Code: ${supportCode}`);
+        
+        // Only count employees that are actually available (not all employees)
         if (supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
+          // Determine role category using the new simplified job descriptions
+          let roleCategory = 'tech'; // default
+          if (jobTitle === 'CC') {
+            roleCategory = 'cc';
+          } else if (jobTitle === 'ENG') {
+            roleCategory = 'engr';
+          } else if (jobTitle === 'NC') {
+            roleCategory = 'nc';
+          } else if (jobTitle === 'TECH') {
+            roleCategory = 'tech';
+          }
+
           availableCount[roleCategory as keyof typeof availableCount]++;
         }
       });
 
+      console.log('Available employees count:', availableCount);
+
       // Set support available counts equal to main available counts initially
+      availableCount.support_cc = availableCount.cc;
       availableCount.support_engr = availableCount.engr;
       availableCount.support_nc = availableCount.nc;
       availableCount.support_tech = availableCount.tech;
@@ -176,6 +190,7 @@ const ManagerDashboard = () => {
             engr: 0,
             nc: 0,
             tech: 0,
+            support_cc: 0,
             support_engr: 0,
             support_nc: 0,
             support_tech: 0
@@ -204,6 +219,7 @@ const ManagerDashboard = () => {
             engr: 0,
             nc: 0,
             tech: 0,
+            support_cc: 0,
             support_engr: 0,
             support_nc: 0,
             support_tech: 0
@@ -223,6 +239,7 @@ const ManagerDashboard = () => {
         engr: 0,
         nc: 0,
         tech: 0,
+        support_cc: 0,
         support_engr: 0,
         support_nc: 0,
         support_tech: 0,
@@ -236,6 +253,7 @@ const ManagerDashboard = () => {
         engr: availableCount.engr,
         nc: availableCount.nc,
         tech: availableCount.tech,
+        support_cc: availableCount.support_cc,
         support_engr: availableCount.support_engr,
         support_nc: availableCount.support_nc,
         support_tech: availableCount.support_tech,
@@ -245,7 +263,7 @@ const ManagerDashboard = () => {
       // Add aircraft assignment rows with main assignments
       aircraftCodes.forEach(aircraftCode => {
         const mainAssignment = mainAssignments[aircraftCode] || {
-          cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0
+          cc: 0, engr: 0, nc: 0, tech: 0, support_cc: 0, support_engr: 0, support_nc: 0, support_tech: 0
         };
         
         summary.push({
@@ -254,6 +272,7 @@ const ManagerDashboard = () => {
           engr: mainAssignment.engr,
           nc: mainAssignment.nc,
           tech: mainAssignment.tech,
+          support_cc: 0,
           support_engr: 0,
           support_nc: 0,
           support_tech: 0,
@@ -267,10 +286,11 @@ const ManagerDashboard = () => {
         engr: acc.engr + assignment.engr,
         nc: acc.nc + assignment.nc,
         tech: acc.tech + assignment.tech,
+        support_cc: acc.support_cc + assignment.support_cc,
         support_engr: acc.support_engr + assignment.support_engr,
         support_nc: acc.support_nc + assignment.support_nc,
         support_tech: acc.support_tech + assignment.support_tech
-      }), { cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0 });
+      }), { cc: 0, engr: 0, nc: 0, tech: 0, support_cc: 0, support_engr: 0, support_nc: 0, support_tech: 0 });
 
       summary.push({
         category: "Grand Total",
@@ -278,6 +298,7 @@ const ManagerDashboard = () => {
         engr: availableCount.engr + totalMainAssigned.engr,
         nc: availableCount.nc + totalMainAssigned.nc,
         tech: availableCount.tech + totalMainAssigned.tech,
+        support_cc: availableCount.support_cc,
         support_engr: availableCount.support_engr,
         support_nc: availableCount.support_nc,
         support_tech: availableCount.support_tech,
@@ -305,11 +326,11 @@ const ManagerDashboard = () => {
     const difference = numValue - currentAssignment;
     
     // Check if we have enough available employees from the main pool
-    const mainRole = role.replace('support_', '');
     const availableForRole = availableEmployees[role as keyof typeof availableEmployees] || 0;
     
     if (difference > availableForRole) {
-      toast.error(`Not enough available ${mainRole.toUpperCase()} employees. Available: ${availableForRole}`);
+      const mainRole = role.replace('support_', '').toUpperCase();
+      toast.error(`Not enough available ${mainRole} employees. Available: ${availableForRole}`);
       return;
     }
 
@@ -356,11 +377,12 @@ const ManagerDashboard = () => {
             engr: acc.engr + (assignment.engr || 0),
             nc: acc.nc + (assignment.nc || 0),
             tech: acc.tech + (assignment.tech || 0),
+            support_cc: acc.support_cc + (assignment.support_cc || 0),
             support_engr: acc.support_engr + (assignment.support_engr || 0),
             support_nc: acc.support_nc + (assignment.support_nc || 0),
             support_tech: acc.support_tech + (assignment.support_tech || 0)
           };
-        }, { cc: 0, engr: 0, nc: 0, tech: 0, support_engr: 0, support_nc: 0, support_tech: 0 });
+        }, { cc: 0, engr: 0, nc: 0, tech: 0, support_cc: 0, support_engr: 0, support_nc: 0, support_tech: 0 });
 
         return {
           ...row,
@@ -369,6 +391,12 @@ const ManagerDashboard = () => {
       }
       return row;
     }));
+  };
+
+  const handleSaveAssignments = () => {
+    // This will be defined later - for now just close the modal
+    toast.success("Assignment configuration ready to save");
+    setSaveModalOpen(false);
   };
 
   const fetchSupportData = async () => {
@@ -478,8 +506,38 @@ const ManagerDashboard = () => {
           {/* Summary Table - Full Width */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Daily Workforce Summary</CardTitle>
-              <CardDescription>Interactive workforce allocation with real-time assignment capabilities</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Daily Workforce Summary</CardTitle>
+                  <CardDescription>Interactive workforce allocation with real-time assignment capabilities</CardDescription>
+                </div>
+                <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Save Assignment Configuration</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col space-y-4 py-4">
+                      <p className="text-sm text-muted-foreground">
+                        Modal content will be defined later. This is a placeholder for the save functionality.
+                      </p>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" onClick={() => setSaveModalOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSaveAssignments}>
+                          Save Configuration
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -491,14 +549,15 @@ const ManagerDashboard = () => {
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">ENGR</th>
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">NC</th>
                       <th className="text-center p-2 font-bold bg-blue-200 dark:bg-blue-900/50">TECH</th>
-                      <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50 border-l-4 border-gray-600">ENGR</th>
+                      <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50 border-l-4 border-gray-600">CC</th>
+                      <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50">ENGR</th>
                       <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50">NC</th>
                       <th className="text-center p-2 font-bold bg-green-200 dark:bg-green-900/50">TECH</th>
                     </tr>
                     <tr className="border-b bg-gray-100 dark:bg-gray-800">
                       <th className="text-left p-2"></th>
                       <th className="text-center p-2 text-xs" colSpan={4}>Main</th>
-                      <th className="text-center p-2 text-xs border-l-4 border-gray-600" colSpan={3}>Support</th>
+                      <th className="text-center p-2 text-xs border-l-4 border-gray-600" colSpan={4}>Support</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -537,6 +596,20 @@ const ManagerDashboard = () => {
                         
                         {/* Support section - With input fields for aircraft rows only */}
                         <td className="text-center p-2 border-l-4 border-gray-600">
+                          {row.isAircraft ? (
+                            <Input
+                              type="number"
+                              min="0"
+                              max={availableEmployees.support_cc + (aircraftAssignments[row.category]?.support_cc || 0)}
+                              value={aircraftAssignments[row.category]?.support_cc || 0}
+                              onChange={(e) => handleAssignmentChange(row.category, 'support_cc', e.target.value)}
+                              className="w-16 h-8 text-center"
+                            />
+                          ) : (
+                            row.support_cc || ''
+                          )}
+                        </td>
+                        <td className="text-center p-2">
                           {row.isAircraft ? (
                             <Input
                               type="number"
