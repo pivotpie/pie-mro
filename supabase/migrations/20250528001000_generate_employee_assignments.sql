@@ -1,4 +1,5 @@
 
+
 -- Create function to generate synthetic employee core and support assignments
 CREATE OR REPLACE FUNCTION public.generate_employee_assignments()
 RETURNS text
@@ -13,21 +14,23 @@ DECLARE
     v_total_assignments integer := 0;
     v_core_assignments integer := 0;
     v_support_assignments integer := 0;
+    v_available_assignments integer := 0;
     v_random_factor float;
     v_employee_workload integer;
     v_visit_priority integer;
     v_assignment_probability float;
     v_core_code_id integer;
     v_support_code_id integer;
+    v_available_code_id integer;
 BEGIN
-    -- Find the actual end date based on latest "In Progress" maintenance visit
-    SELECT MAX(date_out) INTO v_end_date
+    -- Find the actual end date based on latest "In Progress" or "Completed" maintenance visit
+    SELECT MAX(GREATEST(date_out, CURRENT_DATE)) INTO v_end_date
     FROM maintenance_visits
-    WHERE status = 'In Progress';
+    WHERE status IN ('In Progress', 'Completed');
     
-    -- If no "In Progress" visits found, default to June 8, 2025
+    -- If no visits found, default to June 30, 2025
     IF v_end_date IS NULL THEN
-        v_end_date := '2025-06-08'::date;
+        v_end_date := '2025-06-30'::date;
     END IF;
     
     RAISE NOTICE 'Generating employee assignments from 2025-05-01 to %', v_end_date;
@@ -39,12 +42,14 @@ BEGIN
     DELETE FROM employee_supports es
     WHERE es.assignment_date BETWEEN '2025-05-01' AND v_end_date;
     
-    -- Get core and support code IDs (create if they don't exist)
+    -- Get or create core, support, and available code IDs
     INSERT INTO core_codes (core_code) VALUES ('CORE') ON CONFLICT (core_code) DO NOTHING;
     INSERT INTO support_codes (support_code) VALUES ('SUPP') ON CONFLICT (support_code) DO NOTHING;
+    INSERT INTO support_codes (support_code) VALUES ('AV') ON CONFLICT (support_code) DO NOTHING;
     
     SELECT id INTO v_core_code_id FROM core_codes WHERE core_code = 'CORE';
     SELECT id INTO v_support_code_id FROM support_codes WHERE support_code = 'SUPP';
+    SELECT id INTO v_available_code_id FROM support_codes WHERE support_code = 'AV';
     
     -- Process each date in the period
     FOR v_date_ref IN 
@@ -71,7 +76,7 @@ BEGIN
             FROM maintenance_visits mv
             JOIN aircraft a ON mv.aircraft_id = a.id
             WHERE v_assignment_date BETWEEN mv.date_in AND mv.date_out
-            AND mv.status IN ('In Progress', 'Scheduled')
+            AND mv.status IN ('In Progress', 'Completed')
             ORDER BY mv.date_in
         LOOP
             -- Determine visit priority based on check type
@@ -148,6 +153,38 @@ BEGIN
             END LOOP;
         END LOOP;
         
+        -- Assign remaining unassigned working employees as "Available" (AV)
+        FOR v_employee IN
+            SELECT DISTINCT
+                e.id,
+                e.e_number,
+                e.name
+            FROM employees e
+            JOIN roster_assignments ra ON e.id = ra.employee_id
+            JOIN date_references dr ON ra.date_id = dr.id
+            JOIN roster_codes rc ON ra.roster_id = rc.id
+            WHERE dr.actual_date = v_assignment_date
+            AND e.is_active = true
+            AND rc.roster_code IN ('D', 'B1', 'DO')  -- Only working employees
+            AND NOT EXISTS (
+                SELECT 1 FROM employee_cores ec 
+                WHERE ec.employee_id = e.id AND ec.assignment_date = v_assignment_date
+            )
+            AND NOT EXISTS (
+                SELECT 1 FROM employee_supports es 
+                WHERE es.employee_id = e.id AND es.assignment_date = v_assignment_date
+            )
+            ORDER BY e.e_number
+        LOOP
+            -- Assign as Available
+            INSERT INTO employee_supports (employee_id, support_id, assignment_date)
+            VALUES (v_employee.id, v_available_code_id, v_assignment_date)
+            ON CONFLICT (employee_id, assignment_date) DO NOTHING;
+            
+            v_available_assignments := v_available_assignments + 1;
+            v_total_assignments := v_total_assignments + 1;
+        END LOOP;
+        
         -- Log progress every 10 days
         IF EXTRACT(DAY FROM v_assignment_date) % 10 = 0 THEN
             RAISE NOTICE 'Processed assignments for %', v_assignment_date;
@@ -160,11 +197,13 @@ BEGIN
         Period: 2025-05-01 to %
         Total assignments: %
         Core assignments: %
-        Support assignments: %',
+        Support assignments: %
+        Available assignments: %',
         v_end_date,
         v_total_assignments,
         v_core_assignments,
-        v_support_assignments
+        v_support_assignments,
+        v_available_assignments
     );
 END;
 $$;
@@ -212,7 +251,10 @@ BEGIN
         'SUPPORT'::text as assignment_type,
         sc.support_code as assignment_code,
         es.assignment_date,
-        'Support project assignment'::text as project_details
+        CASE 
+            WHEN sc.support_code = 'AV' THEN 'Available for assignment'
+            ELSE 'Support project assignment'
+        END as project_details
     FROM employees e
     JOIN employee_supports es ON e.id = es.employee_id
     JOIN support_codes sc ON es.support_id = sc.id
@@ -234,9 +276,10 @@ CREATE OR REPLACE FUNCTION public.get_project_assignment_summary(
 )
 RETURNS TABLE (
     assignment_date date,
-    total_employees integer,
+    total_working_employees integer,
     core_assignments integer,
     support_assignments integer,
+    available_assignments integer,
     unassigned_employees integer
 )
 LANGUAGE plpgsql
@@ -247,18 +290,19 @@ BEGIN
     WITH daily_stats AS (
         SELECT 
             dr.actual_date,
-            COUNT(DISTINCT e.id) as working_employees,
+            COUNT(DISTINCT CASE WHEN rc.roster_code IN ('D', 'B1', 'DO') THEN e.id END) as working_employees,
             COUNT(DISTINCT ec.employee_id) as core_assigned,
-            COUNT(DISTINCT es.employee_id) as support_assigned
+            COUNT(DISTINCT CASE WHEN sc.support_code = 'SUPP' THEN es.employee_id END) as support_assigned,
+            COUNT(DISTINCT CASE WHEN sc.support_code = 'AV' THEN es.employee_id END) as available_assigned
         FROM date_references dr
         CROSS JOIN employees e
         LEFT JOIN roster_assignments ra ON e.id = ra.employee_id AND ra.date_id = dr.id
         LEFT JOIN roster_codes rc ON ra.roster_id = rc.id
         LEFT JOIN employee_cores ec ON e.id = ec.employee_id AND ec.assignment_date = dr.actual_date
         LEFT JOIN employee_supports es ON e.id = es.employee_id AND es.assignment_date = dr.actual_date
+        LEFT JOIN support_codes sc ON es.support_id = sc.id
         WHERE dr.actual_date BETWEEN p_start_date AND p_end_date
         AND e.is_active = true
-        AND (rc.roster_code IN ('D', 'B1', 'DO') OR rc.roster_code IS NULL)
         GROUP BY dr.actual_date
     )
     SELECT 
@@ -266,7 +310,8 @@ BEGIN
         ds.working_employees::integer,
         ds.core_assigned::integer,
         ds.support_assigned::integer,
-        (ds.working_employees - GREATEST(ds.core_assigned, ds.support_assigned))::integer
+        ds.available_assigned::integer,
+        (ds.working_employees - ds.core_assigned - ds.support_assigned - ds.available_assigned)::integer
     FROM daily_stats ds
     ORDER BY ds.actual_date;
 END;
@@ -275,3 +320,4 @@ $$;
 -- Grant execute permissions
 GRANT EXECUTE ON FUNCTION public.get_project_assignment_summary(date, date) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_project_assignment_summary(date, date) TO anon;
+
