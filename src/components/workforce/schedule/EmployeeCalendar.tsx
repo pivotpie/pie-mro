@@ -69,7 +69,7 @@ const columnWidths = {
 const columnLeftPositions = {
   id: 0,        // First column starts at 0
   name: 80,     // 0 + 80 (id width)
-  alias: 280,   // 80 + 200 (name width)
+  alias: 270,   // 80 + 200 (name width)
   mobile: 350,  // 280 + 70 (alias width)  
   team: 480,    // 350 + 130 (mobile width)
   core: 580,    // 480 + 100 (team width)
