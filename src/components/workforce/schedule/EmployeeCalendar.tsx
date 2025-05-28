@@ -1280,7 +1280,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             color: rgba(229, 231, 235, 1);
           }
           .core-support-different {
-            border-left: 4px solid #ef4444;
+            border-left: transparent;
           }
           .tooltip-fixed {
             position: absolute !important; 
