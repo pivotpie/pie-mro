@@ -75,9 +75,9 @@ const columnLeftPositions = {
   core: 567,    // 480 + 100 (team width)
   support: 660, // 580 + 100 (core width)
   title: 760,   // 680 + 100 (support width)
-  night_shift: 860, // 780 + 100 (title width)
-  fte: 935,     // 880 + 70 (night_shift width)
-  ttl: 1010     // 950 + 80 (fte width)
+  night_shift: 855, // 780 + 100 (title width)
+  fte: 930,     // 880 + 70 (night_shift width)
+  ttl: 1005     // 950 + 80 (fte width)
 };
 
 // Helper function to calculate the total width of the table
