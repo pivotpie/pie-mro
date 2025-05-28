@@ -72,12 +72,12 @@ const columnLeftPositions = {
   alias: 265,   // 80 + 200 (name width)
   mobile: 350,  // 280 + 70 (alias width)  
   team: 470,    // 350 + 130 (mobile width)
-  core: 570,    // 480 + 100 (team width)
-  support: 670, // 580 + 100 (core width)
+  core: 567,    // 480 + 100 (team width)
+  support: 665, // 580 + 100 (core width)
   title: 770,   // 680 + 100 (support width)
-  night_shift: 870, // 780 + 100 (title width)
+  night_shift: 865, // 780 + 100 (title width)
   fte: 940,     // 880 + 70 (night_shift width)
-  ttl: 1020     // 950 + 80 (fte width)
+  ttl: 1015     // 950 + 80 (fte width)
 };
 
 // Helper function to calculate the total width of the table
