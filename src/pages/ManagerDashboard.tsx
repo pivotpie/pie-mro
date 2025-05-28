@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -104,30 +103,21 @@ const ManagerDashboard = () => {
 
       console.log('Total active employees from DB:', employeeData?.length);
 
-      // Fetch aircraft assignments (maintenance visits) with personnel requirements
-      const { data: maintenanceData, error: maintenanceError } = await supabase
-        .from('maintenance_visits')
+      // Fetch real employee assignments by aircraft (support codes)
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from('employee_supports')
         .select(`
-          id,
-          visit_number,
-          aircraft:aircraft_id (
-            registration
+          support_codes:support_id (
+            support_code
           ),
-          personnel_requirements (
-            trade_id,
-            day_shift_count,
-            night_shift_count,
-            trades:trade_id (
-              trade_name,
-              skill_category,
-              trade_code
+          employees:employee_id (
+            job_titles:job_title_id (
+              job_description
             )
           )
-        `)
-        .eq('status', 'Scheduled')
-        .limit(10);
+        `);
 
-      if (maintenanceError) throw maintenanceError;
+      if (assignmentError) throw assignmentError;
 
       // Process the data to create summary
       const summary: SummaryData[] = [];
@@ -144,7 +134,6 @@ const ManagerDashboard = () => {
 
       const aircraftCodes: string[] = [];
       const mainAssignments: AircraftAssignment = {};
-      const initialSupportAssignments: AircraftAssignment = {};
 
       // Count available employees and categorize them using updated job descriptions
       // Only count employees with AV or AVAILABLE-SLOT support codes for the "Available" row
@@ -184,66 +173,54 @@ const ManagerDashboard = () => {
       availableCount.support_nc = availableCount.nc;
       availableCount.support_tech = availableCount.tech;
 
-      // Process aircraft assignments from maintenance visits
-      maintenanceData?.forEach((visit: any) => {
-        const aircraftCode = visit.aircraft?.registration;
-        if (aircraftCode && !aircraftCodes.includes(aircraftCode)) {
-          aircraftCodes.push(aircraftCode);
-          
-          // Initialize main assignments from personnel requirements
-          mainAssignments[aircraftCode] = {
-            cc: 0,
-            engr: 0,
-            nc: 0,
-            tech: 0,
-            support_cc: 0,
-            support_engr: 0,
-            support_nc: 0,
-            support_tech: 0
-          };
+      // Process real aircraft assignments from employee_supports
+      const aircraftAssignmentCounts: { [key: string]: { cc: number, engr: number, nc: number, tech: number } } = {};
 
-          // Count personnel requirements by trade code and trade name
-          visit.personnel_requirements?.forEach((req: any) => {
-            const tradeCode = req.trades?.trade_code?.toUpperCase() || '';
-            const tradeName = req.trades?.trade_name?.toLowerCase() || '';
-            const skillCategory = req.trades?.skill_category?.toLowerCase() || '';
-            const totalCount = req.day_shift_count + req.night_shift_count;
+      assignmentData?.forEach((assignment: any) => {
+        const supportCode = assignment.support_codes?.support_code;
+        const jobTitle = assignment.employees?.job_titles?.job_description;
 
-            console.log(`Aircraft ${aircraftCode}: Trade Code: ${tradeCode}, Trade Name: ${tradeName}, Count: ${totalCount}`);
+        // Skip if this is not an aircraft assignment (AV, etc.)
+        if (!supportCode || supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
+          return;
+        }
 
-            // Map trades to role categories more precisely
-            if (tradeCode === 'CC' || tradeName.includes('commander') || tradeName.includes('certifying')) {
-              mainAssignments[aircraftCode].cc += totalCount;
-            } else if (tradeCode === 'ENG' || tradeName.includes('engineer')) {
-              mainAssignments[aircraftCode].engr += totalCount;
-            } else if (tradeCode === 'NC' || tradeName.includes('navigator') || skillCategory.includes('navigator')) {
-              mainAssignments[aircraftCode].nc += totalCount;
-            } else if (tradeCode === 'TECH' || tradeName.includes('technician')) {
-              mainAssignments[aircraftCode].tech += totalCount;
-            } else {
-              // Default to tech if we can't categorize
-              mainAssignments[aircraftCode].tech += totalCount;
-            }
-          });
+        // Initialize aircraft if not seen before
+        if (!aircraftAssignmentCounts[supportCode]) {
+          aircraftAssignmentCounts[supportCode] = { cc: 0, engr: 0, nc: 0, tech: 0 };
+          aircraftCodes.push(supportCode);
+        }
 
-          console.log(`Main assignments for ${aircraftCode}:`, mainAssignments[aircraftCode]);
-
-          // Initialize support assignments as empty
-          initialSupportAssignments[aircraftCode] = {
-            cc: 0,
-            engr: 0,
-            nc: 0,
-            tech: 0,
-            support_cc: 0,
-            support_engr: 0,
-            support_nc: 0,
-            support_tech: 0
-          };
+        // Count by job title
+        if (jobTitle === 'CC') {
+          aircraftAssignmentCounts[supportCode].cc++;
+        } else if (jobTitle === 'ENG') {
+          aircraftAssignmentCounts[supportCode].engr++;
+        } else if (jobTitle === 'NC') {
+          aircraftAssignmentCounts[supportCode].nc++;
+        } else if (jobTitle === 'TECH') {
+          aircraftAssignmentCounts[supportCode].tech++;
         }
       });
 
+      console.log('Real aircraft assignments:', aircraftAssignmentCounts);
+
+      // Convert to the format expected by the rest of the code
+      Object.keys(aircraftAssignmentCounts).forEach(aircraftCode => {
+        mainAssignments[aircraftCode] = {
+          cc: aircraftAssignmentCounts[aircraftCode].cc,
+          engr: aircraftAssignmentCounts[aircraftCode].engr,
+          nc: aircraftAssignmentCounts[aircraftCode].nc,
+          tech: aircraftAssignmentCounts[aircraftCode].tech,
+          support_cc: 0,
+          support_engr: 0,
+          support_nc: 0,
+          support_tech: 0
+        };
+      });
+
       setAircraftList(aircraftCodes);
-      setAircraftAssignments(initialSupportAssignments);
+      setAircraftAssignments({}); // Initialize as empty for support assignments
       setAvailableEmployees(availableCount);
 
       // Add header row
@@ -275,7 +252,7 @@ const ManagerDashboard = () => {
         isAvailable: true
       });
 
-      // Add aircraft assignment rows with main assignments from personnel requirements
+      // Add aircraft assignment rows with real assignments
       aircraftCodes.forEach(aircraftCode => {
         const mainAssignment = mainAssignments[aircraftCode] || {
           cc: 0, engr: 0, nc: 0, tech: 0, support_cc: 0, support_engr: 0, support_nc: 0, support_tech: 0
