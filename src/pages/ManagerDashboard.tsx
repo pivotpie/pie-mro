@@ -264,7 +264,7 @@ const ManagerDashboard = () => {
         isAvailable: true
       });
 
-      // Add aircraft assignment rows with main assignments
+      // Add aircraft assignment rows with main assignments from personnel requirements
       aircraftCodes.forEach(aircraftCode => {
         const mainAssignment = mainAssignments[aircraftCode] || {
           cc: 0, engr: 0, nc: 0, tech: 0, support_cc: 0, support_engr: 0, support_nc: 0, support_tech: 0
@@ -284,7 +284,7 @@ const ManagerDashboard = () => {
         });
       });
 
-      // Add totals
+      // Add totals - calculate totals correctly from the main assignments
       const totalMainAssigned = Object.values(mainAssignments).reduce((acc, assignment) => ({
         cc: acc.cc + assignment.cc,
         engr: acc.engr + assignment.engr,
