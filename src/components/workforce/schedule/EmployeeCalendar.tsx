@@ -811,12 +811,12 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
       </div>
       
       {/* Simple table with direct scrolling */}
-      <div style={{ width: `${totalWidth}px`, minWidth: '100%' }} className="table-scroll-container">
+      <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
         <table className="w-full border-collapse">
           <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
             <tr>
-              {/* Fixed columns - using improved z-index classes */}
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              {/* Fixed columns */}
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Emp#</span>
@@ -830,7 +830,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Name</span>
@@ -844,7 +844,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Alias</span>
@@ -858,7 +858,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Mobile</span>
@@ -872,7 +872,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Team</span>
@@ -886,7 +886,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Core</span>
@@ -900,7 +900,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Support</span>
@@ -914,7 +914,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Title</span>
@@ -928,7 +928,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Night</span>
@@ -942,7 +942,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}>
                 <div className="flex items-center justify-between">
                   <span>FTE</span>
@@ -956,7 +956,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 sticky-header-employee" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}>
                 <div className="flex items-center justify-between">
                   <span>TTL</span>
@@ -980,7 +980,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   <th 
                     key={dateKey}
                     className={cn(
-                      "p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200 sticky-header-date",
+                      "p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200",
                       day.isWeekend ? 'weekend-shade' : '',
                       day.isToday ? 'today-highlight' : ''
                     )}
@@ -1008,10 +1008,10 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
               
               return (
                 <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                  {/* Fixed columns - using improved z-index classes */}
+                  {/* Fixed columns */}
                   <td 
                     className={cn(
-                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee",
+                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
                       isDifferent ? 'core-support-different' : ''
                     )}
                     style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
@@ -1020,77 +1020,77 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     {employee.e_number || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.name || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.key_name || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.mobile_number || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.team?.team_name || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.cores?.join(', ') || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.supports?.join(', ') || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.job_title?.job_description || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.night_shift_ok ? 'Yes' : 'No'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 sticky-cell-employee"
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.ttl || '-'}
                   </td>
                   
-                  {/* Calendar days with fixed tooltips - IMPROVED VERSION */}
+                  {/* Calendar days with tooltips - Updated for no layout shift */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                     const status = employee.schedule?.[dateKey] || '';
@@ -1102,35 +1102,18 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                           <TooltipTrigger asChild>
                             <td 
                               className={cn(
-                                "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700", // Removed relative and hover:z-50
+                                "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
                                 day.isWeekend ? 'weekend-shade' : '',
                                 hasStatus ? statusColors[status] || '' : '',
                                 day.isToday ? 'today-highlight' : ''
                               )}
-                              style={{ 
-                                width: `${columnWidths.date}px`,
-                                position: 'relative' // Add this inline instead
-                              }}
+                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
                               onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
-                              onMouseEnter={(e) => {
-                                // Temporarily elevate z-index on hover
-                                e.currentTarget.style.zIndex = '60';
-                              }}
-                              onMouseLeave={(e) => {
-                                // Reset z-index when not hovering
-                                e.currentTarget.style.zIndex = 'auto';
-                              }}
                             >
                               {status}
                             </td>
                           </TooltipTrigger>
-                          <TooltipContent 
-                            side="top" 
-                            className="z-[9999] pointer-events-none" // Removed 'fixed' - let Radix handle positioning
-                            sideOffset={8}
-                            avoidCollisions={true} // Add this to help with positioning
-                            sticky="always" // Add this to keep tooltip visible
-                          >
+                          <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
                             <div className="space-y-1">
                               <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
                               <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
@@ -1299,39 +1282,20 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           .core-support-different {
             border-left: 4px solid #ef4444;
           }
+          .tooltip-fixed {
+            position: absolute !important; 
+            pointer-events: none !important;
+            z-index: 100 !important;
+            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
+          }
           .popover-content {
             z-index: 100;
           }
-          
-          /* Tooltip specific fixes */
-          [data-radix-popper-content-wrapper] {
-            z-index: 9999 !important;
+          .fixed-tooltip {
+            position: absolute !important; 
             pointer-events: none !important;
-          }
-          
-          /* Prevent tooltip from affecting table layout */
-          .table-scroll-container {
-            position: relative;
-            overflow: auto;
-          }
-          
-          /* Table cell hover elevation */
-          td:hover {
-            position: relative;
-            z-index: 60;
-          }
-          
-          /* Ensure sticky elements stay above hovered cells */
-          .sticky-header-employee {
-            z-index: 200 !important;
-          }
-          
-          .sticky-header-date {
-            z-index: 150 !important;
-          }
-          
-          .sticky-cell-employee {
-            z-index: 100 !important;
+            z-index: 1000 !important;
+            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
           }
         `}
       </style>
