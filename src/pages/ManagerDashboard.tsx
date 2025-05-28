@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -118,7 +119,8 @@ const ManagerDashboard = () => {
             night_shift_count,
             trades:trade_id (
               trade_name,
-              skill_category
+              skill_category,
+              trade_code
             )
           )
         `)
@@ -200,22 +202,31 @@ const ManagerDashboard = () => {
             support_tech: 0
           };
 
-          // Count personnel requirements by trade/skill category
+          // Count personnel requirements by trade code and trade name
           visit.personnel_requirements?.forEach((req: any) => {
+            const tradeCode = req.trades?.trade_code?.toUpperCase() || '';
             const tradeName = req.trades?.trade_name?.toLowerCase() || '';
             const skillCategory = req.trades?.skill_category?.toLowerCase() || '';
             const totalCount = req.day_shift_count + req.night_shift_count;
 
-            if (tradeName.includes('commander') || skillCategory.includes('commander')) {
+            console.log(`Aircraft ${aircraftCode}: Trade Code: ${tradeCode}, Trade Name: ${tradeName}, Count: ${totalCount}`);
+
+            // Map trades to role categories more precisely
+            if (tradeCode === 'CC' || tradeName.includes('commander') || tradeName.includes('certifying')) {
               mainAssignments[aircraftCode].cc += totalCount;
-            } else if (tradeName.includes('engineer') || skillCategory.includes('engineer')) {
+            } else if (tradeCode === 'ENG' || tradeName.includes('engineer')) {
               mainAssignments[aircraftCode].engr += totalCount;
-            } else if (tradeName.includes('navigator') || skillCategory.includes('navigator')) {
+            } else if (tradeCode === 'NC' || tradeName.includes('navigator') || skillCategory.includes('navigator')) {
               mainAssignments[aircraftCode].nc += totalCount;
+            } else if (tradeCode === 'TECH' || tradeName.includes('technician')) {
+              mainAssignments[aircraftCode].tech += totalCount;
             } else {
+              // Default to tech if we can't categorize
               mainAssignments[aircraftCode].tech += totalCount;
             }
           });
+
+          console.log(`Main assignments for ${aircraftCode}:`, mainAssignments[aircraftCode]);
 
           // Initialize support assignments as empty
           initialSupportAssignments[aircraftCode] = {
