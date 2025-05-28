@@ -1107,7 +1107,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                                 hasStatus ? statusColors[status] || '' : '',
                                 day.isToday ? 'today-highlight' : ''
                               )}
-                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
+                              style={{ width: `${columnWidths.date}px` }}
                               onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
                             >
                               {status}
