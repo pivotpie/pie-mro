@@ -101,7 +101,7 @@ const ManagerDashboard = () => {
 
       if (employeeError) throw employeeError;
 
-      console.log('Total employees from DB:', employeeData?.length);
+      console.log('Total active employees from DB:', employeeData?.length);
 
       // Fetch aircraft assignments (maintenance visits) with personnel requirements
       const { data: maintenanceData, error: maintenanceError } = await supabase
@@ -146,6 +146,7 @@ const ManagerDashboard = () => {
 
       // Count available employees and categorize them using updated job descriptions
       // Only count employees with AV or AVAILABLE-SLOT support codes for the "Available" row
+      let availableEmployeeCount = 0;
       employeeData?.forEach((emp: any) => {
         const jobTitle = emp.job_titles?.job_description || 'Unknown';
         const supportCode = emp.employee_supports?.[0]?.support_codes?.support_code || 'Unassigned';
@@ -154,6 +155,8 @@ const ManagerDashboard = () => {
         
         // Only count employees that are actually available (not all employees)
         if (supportCode === 'AV' || supportCode === 'AVAILABLE-SLOT') {
+          availableEmployeeCount++;
+          
           // Determine role category using the new simplified job descriptions
           let roleCategory = 'tech'; // default
           if (jobTitle === 'CC') {
@@ -170,7 +173,8 @@ const ManagerDashboard = () => {
         }
       });
 
-      console.log('Available employees count:', availableCount);
+      console.log('Available employees count by role:', availableCount);
+      console.log('Total available employees:', availableEmployeeCount);
 
       // Set support available counts equal to main available counts initially
       availableCount.support_cc = availableCount.cc;
@@ -594,7 +598,7 @@ const ManagerDashboard = () => {
                           {row.tech || ''}
                         </td>
                         
-                        {/* Support section - With input fields for aircraft rows only */}
+                        {/* Support section - With input fields for aircraft rows only, including CC */}
                         <td className="text-center p-2 border-l-4 border-gray-600">
                           {row.isAircraft ? (
                             <Input
