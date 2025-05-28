@@ -816,7 +816,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
             <tr>
               {/* Fixed columns */}
-              <th className="p-2 text-left border-r sticky top-0 z-100 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Emp#</span>
@@ -830,7 +830,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-100 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Name</span>
@@ -844,7 +844,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   />
                 </div>
               </th>
-              <th className="p-2 text-left border-r sticky top-0 z-100 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Alias</span>
