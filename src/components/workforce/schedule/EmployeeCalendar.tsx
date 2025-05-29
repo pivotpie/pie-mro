@@ -46,7 +46,7 @@ interface Employee {
   ttl?: string | null;
   cores?: string[];
   supports?: string[];
-  schedule?: Record<string, string>;
+  schedule?: Record<string, string>; // Keep this as string keys
   // Add assignment data for the selected date
   core_assignment?: string;
   support_assignment?: string;
@@ -1138,7 +1138,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     {employee.ttl || '-'}
                   </td>
                   
-                  {/* Calendar days with tooltips - Updated for no layout shift */}
+                  {/* Calendar days with tooltips - Fixed TypeScript errors */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                     const status = employee.schedule?.[dateKey] || '';
