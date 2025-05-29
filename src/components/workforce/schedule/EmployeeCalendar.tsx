@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
 
 // Define interfaces for better type safety - updated to match DB types
 interface EmployeeRoster {
-  id: number; // Changed from string to number to match bigint from database
-  employee_id: number; // Changed from string to number to match bigint
+  id: number;
+  employee_id: number;
   date: string;
   status_code: string;
   notes: string | null;
@@ -47,6 +47,9 @@ interface Employee {
   cores?: string[];
   supports?: string[];
   schedule?: Record<string, string>;
+  // Add assignment data for the selected date
+  core_assignment?: string;
+  support_assignment?: string;
 }
 
 // Define column widths for calculating total width
@@ -294,18 +297,19 @@ const DateColumnFilter = ({
 interface EmployeeCalendarProps {
   onScroll: (position: number) => void;
   currentDate?: Date;
+  selectedDate?: Date; // Add selectedDate prop
   onEmployeeSelect?: (employee: any) => void;
   onCellClick?: (employee: any, date: string, status: string) => void;
-  refreshKey?: number; // Add refreshKey prop
+  refreshKey?: number;
 }
 
 export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
-  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
+  ({ onScroll, currentDate = new Date(), selectedDate, onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDateCell, setSelectedDateCell] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const days = useMemo(() => generateTwoMonthDays(currentDate), [currentDate]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -322,7 +326,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
   // Calculate total width for the table
   const totalWidth = calculateTotalWidth(days);
 
-  // Updated useEffect to also respond to refreshKey changes
+  // Updated useEffect to also respond to refreshKey and selectedDate changes
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
@@ -343,7 +347,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             job_title:job_title_id(job_code, job_description),
             employee_status
           `)
-          .order('e_number'); // Sort by e_number in ascending order
+          .order('e_number');
         
         if (employeesError) {
           throw employeesError;
@@ -352,17 +356,18 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         // Convert the employee data to match our Employee interface
         const typedEmployees: Employee[] = employeesData.map(emp => ({
           ...emp,
-          id: String(emp.id), // Convert id to string
-          e_number: emp.e_number?.toString(), // Convert e_number to string
+          id: String(emp.id),
+          e_number: emp.e_number?.toString(),
           cores: [],
           supports: [],
-          schedule: {}
+          schedule: {},
+          core_assignment: undefined,
+          support_assignment: undefined
         }));
 
         console.log("Fetched employees:", typedEmployees);
-        console.log("Total employee count:", typedEmployees.length);
 
-        // Fetch employee cores
+        // Fetch employee cores for filter values
         const { data: coresData, error: coresError } = await supabase
           .from('employee_cores')
           .select(`
@@ -403,7 +408,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           });
         }
         
-        // Fetch employee supports
+        // Fetch employee supports for filter values
         const { data: supportsData, error: supportsError } = await supabase
           .from('employee_supports')
           .select(`
@@ -444,7 +449,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           });
         }
 
-        // Fetch attendance data for today to get TTL (time to location)
+        // Fetch attendance data for today to get TTL
         const today = new Date();
         const todayString = format(today, 'yyyy-MM-dd');
         
@@ -478,9 +483,41 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           });
         }
 
+        // Fetch assignments for the selected date if provided
+        if (selectedDate) {
+          const formattedSelectedDate = format(selectedDate, 'yyyy-MM-dd');
+          console.log("Fetching assignments for selected date:", formattedSelectedDate);
+          
+          const { data: assignments, error: assignmentsError } = await supabase
+            .rpc('get_employee_project_assignments', { p_date: formattedSelectedDate });
+
+          if (assignmentsError) {
+            console.error("Error fetching assignments:", assignmentsError);
+            toast.error(`Error fetching assignments: ${assignmentsError.message}`);
+          } else if (assignments) {
+            console.log("Fetched assignments:", assignments);
+            
+            // Add assignment data to employees
+            typedEmployees.forEach(emp => {
+              const coreAssignment = assignments.find((a: any) => 
+                String(a.employee_id) === emp.id && a.assignment_type === 'CORE'
+              );
+              const supportAssignment = assignments.find((a: any) => 
+                String(a.employee_id) === emp.id && a.assignment_type === 'SUPPORT'
+              );
+              
+              if (coreAssignment) {
+                emp.core_assignment = coreAssignment.assignment_code;
+              }
+              if (supportAssignment) {
+                emp.support_assignment = supportAssignment.assignment_code;
+              }
+            });
+          }
+        }
+
         // Get employee roster data using direct query
         console.log("Fetching roster data...");
-        console.log("Using refreshKey:", refreshKey);
         
         const { data: rosterData, error: rosterError } = await supabase
           .from('roster_assignments')
@@ -572,7 +609,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     };
 
     fetchEmployees();
-  }, [currentDate, refreshKey]); // Add refreshKey as a dependency
+  }, [currentDate, refreshKey, selectedDate]); // Add selectedDate as a dependency
 
   // Apply filters to employees
   useEffect(() => {
@@ -721,15 +758,14 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
   // Cell click handler
   const handleCellClick = (employee: Employee, date: string) => {
     setSelectedEmployee(employee);
-    setSelectedDate(date);
+    setSelectedDateCell(date);
     setIsDetailOpen(true);
   };
 
-  // Handle profile click - updated to also call the onEmployeeSelect callback
+  // Handle profile click
   const handleProfileClick = (employee: Employee) => {
     setSelectedEmployee(employee);
-    setSelectedDate(null);
-    // Call the external handler if it exists
+    setSelectedDateCell(null);
     if (onEmployeeSelect) {
       onEmployeeSelect(employee);
     } else {
@@ -810,6 +846,18 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         ))}
       </div>
       
+      {/* Assignment info for selected date */}
+      {selectedDate && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+            Assignments for {format(selectedDate, 'MMM dd, yyyy')}
+          </h3>
+          <div className="text-xs text-blue-700 dark:text-blue-300">
+            Core and Support assignments are displayed in the respective columns below.
+          </div>
+        </div>
+      )}
+      
       {/* Simple table with direct scrolling */}
       <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
         <table className="w-full border-collapse">
@@ -889,7 +937,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}>
                 <div className="flex items-center justify-between">
-                  <span>Core</span>
+                  <span>{selectedDate ? 'Core Assign' : 'Core'}</span>
                   <ColumnFilter 
                     column="core" 
                     label="Core" 
@@ -903,7 +951,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}>
                 <div className="flex items-center justify-between">
-                  <span>Support</span>
+                  <span>{selectedDate ? 'Support Assign' : 'Support'}</span>
                   <ColumnFilter 
                     column="support" 
                     label="Support" 
@@ -1052,14 +1100,14 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
-                    {employee.cores?.join(', ') || '-'}
+                    {selectedDate ? (employee.core_assignment || '-') : (employee.cores?.join(', ') || '-')}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
-                    {employee.supports?.join(', ') || '-'}
+                    {selectedDate ? (employee.support_assignment || '-') : (employee.supports?.join(', ') || '-')}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
