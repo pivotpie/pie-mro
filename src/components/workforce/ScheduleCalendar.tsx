@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -62,19 +63,18 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
     const fetchEmployeeData = async () => {
       setIsLoading(true);
       try {
-        // Fetch employee data
+        // Fetch employee data with correct column names
         const { data: employees, error: employeeError } = await supabase
           .from('employees')
           .select(`
             id,
             name,
             e_number,
-            mobile,
+            mobile_number,
             employee_status,
-            night_shift,
-            fte_status,
-            ttl,
-            job_titles (job_description),
+            night_shift_ok,
+            fte_date,
+            job_titles (job_description, job_code),
             teams (team_name)
           `)
           .eq('employee_status', 'Active')
@@ -82,18 +82,31 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
 
         if (employeeError) throw employeeError;
 
-        // Fetch core and support assignments for the selected date
+        // Fetch core and support assignments for the selected date using correct parameter name
         const formattedDate = format(selectedDate, 'yyyy-MM-dd');
         const { data: assignments, error: assignmentError } = await supabase
-          .rpc('get_employee_project_assignments', { assignment_date: formattedDate });
+          .rpc('get_employee_project_assignments', { p_date: formattedDate });
 
         if (assignmentError) throw assignmentError;
 
         console.log('Fetched assignments for date:', formattedDate, assignments);
 
+        // Create assignment lookup maps
+        const coreAssignments = new Map();
+        const supportAssignments = new Map();
+        
+        assignments?.forEach((assignment: any) => {
+          if (assignment.assignment_type === 'CORE') {
+            coreAssignments.set(assignment.employee_id, assignment.assignment_code);
+          } else if (assignment.assignment_type === 'SUPPORT') {
+            supportAssignments.set(assignment.employee_id, assignment.assignment_code);
+          }
+        });
+
         // Process employees with assignments
         const employeesWithAssignments = employees?.map(emp => {
-          const assignment = assignments?.find(a => a.employee_id === emp.id);
+          const coreAssignment = coreAssignments.get(emp.id) || 'Available';
+          const supportAssignment = supportAssignments.get(emp.id) || 'Available';
           
           const schedule: Record<string, string> = {};
           days.forEach(day => {
@@ -115,14 +128,14 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
             id: emp.id,
             name: emp.name || 'Unknown',
             alias: emp.name?.substring(0, 2).toUpperCase() || 'NA',
-            mobile: emp.mobile || 'N/A',
+            mobile: emp.mobile_number || 'N/A',
             team: emp.teams?.team_name || 'Unassigned',
-            core: assignment?.core_assignment || 'Available',
-            support: assignment?.support_assignment || 'Available',
+            core: coreAssignment,
+            support: supportAssignment,
             title: emp.job_titles?.job_description || 'Employee',
-            night_shift: emp.night_shift ? 'Yes' : 'No',
-            fte: emp.fte_status || 'Valid',
-            ttl: emp.ttl || 'N/A',
+            night_shift: emp.night_shift_ok ? 'Yes' : 'No',
+            fte: emp.fte_date ? 'Valid' : 'Pending',
+            ttl: 'N/A', // This field doesn't exist in the schema
             e_number: emp.e_number || 0,
             schedule
           };
@@ -215,7 +228,6 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
     "O": "status-day-off", // Using the new custom class for darker shade
   };
 
-  // Legend for status colors - Updated with darker shade for Off
   const statusLegend = [
     { status: "Available", color: "bg-gray-100 border border-gray-300 dark:bg-gray-700 dark:border-gray-600" },
     { status: "Assigned", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
@@ -224,7 +236,6 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
     { status: "Off", color: "bg-gray-600 border border-gray-700 text-gray-100 dark:bg-gray-700 dark:border-gray-800 dark:text-gray-300" },
   ];
 
-  // Filter columns
   const handleFilter = (column: string, value: string) => {
     setColumnFilters(prev => ({
       ...prev,
@@ -459,7 +470,6 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
                     <td className="p-2 border-r sticky left-[920px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.fte}</td>
                     <td className="p-2 border-r sticky left-[980px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.ttl}</td>
                     
-                    {/* Calendar days */}
                     {days.map((day) => {
                       const dateKey = `${day.month+1}-${day.day}`;
                       const status = employee.schedule[dateKey];
