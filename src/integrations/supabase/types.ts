@@ -1157,6 +1157,15 @@ export type Database = {
           percentage: number
         }[]
       }
+      assign_blank_entries_to_av: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          employee_id: number
+          employee_name: string
+          assignment_date: string
+          action_taken: string
+        }[]
+      }
       assign_employees_to_codes_with_dates: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1184,6 +1193,19 @@ export type Database = {
       generate_attendance_may_1_to_25_2025: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      generate_detailed_assignment_report: {
+        Args: { p_start_date?: string; p_end_date?: string }
+        Returns: {
+          assignment_date: string
+          employee_number: number
+          employee_name: string
+          job_title: string
+          core_assignment: string
+          support_assignment: string
+          roster_status: string
+          roster_description: string
+        }[]
       }
       generate_employee_assignments: {
         Args: Record<PropertyKey, never>
