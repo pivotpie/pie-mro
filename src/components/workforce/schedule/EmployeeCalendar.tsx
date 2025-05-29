@@ -1107,7 +1107,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                                 hasStatus ? statusColors[status] || '' : '',
                                 day.isToday ? 'today-highlight' : ''
                               )}
-                              style={{ width: `${columnWidths.date}px` }}
+                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
                               onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
                             >
                               {status}
@@ -1280,7 +1280,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             color: rgba(229, 231, 235, 1);
           }
           .core-support-different {
-            border-left: transparent;
+            border-left: 4px solid #ef4444;
           }
           .tooltip-fixed {
             position: absolute !important; 
