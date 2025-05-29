@@ -59,7 +59,7 @@ export const EmployeeScheduleView = () => {
         </div>
 
         {/* Employee Schedule Calendar */}
-        <div className="w-full border rounded-lg shadow-sm p-4">
+        <div className="w-full">
           <ScheduleCalendar
             selectedDate={selectedDate}
             onScroll={handleCalendarScroll}
