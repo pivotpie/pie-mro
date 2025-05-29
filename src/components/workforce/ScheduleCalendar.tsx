@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,15 +16,85 @@ const isWeekend = (dayOfMonth: number, month: number) => {
   return day === 0 || day === 6;
 };
 
-// Generate days for May 2025
+// Generate days for May and June 2025
 const generateDays = () => {
   const days = [];
   // May 2025 has 31 days
   for (let i = 1; i <= 31; i++) {
     days.push({ day: i, month: 4, isWeekend: isWeekend(i, 4) }); // Month is 0-indexed, so May is 4
   }
+  // June 2025 has 30 days
+  for (let i = 1; i <= 30; i++) {
+    days.push({ day: i, month: 5, isWeekend: isWeekend(i, 5) }); // Month is 0-indexed, so June is 5
+  }
   return days;
 };
+
+// Mock employee data with schedule
+const mockColumns = [
+  {
+    id: "1", name: "John Smith", alias: "JS", mobile: "+1234567890", team: "Alpha",
+    core: "Available", support: "Available", title: "Senior Tech", night_shift: "Yes", fte: "Valid", ttl: "N/A", e_number: 1001,
+    schedule: generateScheduleData()
+  },
+  {
+    id: "2", name: "Sarah Johnson", alias: "SJ", mobile: "+1234567891", team: "Beta",
+    core: "Available", support: "Available", title: "Lead Tech", night_shift: "No", fte: "Valid", ttl: "N/A", e_number: 1002,
+    schedule: generateScheduleData()
+  },
+  {
+    id: "3", name: "Mike Wilson", alias: "MW", mobile: "+1234567892", team: "Alpha",
+    core: "Available", support: "Available", title: "Tech Specialist", night_shift: "Yes", fte: "Pending", ttl: "N/A", e_number: 1003,
+    schedule: generateScheduleData()
+  },
+  {
+    id: "4", name: "Lisa Brown", alias: "LB", mobile: "+1234567893", team: "Gamma",
+    core: "Available", support: "Available", title: "Senior Tech", night_shift: "No", fte: "Valid", ttl: "N/A", e_number: 1004,
+    schedule: generateScheduleData()
+  },
+  {
+    id: "5", name: "David Lee", alias: "DL", mobile: "+1234567894", team: "Beta",
+    core: "Available", support: "Available", title: "Tech Lead", night_shift: "Yes", fte: "Valid", ttl: "N/A", e_number: 1005,
+    schedule: generateScheduleData()
+  },
+  {
+    id: "6", name: "Emma Davis", alias: "ED", mobile: "+1234567895", team: "Alpha",
+    core: "Available", support: "Available", title: "Technician", night_shift: "No", fte: "Valid", ttl: "N/A", e_number: 1006,
+    schedule: generateScheduleData()
+  },
+  {
+    id: "7", name: "Chris Martinez", alias: "CM", mobile: "+1234567896", team: "Gamma",
+    core: "Available", support: "Available", title: "Senior Tech", night_shift: "Yes", fte: "Pending", ttl: "N/A", e_number: 1007,
+    schedule: generateScheduleData()
+  },
+  {
+    id: "8", name: "Anna Taylor", alias: "AT", mobile: "+1234567897", team: "Beta",
+    core: "Available", support: "Available", title: "Lead Tech", night_shift: "No", fte: "Valid", ttl: "N/A", e_number: 1008,
+    schedule: generateScheduleData()
+  }
+];
+
+function generateScheduleData() {
+  const schedule: Record<string, string> = {};
+  const days = generateDays();
+  
+  days.forEach(day => {
+    const randomValue = Math.random();
+    const dateKey = `${day.month+1}-${day.day}`;
+    
+    if (randomValue < 0.1) {
+      schedule[dateKey] = "L"; // Leave
+    } else if (randomValue < 0.2) {
+      schedule[dateKey] = "T"; // Training
+    } else if (randomValue < 0.8) {
+      schedule[dateKey] = "D"; // Duty
+    } else {
+      schedule[dateKey] = "O"; // Off
+    }
+  });
+  
+  return schedule;
+}
 
 interface ScheduleCalendarProps {
   onScroll: (scrollLeft: number) => void;
@@ -32,63 +103,23 @@ interface ScheduleCalendarProps {
 }
 
 export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: ScheduleCalendarProps) => {
-  const [columns, setColumns] = useState<{
-    id: string;
-    name: string;
-    alias: string;
-    mobile: string;
-    team: string;
-    core: string;
-    support: string;
-    title: string;
-    night_shift: string;
-    fte: string;
-    ttl: string;
-    e_number: number;
-    schedule: Record<string, string>;
-  }[]>([]);
-
+  const [columns, setColumns] = useState(mockColumns);
   const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
   const [supportFilterValues, setSupportFilterValues] = useState<string[]>([]);
   const [activeCoreFilters, setActiveCoreFilters] = useState<string[]>([]);
   const [activeSupportFilters, setActiveSupportFilters] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const days = generateDays();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    const fetchEmployeeData = async () => {
+    const fetchAssignmentData = async () => {
       setIsLoading(true);
       try {
-        console.log('Fetching employee data for date:', selectedDate);
+        console.log('Fetching assignment data for date:', selectedDate);
         
-        // Fetch all active employees first
-        const { data: employees, error: employeeError } = await supabase
-          .from('employees')
-          .select(`
-            id,
-            name,
-            e_number,
-            mobile_number,
-            employee_status,
-            night_shift_ok,
-            fte_date,
-            job_titles (job_description, job_code),
-            teams (team_name)
-          `)
-          .eq('employee_status', 'Active')
-          .order('e_number');
-
-        if (employeeError) {
-          console.error('Error fetching employees:', employeeError);
-          throw employeeError;
-        }
-
-        console.log('Fetched employees:', employees?.length || 0);
-
-        // Fetch core and support assignments for the selected date
         const formattedDate = format(selectedDate, 'yyyy-MM-dd');
         const { data: assignments, error: assignmentError } = await supabase
           .rpc('get_employee_project_assignments', { p_date: formattedDate });
@@ -106,75 +137,48 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
         
         assignments?.forEach((assignment: any) => {
           if (assignment.assignment_type === 'CORE') {
-            coreAssignments.set(assignment.employee_id, assignment.assignment_code);
+            coreAssignments.set(assignment.employee_id.toString(), assignment.assignment_code);
           } else if (assignment.assignment_type === 'SUPPORT') {
-            supportAssignments.set(assignment.employee_id, assignment.assignment_code);
+            supportAssignments.set(assignment.employee_id.toString(), assignment.assignment_code);
           }
         });
 
         console.log('Core assignments:', coreAssignments.size);
         console.log('Support assignments:', supportAssignments.size);
 
-        // Process employees with assignments
-        const employeesWithAssignments = employees?.map(emp => {
-          const coreAssignment = coreAssignments.get(emp.id) || 'Available';
-          const supportAssignment = supportAssignments.get(emp.id) || 'Available';
-          
-          const schedule: Record<string, string> = {};
-          days.forEach(day => {
-            const randomValue = Math.random();
-            const dateKey = `${day.month+1}-${day.day}`;
-            
-            if (randomValue < 0.1) {
-              schedule[dateKey] = "L"; // Leave
-            } else if (randomValue < 0.2) {
-              schedule[dateKey] = "T"; // Training
-            } else if (randomValue < 0.8) {
-              schedule[dateKey] = "D"; // Duty
-            } else {
-              schedule[dateKey] = "O"; // Off
-            }
-          });
+        // Update mock data with real assignment data
+        const updatedColumns = mockColumns.map(employee => {
+          const coreAssignment = coreAssignments.get(employee.id) || 'Available';
+          const supportAssignment = supportAssignments.get(employee.id) || 'Available';
           
           return {
-            id: emp.id.toString(),
-            name: emp.name || 'Unknown',
-            alias: emp.name?.substring(0, 2).toUpperCase() || 'NA',
-            mobile: emp.mobile_number || 'N/A',
-            team: emp.teams?.team_name || 'Unassigned',
+            ...employee,
             core: coreAssignment as string,
             support: supportAssignment as string,
-            title: emp.job_titles?.job_description || 'Employee',
-            night_shift: emp.night_shift_ok ? 'Yes' : 'No',
-            fte: emp.fte_date ? 'Valid' : 'Pending',
-            ttl: 'N/A',
-            e_number: emp.e_number || 0,
-            schedule
           };
-        }) || [];
-
-        console.log('Processed employees with assignments:', employeesWithAssignments.length);
+        });
 
         // Extract unique core and support values for filters
-        const cores = Array.from(new Set(employeesWithAssignments.map(emp => emp.core)));
-        const supports = Array.from(new Set(employeesWithAssignments.map(emp => emp.support)));
+        const cores = Array.from(new Set(updatedColumns.map(emp => emp.core)));
+        const supports = Array.from(new Set(updatedColumns.map(emp => emp.support)));
         
         setCoreFilterValues(cores);
         setSupportFilterValues(supports);
         
-        // Sort employees by e_number
-        const sortedEmployees = employeesWithAssignments.sort((a, b) => a.e_number - b.e_number);
-        
-        console.log('Setting final employee data:', sortedEmployees.length);
-        setColumns(sortedEmployees);
+        console.log('Setting updated employee data:', updatedColumns.length);
+        setColumns(updatedColumns);
       } catch (error) {
-        console.error('Error in fetchEmployeeData:', error);
+        console.error('Error in fetchAssignmentData:', error);
+        // Fallback to mock data with default assignments
+        setColumns(mockColumns);
+        setCoreFilterValues(['Available']);
+        setSupportFilterValues(['Available']);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchEmployeeData();
+    fetchAssignmentData();
   }, [selectedDate]);
 
   // Handle scroll events
@@ -271,7 +275,7 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
       <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-500 dark:text-gray-400">Loading employee schedule data for {format(selectedDate, 'PPP')}...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading assignment data for {format(selectedDate, 'PPP')}...</p>
         </div>
       </div>
     );
@@ -449,16 +453,19 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
                   <th className="p-2 text-left border-r sticky left-[980px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">TTL</th>
                   
                   {/* Calendar days */}
-                  {days.map((day, index) => (
-                    <th 
-                      key={`${day.month+1}-${day.day}`} 
-                      className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200 
-                        ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
-                    >
-                      <div className="text-xs font-medium">{index + 1}</div>
-                      <div className="text-xs">May</div>
-                    </th>
-                  ))}
+                  {days.map((day, index) => {
+                    const monthName = day.month === 4 ? 'May' : 'Jun';
+                    return (
+                      <th 
+                        key={`${day.month+1}-${day.day}`} 
+                        className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200 
+                          ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+                      >
+                        <div className="text-xs font-medium">{day.day}</div>
+                        <div className="text-xs">{monthName}</div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -506,7 +513,7 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
                               </TooltipTrigger>
                               <TooltipContent side="top" className="tooltip-content">
                                 <div className="text-sm font-medium">{employee.name}</div>
-                                <div className="text-xs">May {day.day}, 2025</div>
+                                <div className="text-xs">{day.month === 4 ? 'May' : 'June'} {day.day}, 2025</div>
                                 {status === 'D' && <div className="text-green-600">On Duty</div>}
                                 {status === 'L' && <div className="text-red-600">On Leave</div>}
                                 {status === 'T' && <div className="text-purple-600">In Training</div>}
