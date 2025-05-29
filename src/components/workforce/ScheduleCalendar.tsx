@@ -125,13 +125,13 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
           });
           
           return {
-            id: emp.id,
+            id: emp.id.toString(), // Convert number to string
             name: emp.name || 'Unknown',
             alias: emp.name?.substring(0, 2).toUpperCase() || 'NA',
             mobile: emp.mobile_number || 'N/A',
             team: emp.teams?.team_name || 'Unassigned',
-            core: coreAssignment,
-            support: supportAssignment,
+            core: coreAssignment as string, // Ensure it's typed as string
+            support: supportAssignment as string, // Ensure it's typed as string
             title: emp.job_titles?.job_description || 'Employee',
             night_shift: emp.night_shift_ok ? 'Yes' : 'No',
             fte: emp.fte_date ? 'Valid' : 'Pending',
