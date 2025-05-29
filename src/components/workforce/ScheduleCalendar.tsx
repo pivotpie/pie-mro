@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -63,7 +62,9 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
     const fetchEmployeeData = async () => {
       setIsLoading(true);
       try {
-        // Fetch employee data with correct column names
+        console.log('Fetching employee data for date:', selectedDate);
+        
+        // Fetch all active employees first
         const { data: employees, error: employeeError } = await supabase
           .from('employees')
           .select(`
@@ -80,16 +81,24 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
           .eq('employee_status', 'Active')
           .order('e_number');
 
-        if (employeeError) throw employeeError;
+        if (employeeError) {
+          console.error('Error fetching employees:', employeeError);
+          throw employeeError;
+        }
 
-        // Fetch core and support assignments for the selected date using correct parameter name
+        console.log('Fetched employees:', employees?.length || 0);
+
+        // Fetch core and support assignments for the selected date
         const formattedDate = format(selectedDate, 'yyyy-MM-dd');
         const { data: assignments, error: assignmentError } = await supabase
           .rpc('get_employee_project_assignments', { p_date: formattedDate });
 
-        if (assignmentError) throw assignmentError;
+        if (assignmentError) {
+          console.error('Error fetching assignments:', assignmentError);
+          throw assignmentError;
+        }
 
-        console.log('Fetched assignments for date:', formattedDate, assignments);
+        console.log('Fetched assignments for date:', formattedDate, assignments?.length || 0);
 
         // Create assignment lookup maps
         const coreAssignments = new Map();
@@ -102,6 +111,9 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
             supportAssignments.set(assignment.employee_id, assignment.assignment_code);
           }
         });
+
+        console.log('Core assignments:', coreAssignments.size);
+        console.log('Support assignments:', supportAssignments.size);
 
         // Process employees with assignments
         const employeesWithAssignments = employees?.map(emp => {
@@ -125,21 +137,23 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
           });
           
           return {
-            id: emp.id.toString(), // Convert number to string
+            id: emp.id.toString(),
             name: emp.name || 'Unknown',
             alias: emp.name?.substring(0, 2).toUpperCase() || 'NA',
             mobile: emp.mobile_number || 'N/A',
             team: emp.teams?.team_name || 'Unassigned',
-            core: coreAssignment as string, // Ensure it's typed as string
-            support: supportAssignment as string, // Ensure it's typed as string
+            core: coreAssignment as string,
+            support: supportAssignment as string,
             title: emp.job_titles?.job_description || 'Employee',
             night_shift: emp.night_shift_ok ? 'Yes' : 'No',
             fte: emp.fte_date ? 'Valid' : 'Pending',
-            ttl: 'N/A', // This field doesn't exist in the schema
+            ttl: 'N/A',
             e_number: emp.e_number || 0,
             schedule
           };
         }) || [];
+
+        console.log('Processed employees with assignments:', employeesWithAssignments.length);
 
         // Extract unique core and support values for filters
         const cores = Array.from(new Set(employeesWithAssignments.map(emp => emp.core)));
@@ -151,9 +165,10 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
         // Sort employees by e_number
         const sortedEmployees = employeesWithAssignments.sort((a, b) => a.e_number - b.e_number);
         
+        console.log('Setting final employee data:', sortedEmployees.length);
         setColumns(sortedEmployees);
       } catch (error) {
-        console.error('Error fetching employee data:', error);
+        console.error('Error in fetchEmployeeData:', error);
       } finally {
         setIsLoading(false);
       }
@@ -225,7 +240,7 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
     "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "status-day-off", // Using the new custom class for darker shade
+    "O": "status-day-off",
   };
 
   const statusLegend = [
@@ -261,6 +276,8 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
       </div>
     );
   }
+
+  console.log('Rendering calendar with', filteredColumns.length, 'employees');
 
   return (
     <div>
@@ -508,7 +525,6 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
         </ScrollArea>
       </div>
       
-      {/* Fix the style tag to remove the jsx property */}
       <style>
         {`
         .status-day-off {

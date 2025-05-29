@@ -44,6 +44,10 @@ export const EmployeeScheduleView = () => {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Employee Schedule & Assignments</h2>
           <div className="flex items-center gap-2">
+            <EmployeeScheduleDatePicker
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
             <Button variant="outline" size="sm" onClick={goToToday}>
               Today
             </Button>
@@ -52,14 +56,6 @@ export const EmployeeScheduleView = () => {
               Export
             </Button>
           </div>
-        </div>
-
-        {/* Date Picker Section */}
-        <div className="mb-6 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
-          <EmployeeScheduleDatePicker
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-          />
         </div>
 
         {/* Employee Schedule Calendar */}
