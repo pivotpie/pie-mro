@@ -7,93 +7,47 @@ import { Button } from "@/components/ui/button";
 import { Check, Filter, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, addDays, startOfMonth, endOfMonth } from "date-fns";
 
 // Helper function to determine if a date is a weekend
-const isWeekend = (dayOfMonth: number, month: number) => {
-  const date = new Date(2025, month, dayOfMonth);
+const isWeekend = (date: Date) => {
   const day = date.getDay();
   return day === 0 || day === 6;
 };
 
-// Generate days for May and June 2025
+// Generate days from May 1, 2025 to June 30, 2025
 const generateDays = () => {
   const days = [];
-  // May 2025 has 31 days
-  for (let i = 1; i <= 31; i++) {
-    days.push({ day: i, month: 4, isWeekend: isWeekend(i, 4) }); // Month is 0-indexed, so May is 4
-  }
-  // June 2025 has 30 days
-  for (let i = 1; i <= 30; i++) {
-    days.push({ day: i, month: 5, isWeekend: isWeekend(i, 5) }); // Month is 0-indexed, so June is 5
+  const startDate = new Date(2025, 4, 1); // May 1, 2025
+  const endDate = new Date(2025, 5, 30); // June 30, 2025
+  
+  let currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    days.push({
+      day: currentDate.getDate(),
+      month: currentDate.getMonth(),
+      year: currentDate.getFullYear(),
+      isWeekend: isWeekend(currentDate),
+      fullDate: new Date(currentDate)
+    });
+    currentDate = addDays(currentDate, 1);
   }
   return days;
 };
 
-// Mock employee data with schedule
-const mockColumns = [
-  {
-    id: "1", name: "John Smith", alias: "JS", mobile: "+1234567890", team: "Alpha",
-    core: "Available", support: "Available", title: "Senior Tech", night_shift: "Yes", fte: "Valid", ttl: "N/A", e_number: 1001,
-    schedule: generateScheduleData()
-  },
-  {
-    id: "2", name: "Sarah Johnson", alias: "SJ", mobile: "+1234567891", team: "Beta",
-    core: "Available", support: "Available", title: "Lead Tech", night_shift: "No", fte: "Valid", ttl: "N/A", e_number: 1002,
-    schedule: generateScheduleData()
-  },
-  {
-    id: "3", name: "Mike Wilson", alias: "MW", mobile: "+1234567892", team: "Alpha",
-    core: "Available", support: "Available", title: "Tech Specialist", night_shift: "Yes", fte: "Pending", ttl: "N/A", e_number: 1003,
-    schedule: generateScheduleData()
-  },
-  {
-    id: "4", name: "Lisa Brown", alias: "LB", mobile: "+1234567893", team: "Gamma",
-    core: "Available", support: "Available", title: "Senior Tech", night_shift: "No", fte: "Valid", ttl: "N/A", e_number: 1004,
-    schedule: generateScheduleData()
-  },
-  {
-    id: "5", name: "David Lee", alias: "DL", mobile: "+1234567894", team: "Beta",
-    core: "Available", support: "Available", title: "Tech Lead", night_shift: "Yes", fte: "Valid", ttl: "N/A", e_number: 1005,
-    schedule: generateScheduleData()
-  },
-  {
-    id: "6", name: "Emma Davis", alias: "ED", mobile: "+1234567895", team: "Alpha",
-    core: "Available", support: "Available", title: "Technician", night_shift: "No", fte: "Valid", ttl: "N/A", e_number: 1006,
-    schedule: generateScheduleData()
-  },
-  {
-    id: "7", name: "Chris Martinez", alias: "CM", mobile: "+1234567896", team: "Gamma",
-    core: "Available", support: "Available", title: "Senior Tech", night_shift: "Yes", fte: "Pending", ttl: "N/A", e_number: 1007,
-    schedule: generateScheduleData()
-  },
-  {
-    id: "8", name: "Anna Taylor", alias: "AT", mobile: "+1234567897", team: "Beta",
-    core: "Available", support: "Available", title: "Lead Tech", night_shift: "No", fte: "Valid", ttl: "N/A", e_number: 1008,
-    schedule: generateScheduleData()
-  }
-];
-
-function generateScheduleData() {
-  const schedule: Record<string, string> = {};
-  const days = generateDays();
-  
-  days.forEach(day => {
-    const randomValue = Math.random();
-    const dateKey = `${day.month+1}-${day.day}`;
-    
-    if (randomValue < 0.1) {
-      schedule[dateKey] = "L"; // Leave
-    } else if (randomValue < 0.2) {
-      schedule[dateKey] = "T"; // Training
-    } else if (randomValue < 0.8) {
-      schedule[dateKey] = "D"; // Duty
-    } else {
-      schedule[dateKey] = "O"; // Off
-    }
-  });
-  
-  return schedule;
+interface Employee {
+  id: string;
+  name: string;
+  e_number: number;
+  mobile_number: string;
+  employee_status: string;
+  night_shift_ok: string;
+  fte_date: string;
+  job_titles: { job_description: string; job_code: string } | null;
+  teams: { team_name: string } | null;
+  core: string;
+  support: string;
+  schedule: Record<string, string>;
 }
 
 interface ScheduleCalendarProps {
@@ -103,7 +57,7 @@ interface ScheduleCalendarProps {
 }
 
 export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: ScheduleCalendarProps) => {
-  const [columns, setColumns] = useState(mockColumns);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
   const [supportFilterValues, setSupportFilterValues] = useState<string[]>([]);
   const [activeCoreFilters, setActiveCoreFilters] = useState<string[]>([]);
@@ -112,14 +66,38 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
 
   const days = generateDays();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    const fetchAssignmentData = async () => {
+    const fetchEmployeeData = async () => {
       setIsLoading(true);
       try {
-        console.log('Fetching assignment data for date:', selectedDate);
+        console.log('Fetching employee data for date:', selectedDate);
         
+        // Fetch employees
+        const { data: employeeData, error: employeeError } = await supabase
+          .from('employees')
+          .select(`
+            id,
+            name,
+            e_number,
+            mobile_number,
+            employee_status,
+            night_shift_ok,
+            fte_date,
+            job_titles (job_description, job_code),
+            teams (team_name)
+          `)
+          .eq('employee_status', 'Active')
+          .order('e_number', { ascending: true });
+
+        if (employeeError) {
+          console.error('Error fetching employees:', employeeError);
+          throw employeeError;
+        }
+
+        console.log('Fetched employees:', employeeData?.length || 0);
+
+        // Fetch assignments for the selected date
         const formattedDate = format(selectedDate, 'yyyy-MM-dd');
         const { data: assignments, error: assignmentError } = await supabase
           .rpc('get_employee_project_assignments', { p_date: formattedDate });
@@ -143,42 +121,105 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
           }
         });
 
-        console.log('Core assignments:', coreAssignments.size);
-        console.log('Support assignments:', supportAssignments.size);
+        // Fetch roster assignments for all days in the range
+        const { data: rosterData, error: rosterError } = await supabase
+          .from('roster_assignments')
+          .select(`
+            id,
+            date_id,
+            employee_id,
+            roster_id,
+            date_references (actual_date),
+            rosters (roster_name)
+          `)
+          .gte('date_references.actual_date', '2025-05-01')
+          .lte('date_references.actual_date', '2025-06-30');
 
-        // Update mock data with real assignment data
-        const updatedColumns = mockColumns.map(employee => {
-          const coreAssignment = coreAssignments.get(employee.id) || 'Available';
-          const supportAssignment = supportAssignments.get(employee.id) || 'Available';
+        if (rosterError) {
+          console.error('Error fetching roster data:', rosterError);
+        }
+
+        // Create roster lookup map
+        const rosterLookup = new Map();
+        rosterData?.forEach((roster: any) => {
+          const dateKey = roster.date_references?.actual_date;
+          const employeeId = roster.employee_id.toString();
+          if (dateKey && employeeId) {
+            if (!rosterLookup.has(employeeId)) {
+              rosterLookup.set(employeeId, new Map());
+            }
+            rosterLookup.get(employeeId).set(dateKey, roster.rosters?.roster_name || 'D');
+          }
+        });
+
+        // Transform employee data
+        const transformedEmployees: Employee[] = (employeeData || []).map(emp => {
+          const coreAssignment = coreAssignments.get(emp.id.toString()) || 'AV';
+          const supportAssignment = supportAssignments.get(emp.id.toString()) || 'AV';
+          
+          // Generate schedule data for all days
+          const schedule: Record<string, string> = {};
+          days.forEach(day => {
+            const dateKey = format(day.fullDate, 'yyyy-MM-dd');
+            const employeeRoster = rosterLookup.get(emp.id.toString());
+            
+            if (employeeRoster && employeeRoster.has(dateKey)) {
+              schedule[dateKey] = employeeRoster.get(dateKey);
+            } else {
+              // Default schedule pattern
+              const randomValue = Math.random();
+              if (day.isWeekend) {
+                schedule[dateKey] = randomValue < 0.7 ? "O" : "D";
+              } else {
+                if (randomValue < 0.1) {
+                  schedule[dateKey] = "L"; // Leave
+                } else if (randomValue < 0.15) {
+                  schedule[dateKey] = "T"; // Training
+                } else if (randomValue < 0.85) {
+                  schedule[dateKey] = "D"; // Duty
+                } else {
+                  schedule[dateKey] = "O"; // Off
+                }
+              }
+            }
+          });
           
           return {
-            ...employee,
-            core: coreAssignment as string,
-            support: supportAssignment as string,
+            id: emp.id.toString(),
+            name: emp.name,
+            e_number: emp.e_number,
+            mobile_number: emp.mobile_number || '',
+            employee_status: emp.employee_status,
+            night_shift_ok: emp.night_shift_ok ? 'Yes' : 'No',
+            fte_date: emp.fte_date || '',
+            job_titles: emp.job_titles,
+            teams: emp.teams,
+            core: coreAssignment,
+            support: supportAssignment,
+            schedule
           };
         });
 
         // Extract unique core and support values for filters
-        const cores = Array.from(new Set(updatedColumns.map(emp => emp.core)));
-        const supports = Array.from(new Set(updatedColumns.map(emp => emp.support)));
+        const cores = Array.from(new Set(transformedEmployees.map(emp => emp.core)));
+        const supports = Array.from(new Set(transformedEmployees.map(emp => emp.support)));
         
         setCoreFilterValues(cores);
         setSupportFilterValues(supports);
         
-        console.log('Setting updated employee data:', updatedColumns.length);
-        setColumns(updatedColumns);
+        console.log('Setting transformed employee data:', transformedEmployees.length);
+        setEmployees(transformedEmployees);
       } catch (error) {
-        console.error('Error in fetchAssignmentData:', error);
-        // Fallback to mock data with default assignments
-        setColumns(mockColumns);
-        setCoreFilterValues(['Available']);
-        setSupportFilterValues(['Available']);
+        console.error('Error in fetchEmployeeData:', error);
+        setEmployees([]);
+        setCoreFilterValues([]);
+        setSupportFilterValues([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAssignmentData();
+    fetchEmployeeData();
   }, [selectedDate]);
 
   // Handle scroll events
@@ -209,20 +250,20 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
     });
   };
 
-  // Apply filters to columns
-  const filteredColumns = columns.filter(column => {
+  // Apply filters to employees
+  const filteredEmployees = employees.filter(employee => {
     // If no filters are active, show all
     if (activeCoreFilters.length === 0 && activeSupportFilters.length === 0) {
       return true;
     }
     
     // Apply core filter
-    const passesCore = activeCoreFilters.length === 0 || activeCoreFilters.includes(column.core);
+    const passesCore = activeCoreFilters.length === 0 || activeCoreFilters.includes(employee.core);
     
     // Apply support filter
-    const passesSupport = activeSupportFilters.length === 0 || activeSupportFilters.includes(column.support);
+    const passesSupport = activeSupportFilters.length === 0 || activeSupportFilters.includes(employee.support);
     
-    // Item must pass all active filters
+    // Employee must pass all active filters
     return passesCore && passesSupport;
   });
 
@@ -232,14 +273,14 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
   };
 
   // Employee click handler
-  const handleEmployeeClick = (employee: any) => {
+  const handleEmployeeClick = (employee: Employee) => {
     console.log(`Clicked employee:`, employee);
     if (onEmployeeSelect) {
       onEmployeeSelect(employee);
     }
   };
 
-  // Status color mapping - Updated with darker shade for O
+  // Status color mapping
   const statusColors: Record<string, string> = {
     "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
@@ -255,33 +296,18 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
     { status: "Off", color: "bg-gray-600 border border-gray-700 text-gray-100 dark:bg-gray-700 dark:border-gray-800 dark:text-gray-300" },
   ];
 
-  const handleFilter = (column: string, value: string) => {
-    setColumnFilters(prev => ({
-      ...prev,
-      [column]: [...(prev[column] || []), value]
-    }));
-  };
-
-  const clearFilter = (column: string) => {
-    setColumnFilters(prev => {
-      const newFilters = { ...prev };
-      delete newFilters[column];
-      return newFilters;
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-500 dark:text-gray-400">Loading assignment data for {format(selectedDate, 'PPP')}...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading employee data for {format(selectedDate, 'PPP')}...</p>
         </div>
       </div>
     );
   }
 
-  console.log('Rendering calendar with', filteredColumns.length, 'employees');
+  console.log('Rendering calendar with', filteredEmployees.length, 'employees');
 
   return (
     <div>
@@ -301,51 +327,16 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
           ref={scrollAreaRef}
           onScroll={handleScroll}
         >
-          <div className="min-w-[2000px]">
+          <div className="min-w-[3000px]">
             <table className="w-full border-collapse">
               <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
                 <tr>
                   {/* Fixed columns */}
-                  <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">ID</th>
+                  <th className="p-2 text-left border-r sticky left-0 z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">E#</th>
                   <th className="p-2 text-left border-r sticky left-[80px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Name</th>
-                  <th className="p-2 text-left border-r sticky left-[280px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Alias</th>
-                  <th className="p-2 text-left border-r sticky left-[350px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Mobile</th>
+                  <th className="p-2 text-left border-r sticky left-[280px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Mobile</th>
+                  <th className="p-2 text-left border-r sticky left-[380px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Team</th>
                   <th className="p-2 text-left border-r sticky left-[480px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
-                    <div className="flex items-center justify-between">
-                      Team
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <Filter className="h-3 w-3" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-40">
-                          <div className="space-y-2">
-                            {Array.from(new Set(columns.map(col => col.team))).map((value) => (
-                              <Button 
-                                key={value} 
-                                variant="ghost" 
-                                size="sm"
-                                className="w-full justify-start"
-                                onClick={() => handleFilter("team", value)}
-                              >
-                                {value}
-                              </Button>
-                            ))}
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="w-full mt-2"
-                              onClick={() => clearFilter("team")}
-                            >
-                              Clear Filter
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </th>
-                  <th className="p-2 text-left border-r sticky left-[580px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
                     <div className="flex items-center justify-between">
                       Core
                       <Popover>
@@ -396,7 +387,7 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
                       </Popover>
                     </div>
                   </th>
-                  <th className="p-2 text-left border-r sticky left-[680px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+                  <th className="p-2 text-left border-r sticky left-[580px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
                     <div className="flex items-center justify-between">
                       Support
                       <Popover>
@@ -447,17 +438,16 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
                       </Popover>
                     </div>
                   </th>
-                  <th className="p-2 text-left border-r sticky left-[780px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Title</th>
-                  <th className="p-2 text-left border-r sticky left-[860px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">N/S</th>
-                  <th className="p-2 text-left border-r sticky left-[920px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">FTE</th>
-                  <th className="p-2 text-left border-r sticky left-[980px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">TTL</th>
+                  <th className="p-2 text-left border-r sticky left-[680px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">Title</th>
+                  <th className="p-2 text-left border-r sticky left-[780px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">N/S</th>
+                  <th className="p-2 text-left border-r sticky left-[840px] z-20 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">FTE</th>
                   
                   {/* Calendar days */}
                   {days.map((day, index) => {
                     const monthName = day.month === 4 ? 'May' : 'Jun';
                     return (
                       <th 
-                        key={`${day.month+1}-${day.day}`} 
+                        key={`${day.year}-${day.month+1}-${day.day}`} 
                         className={`p-2 text-center border-r min-w-[40px] dark:border-gray-700 dark:text-gray-200 
                           ${day.isWeekend ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
                       >
@@ -469,14 +459,14 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
                 </tr>
               </thead>
               <tbody>
-                {filteredColumns.map((employee) => (
+                {filteredEmployees.map((employee) => (
                   <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                     {/* Fixed columns */}
                     <td 
                       className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
                       onClick={() => handleEmployeeClick(employee)}
                     >
-                      {employee.id}
+                      {employee.e_number}
                     </td>
                     <td 
                       className="p-2 border-r sticky left-[80px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
@@ -484,18 +474,16 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
                     >
                       {employee.name}
                     </td>
-                    <td className="p-2 border-r sticky left-[280px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.alias}</td>
-                    <td className="p-2 border-r sticky left-[350px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.mobile}</td>
-                    <td className="p-2 border-r sticky left-[480px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.team}</td>
-                    <td className="p-2 border-r sticky left-[580px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.core}</td>
-                    <td className="p-2 border-r sticky left-[680px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.support}</td>
-                    <td className="p-2 border-r sticky left-[780px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.title}</td>
-                    <td className="p-2 border-r sticky left-[860px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.night_shift}</td>
-                    <td className="p-2 border-r sticky left-[920px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.fte}</td>
-                    <td className="p-2 border-r sticky left-[980px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.ttl}</td>
+                    <td className="p-2 border-r sticky left-[280px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.mobile_number}</td>
+                    <td className="p-2 border-r sticky left-[380px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.teams?.team_name || 'N/A'}</td>
+                    <td className="p-2 border-r sticky left-[480px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.core}</td>
+                    <td className="p-2 border-r sticky left-[580px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.support}</td>
+                    <td className="p-2 border-r sticky left-[680px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.job_titles?.job_description || 'N/A'}</td>
+                    <td className="p-2 border-r sticky left-[780px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.night_shift_ok}</td>
+                    <td className="p-2 border-r sticky left-[840px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10">{employee.fte_date ? 'Valid' : 'Pending'}</td>
                     
                     {days.map((day) => {
-                      const dateKey = `${day.month+1}-${day.day}`;
+                      const dateKey = format(day.fullDate, 'yyyy-MM-dd');
                       const status = employee.schedule[dateKey];
                       
                       return (
@@ -513,7 +501,7 @@ export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: S
                               </TooltipTrigger>
                               <TooltipContent side="top" className="tooltip-content">
                                 <div className="text-sm font-medium">{employee.name}</div>
-                                <div className="text-xs">{day.month === 4 ? 'May' : 'June'} {day.day}, 2025</div>
+                                <div className="text-xs">{format(day.fullDate, 'MMM d, yyyy')}</div>
                                 {status === 'D' && <div className="text-green-600">On Duty</div>}
                                 {status === 'L' && <div className="text-red-600">On Leave</div>}
                                 {status === 'T' && <div className="text-purple-600">In Training</div>}
