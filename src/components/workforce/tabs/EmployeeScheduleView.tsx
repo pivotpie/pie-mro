@@ -5,7 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 import { AircraftScheduleView } from "./AircraftScheduleView";
 import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
 import { EmployeeScheduleDatePicker } from "../schedule/EmployeeScheduleDatePicker";
-import { ScheduleCalendar } from "../ScheduleCalendar";
+import { ScheduleCalendar as EmployeeCalendar } from "../schedule/EmployeeCalendar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
@@ -60,7 +60,7 @@ export const EmployeeScheduleView = () => {
 
         {/* Employee Schedule Calendar */}
         <div className="w-full">
-          <ScheduleCalendar
+          <EmployeeCalendar
             selectedDate={selectedDate}
             onScroll={handleCalendarScroll}
             onEmployeeSelect={handleEmployeeSelect}
