@@ -5,7 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 import { AircraftScheduleView } from "./AircraftScheduleView";
 import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
 import { EmployeeScheduleDatePicker } from "../schedule/EmployeeScheduleDatePicker";
-import { EmployeeCalendarWithAssignments } from "../schedule/EmployeeCalendarWithAssignments";
+import { ScheduleCalendar } from "../ScheduleCalendar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
@@ -33,6 +33,11 @@ export const EmployeeScheduleView = () => {
     setSelectedDate(new Date());
   };
 
+  // Handle scroll events from calendar
+  const handleCalendarScroll = (scrollLeft: number) => {
+    // Handle scroll sync if needed
+  };
+
   return (
     <div className="space-y-6 w-full">
       <div>
@@ -57,10 +62,11 @@ export const EmployeeScheduleView = () => {
           />
         </div>
 
-        {/* Employee Calendar with Assignments */}
+        {/* Employee Schedule Calendar */}
         <div className="w-full border rounded-lg shadow-sm p-4">
-          <EmployeeCalendarWithAssignments
+          <ScheduleCalendar
             selectedDate={selectedDate}
+            onScroll={handleCalendarScroll}
             onEmployeeSelect={handleEmployeeSelect}
           />
         </div>

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -6,6 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Check, Filter, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 // Helper function to determine if a date is a weekend
 const isWeekend = (dayOfMonth: number, month: number) => {
@@ -26,9 +27,11 @@ const generateDays = () => {
 
 interface ScheduleCalendarProps {
   onScroll: (scrollLeft: number) => void;
+  selectedDate: Date;
+  onEmployeeSelect?: (employee: any) => void;
 }
 
-export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
+export const ScheduleCalendar = ({ onScroll, selectedDate, onEmployeeSelect }: ScheduleCalendarProps) => {
   const [columns, setColumns] = useState<{
     id: string;
     name: string;
@@ -41,7 +44,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
     night_shift: string;
     fte: string;
     ttl: string;
-    e_number: number; // Added e_number field for sorting
+    e_number: number;
     schedule: Record<string, string>;
   }[]>([]);
 
@@ -56,59 +59,95 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    // In a real app, fetch this data from the database
-    // For now, we'll use sample data
-    const sampleEmployees = [
-      { id: "EMP001", name: "Michael Johnson", alias: "MJ", mobile: "+971 52 123 4567", team: "Team Alpha", core: "A320", support: "Available", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "07:30 AM", e_number: 1001 },
-      { id: "EMP002", name: "Sarah Williams", alias: "SW", mobile: "+971 52 234 5678", team: "Team Beta", core: "A380", support: "Maintenance", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "07:30 AM", e_number: 1002 },
-      { id: "EMP003", name: "David Brown", alias: "DB", mobile: "+971 55 345 6789", team: "Team Charlie", core: "B787", support: "Leave", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM", e_number: 1003 },
-      { id: "EMP004", name: "Emily Taylor", alias: "ET", mobile: "+971 54 456 7890", team: "Team Alpha", core: "A320", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "07:30 AM", e_number: 1004 },
-      { id: "EMP005", name: "James Davis", alias: "JD", mobile: "+971 50 567 8901", team: "Team Beta", core: "B777", support: "Training", title: "Manager", night_shift: "Yes", fte: "Valid", ttl: "08:00 AM", e_number: 1005 },
-      { id: "EMP006", name: "Jennifer Wilson", alias: "JW", mobile: "+971 52 678 9012", team: "Team Charlie", core: "A380", support: "Maintenance", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "08:30 AM", e_number: 1006 },
-      { id: "EMP007", name: "Robert Martinez", alias: "RM", mobile: "+971 55 789 0123", team: "Team Alpha", core: "A320", support: "Maintenance", title: "Technician", night_shift: "Yes", fte: "Valid", ttl: "07:25 AM", e_number: 1007 },
-      { id: "EMP008", name: "Lisa Anderson", alias: "LA", mobile: "+971 54 890 1234", team: "Team Beta", core: "A380", support: "Available", title: "Engineer", night_shift: "No", fte: "Valid", ttl: "07:00 AM", e_number: 1008 },
-      { id: "EMP009", name: "Thomas Clark", alias: "TC", mobile: "+971 55 901 2345", team: "Team Alpha", core: "A380", support: "Training", title: "Engineer", night_shift: "Yes", fte: "Valid", ttl: "08:45 AM", e_number: 1009 },
-      { id: "EMP010", name: "Michelle Rodriguez", alias: "MR", mobile: "+971 52 012 3456", team: "Team Alpha", core: "A380", support: "Maintenance", title: "Technician", night_shift: "No", fte: "Valid", ttl: "08:17 AM", e_number: 1010 },
-    ];
+    const fetchEmployeeData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch employee data
+        const { data: employees, error: employeeError } = await supabase
+          .from('employees')
+          .select(`
+            id,
+            name,
+            e_number,
+            mobile,
+            employee_status,
+            night_shift,
+            fte_status,
+            ttl,
+            job_titles (job_description),
+            teams (team_name)
+          `)
+          .eq('employee_status', 'Active')
+          .order('e_number');
 
-    // Extract unique core and support values for filters
-    const cores = Array.from(new Set(sampleEmployees.map(emp => emp.core)));
-    const supports = Array.from(new Set(sampleEmployees.map(emp => emp.support)));
-    
-    setCoreFilterValues(cores);
-    setSupportFilterValues(supports);
+        if (employeeError) throw employeeError;
 
-    // Process employees with schedule
-    const employeesWithSchedule = sampleEmployees.map(emp => {
-      const schedule: Record<string, string> = {};
-      
-      days.forEach(day => {
-        const randomValue = Math.random();
-        const dateKey = `${day.month+1}-${day.day}`;
+        // Fetch core and support assignments for the selected date
+        const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+        const { data: assignments, error: assignmentError } = await supabase
+          .rpc('get_employee_project_assignments', { assignment_date: formattedDate });
+
+        if (assignmentError) throw assignmentError;
+
+        console.log('Fetched assignments for date:', formattedDate, assignments);
+
+        // Process employees with assignments
+        const employeesWithAssignments = employees?.map(emp => {
+          const assignment = assignments?.find(a => a.employee_id === emp.id);
+          
+          const schedule: Record<string, string> = {};
+          days.forEach(day => {
+            const randomValue = Math.random();
+            const dateKey = `${day.month+1}-${day.day}`;
+            
+            if (randomValue < 0.1) {
+              schedule[dateKey] = "L"; // Leave
+            } else if (randomValue < 0.2) {
+              schedule[dateKey] = "T"; // Training
+            } else if (randomValue < 0.8) {
+              schedule[dateKey] = "D"; // Duty
+            } else {
+              schedule[dateKey] = "O"; // Off
+            }
+          });
+          
+          return {
+            id: emp.id,
+            name: emp.name || 'Unknown',
+            alias: emp.name?.substring(0, 2).toUpperCase() || 'NA',
+            mobile: emp.mobile || 'N/A',
+            team: emp.teams?.team_name || 'Unassigned',
+            core: assignment?.core_assignment || 'Available',
+            support: assignment?.support_assignment || 'Available',
+            title: emp.job_titles?.job_description || 'Employee',
+            night_shift: emp.night_shift ? 'Yes' : 'No',
+            fte: emp.fte_status || 'Valid',
+            ttl: emp.ttl || 'N/A',
+            e_number: emp.e_number || 0,
+            schedule
+          };
+        }) || [];
+
+        // Extract unique core and support values for filters
+        const cores = Array.from(new Set(employeesWithAssignments.map(emp => emp.core)));
+        const supports = Array.from(new Set(employeesWithAssignments.map(emp => emp.support)));
         
-        if (randomValue < 0.1) {
-          schedule[dateKey] = "L"; // Leave
-        } else if (randomValue < 0.2) {
-          schedule[dateKey] = "T"; // Training
-        } else if (randomValue < 0.8) {
-          schedule[dateKey] = "D"; // Duty
-        } else {
-          schedule[dateKey] = "O"; // Off
-        }
-      });
-      
-      return {
-        ...emp,
-        schedule
-      };
-    });
-    
-    // Sort employees by e_number
-    const sortedEmployees = employeesWithSchedule.sort((a, b) => a.e_number - b.e_number);
-    
-    setColumns(sortedEmployees);
-    setIsLoading(false);
-  }, []);
+        setCoreFilterValues(cores);
+        setSupportFilterValues(supports);
+        
+        // Sort employees by e_number
+        const sortedEmployees = employeesWithAssignments.sort((a, b) => a.e_number - b.e_number);
+        
+        setColumns(sortedEmployees);
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEmployeeData();
+  }, [selectedDate]);
 
   // Handle scroll events
   const handleScroll = () => {
@@ -158,7 +197,14 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
   // Cell click handler
   const handleCellClick = (employeeId: string, date: string) => {
     console.log(`Clicked cell for employee ${employeeId} on date ${date}`);
-    // This would open the right-side details pane
+  };
+
+  // Employee click handler
+  const handleEmployeeClick = (employee: any) => {
+    console.log(`Clicked employee:`, employee);
+    if (onEmployeeSelect) {
+      onEmployeeSelect(employee);
+    }
   };
 
   // Status color mapping - Updated with darker shade for O
@@ -199,7 +245,7 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
       <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-500 dark:text-gray-400">Loading aircraft schedule data...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading employee schedule data for {format(selectedDate, 'PPP')}...</p>
         </div>
       </div>
     );
@@ -393,13 +439,13 @@ export const ScheduleCalendar = ({ onScroll }: ScheduleCalendarProps) => {
                     {/* Fixed columns */}
                     <td 
                       className="p-2 border-r sticky left-0 bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
-                      onClick={() => console.log(`Clicked employee ID ${employee.id}`)}
+                      onClick={() => handleEmployeeClick(employee)}
                     >
                       {employee.id}
                     </td>
                     <td 
                       className="p-2 border-r sticky left-[80px] bg-white dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 z-10 cursor-pointer"
-                      onClick={() => console.log(`Clicked employee ${employee.name}`)}
+                      onClick={() => handleEmployeeClick(employee)}
                     >
                       {employee.name}
                     </td>
