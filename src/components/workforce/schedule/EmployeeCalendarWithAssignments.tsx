@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -33,7 +32,7 @@ export const EmployeeCalendarWithAssignments = ({
       try {
         const formattedDate = format(selectedDate, 'yyyy-MM-dd');
         
-        // Get employee project assignments for the selected date
+        // Get employee project assignments for the selected date using the RPC function
         const { data: assignments, error: assignmentsError } = await supabase
           .rpc('get_employee_project_assignments', { p_date: formattedDate });
 
@@ -66,7 +65,7 @@ export const EmployeeCalendarWithAssignments = ({
           });
         });
 
-        // Then, add assignment data
+        // Then, add assignment data from the RPC function
         assignments?.forEach((assignment: any) => {
           const existingEmployee = employeeMap.get(assignment.employee_id);
           if (existingEmployee) {
@@ -76,7 +75,7 @@ export const EmployeeCalendarWithAssignments = ({
               existingEmployee.support_assignment = assignment.assignment_code;
             }
           } else {
-            // Create new employee entry if not in roster
+            // Create new employee entry if not in roster but has assignments
             const newEmployee: Employee = {
               id: assignment.employee_id,
               name: assignment.employee_name,
