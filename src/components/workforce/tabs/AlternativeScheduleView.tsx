@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { AssignmentsCalendar } from '../schedule/AssignmentsCalendar';
 import { format } from 'date-fns';
@@ -23,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 
-export const EmployeeScheduleView = () => {
+export const AlternativeScheduleView = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -31,8 +30,8 @@ export const EmployeeScheduleView = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key state
-  const calendarRef = useRef<any>(null); // Add ref for the calendar component
+  const [refreshKey, setRefreshKey] = useState(0);
+  const calendarRef = useRef<any>(null);
   const isMobile = useIsMobile();
 
   // Handler to receive scroll position updates from the employee calendar
@@ -195,13 +194,13 @@ export const EmployeeScheduleView = () => {
 
         {/* Simple container with direct overflow control and scroll position synchronization */}
         <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
-            <AssignmentCalendar 
+          <AssignmentsCalendar 
             ref={calendarRef}
             onScroll={handleCalendarScroll} 
             currentDate={currentDate}
             onEmployeeSelect={handleEmployeeSelect}
             onCellClick={handleScheduleCellClick}
-            refreshKey={refreshKey} // Pass refresh key to force re-rendering
+            refreshKey={refreshKey}
           />
         </div>
       </div>
