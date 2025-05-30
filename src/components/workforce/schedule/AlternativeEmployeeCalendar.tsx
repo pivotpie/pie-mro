@@ -6,7 +6,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday
 interface Employee {
   id: number;
   name: string;
-  e_number: string;
+  e_number: number; // Changed from string to number to match database type
   employee_status?: string;
   job_titles?: {
     job_description: string;
