@@ -285,11 +285,12 @@ interface EmployeeCalendarProps {
   currentDate?: Date;
   onEmployeeSelect?: (employee: any) => void;
   onCellClick?: (employee: any, date: string, status: string) => void;
+  onCoreClick?: (aircraft: any) => void;
   refreshKey?: number;
 }
 
 export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
-  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
+  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, onCoreClick, refreshKey = 0 }, ref) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -735,6 +736,100 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     return !hasOverlap && employee.cores.length > 0 && employee.supports.length > 0;
   };
 
+  const findAircraftByCore = async (coreCode: string) => {
+    try {
+      // First try to find aircraft by registration matching core code
+      const { data: aircraftData, error: aircraftError } = await supabase
+        .from('aircraft')
+        .select(`
+          id,
+          registration,
+          aircraft_name,
+          aircraft_code,
+          serial_number,
+          aircraft_types:aircraft_type_id(type_name, type_code),
+          maintenance_visits:maintenance_visits(
+            id,
+            visit_number,
+            check_type,
+            status,
+            date_in,
+            date_out,
+            hangars:hangar_id(hangar_name, hangar_code)
+          )
+        `)
+        .eq('registration', coreCode)
+        .single();
+
+      if (!aircraftError && aircraftData) {
+        return aircraftData;
+      }
+
+      // If no direct match, try to find by core_codes table
+      const { data: coreData, error: coreError } = await supabase
+        .from('core_codes')
+        .select('id')
+        .eq('core_code', coreCode)
+        .single();
+
+      if (!coreError && coreData) {
+        // Find aircraft that might be associated with this core
+        const { data: defaultAircraft, error: defaultError } = await supabase
+          .from('aircraft')
+          .select(`
+            id,
+            registration,
+            aircraft_name,
+            aircraft_code,
+            serial_number,
+            aircraft_types:aircraft_type_id(type_name, type_code),
+            maintenance_visits:maintenance_visits(
+              id,
+              visit_number,
+              check_type,
+              status,
+              date_in,
+              date_out,
+              hangars:hangar_id(hangar_name, hangar_code)
+            )
+          `)
+          .limit(1)
+          .single();
+
+        if (!defaultError && defaultAircraft) {
+          return {
+            ...defaultAircraft,
+            registration: coreCode, // Override with the core code
+            aircraft_name: `Core Assignment: ${coreCode}`
+          };
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error finding aircraft by core:', error);
+      return null;
+    }
+  };
+
+  const handleCoreClick = async (coreCode: string) => {
+    if (!onCoreClick || !coreCode || coreCode === '-') {
+      return;
+    }
+
+    try {
+      const aircraft = await findAircraftByCore(coreCode);
+      if (aircraft) {
+        onCoreClick(aircraft);
+      } else {
+        toast.error(`No aircraft found for core: ${coreCode}`);
+      }
+    } catch (error) {
+      console.error('Error handling core click:', error);
+      toast.error('Failed to load aircraft details');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
@@ -954,7 +1049,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                   <td 
                     className={cn(
-                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
+                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-blue-50 dark:hover:bg-blue-950",
                       isDifferent ? 'core-support-different' : ''
                     )}
                     style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
@@ -993,7 +1088,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    onClick={() => handleCoreClick(employee.cores?.join(', ') || '')}
+                    title="Click to view aircraft details"
                   >
                     {employee.cores?.join(', ') || '-'}
                   </td>
@@ -1226,7 +1322,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           .tooltip-fixed {
             position: absolute !important; 
             pointer-events: none !important;
-            z-index: 100 !important;
+            z-index: 1000 !important;
             transform-origin: var(--radix-tooltip-content-transform-origin) !important;
           }
           .popover-content {
@@ -1243,3 +1339,5 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     </div>
   );
 });
+
+</edits_to_apply>

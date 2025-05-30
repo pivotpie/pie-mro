@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
@@ -22,7 +21,11 @@ import {
 } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 
-export const EmployeeScheduleView = () => {
+interface EmployeeScheduleViewProps {
+  onAircraftClick?: (aircraft: any) => void;
+}
+
+export const EmployeeScheduleView = ({ onAircraftClick }: EmployeeScheduleViewProps) => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -200,6 +203,7 @@ export const EmployeeScheduleView = () => {
             currentDate={currentDate}
             onEmployeeSelect={handleEmployeeSelect}
             onCellClick={handleScheduleCellClick}
+            onCoreClick={onAircraftClick}
             refreshKey={refreshKey} // Pass refresh key to force re-rendering
           />
         </div>
@@ -242,7 +246,7 @@ export const EmployeeScheduleView = () => {
                 <div className={`mt-1 px-3 py-1 rounded-full text-sm inline-flex items-center ${
                   selectedStatus === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
                   selectedStatus === 'AL' || selectedStatus === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
-                  selectedStatus === 'TR' || selectedStatus === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
+                  selectedStatus === 'TR' || selectedStatus === 'T' ? 'Training' : 
                   selectedStatus === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
                   selectedStatus === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
                   selectedStatus === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
