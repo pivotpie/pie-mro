@@ -514,7 +514,10 @@ export const AssignmentsCalendar = React.forwardRef<HTMLDivElement, AssignmentsC
 
   const handleScroll = () => {
     if (scrollAreaRef.current) {
-      onScroll(scrollAreaRef.current.scrollLeft || 0);
+      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        onScroll(viewport.scrollLeft || 0);
+      }
     }
   };
 
@@ -639,313 +642,319 @@ export const AssignmentsCalendar = React.forwardRef<HTMLDivElement, AssignmentsC
         ))}
       </div>
       
-      <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
-        <table className="w-full border-collapse">
-          <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
-            <tr>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Emp#</span>
-                  <ColumnFilter 
-                    column="e_number" 
-                    label="ID" 
-                    values={getUniqueValuesForColumn('e_number')}
-                    activeValues={columnFilters['e_number'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('e_number', value)}
-                    onClearAll={() => clearColumnFilter('e_number')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Name</span>
-                  <ColumnFilter 
-                    column="name" 
-                    label="Name" 
-                    values={getUniqueValuesForColumn('name')}
-                    activeValues={columnFilters['name'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('name', value)}
-                    onClearAll={() => clearColumnFilter('name')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Alias</span>
-                  <ColumnFilter 
-                    column="key_name" 
-                    label="Alias" 
-                    values={getUniqueValuesForColumn('key_name')}
-                    activeValues={columnFilters['key_name'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('key_name', value)}
-                    onClearAll={() => clearColumnFilter('key_name')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Mobile</span>
-                  <ColumnFilter 
-                    column="mobile_number" 
-                    label="Mobile" 
-                    values={getUniqueValuesForColumn('mobile_number')}
-                    activeValues={columnFilters['mobile_number'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('mobile_number', value)}
-                    onClearAll={() => clearColumnFilter('mobile_number')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Team</span>
-                  <ColumnFilter 
-                    column="team" 
-                    label="Team" 
-                    values={getUniqueValuesForColumn('team')}
-                    activeValues={columnFilters['team'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('team', value)}
-                    onClearAll={() => clearColumnFilter('team')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Title</span>
-                  <ColumnFilter 
-                    column="job_title" 
-                    label="Title" 
-                    values={getUniqueValuesForColumn('job_title')}
-                    activeValues={columnFilters['job_title'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('job_title', value)}
-                    onClearAll={() => clearColumnFilter('job_title')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Night</span>
-                  <ColumnFilter 
-                    column="night_shift" 
-                    label="Night Shift" 
-                    values={getUniqueValuesForColumn('night_shift')}
-                    activeValues={columnFilters['night_shift'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('night_shift', value)}
-                    onClearAll={() => clearColumnFilter('night_shift')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>FTE</span>
-                  <ColumnFilter 
-                    column="fte_date" 
-                    label="FTE Date" 
-                    values={getUniqueValuesForColumn('fte_date')}
-                    activeValues={columnFilters['fte_date'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('fte_date', value)}
-                    onClearAll={() => clearColumnFilter('fte_date')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>TTL</span>
-                  <ColumnFilter 
-                    column="ttl" 
-                    label="Time to Location" 
-                    values={getUniqueValuesForColumn('ttl')}
-                    activeValues={columnFilters['ttl'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('ttl', value)}
-                    onClearAll={() => clearColumnFilter('ttl')}
-                  />
-                </div>
-              </th>
-              
-              {days.map((day) => {
-                const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                const dateStatuses = dateStatusValues[dateKey] || [];
+      <ScrollArea 
+        ref={scrollAreaRef}
+        className="h-[calc(100vh-200px)] w-full border rounded-lg dark:border-gray-700"
+        onScrollCapture={handleScroll}
+      >
+        <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
+          <table className="w-full border-collapse">
+            <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
+              <tr>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Emp#</span>
+                    <ColumnFilter 
+                      column="e_number" 
+                      label="ID" 
+                      values={getUniqueValuesForColumn('e_number')}
+                      activeValues={columnFilters['e_number'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('e_number', value)}
+                      onClearAll={() => clearColumnFilter('e_number')}
+                    />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Name</span>
+                    <ColumnFilter 
+                      column="name" 
+                      label="Name" 
+                      values={getUniqueValuesForColumn('name')}
+                      activeValues={columnFilters['name'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('name', value)}
+                      onClearAll={() => clearColumnFilter('name')}
+                    />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Alias</span>
+                    <ColumnFilter 
+                      column="key_name" 
+                      label="Alias" 
+                      values={getUniqueValuesForColumn('key_name')}
+                      activeValues={columnFilters['key_name'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('key_name', value)}
+                      onClearAll={() => clearColumnFilter('key_name')}
+                    />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Mobile</span>
+                    <ColumnFilter 
+                      column="mobile_number" 
+                      label="Mobile" 
+                      values={getUniqueValuesForColumn('mobile_number')}
+                      activeValues={columnFilters['mobile_number'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('mobile_number', value)}
+                      onClearAll={() => clearColumnFilter('mobile_number')}
+                    />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Team</span>
+                    <ColumnFilter 
+                      column="team" 
+                      label="Team" 
+                      values={getUniqueValuesForColumn('team')}
+                      activeValues={columnFilters['team'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('team', value)}
+                      onClearAll={() => clearColumnFilter('team')}
+                    />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Title</span>
+                    <ColumnFilter 
+                      column="job_title" 
+                      label="Title" 
+                      values={getUniqueValuesForColumn('job_title')}
+                      activeValues={columnFilters['job_title'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('job_title', value)}
+                      onClearAll={() => clearColumnFilter('job_title')}
+                    />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>Night</span>
+                    <ColumnFilter 
+                      column="night_shift" 
+                      label="Night Shift" 
+                      values={getUniqueValuesForColumn('night_shift')}
+                      activeValues={columnFilters['night_shift'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('night_shift', value)}
+                      onClearAll={() => clearColumnFilter('night_shift')}
+                    />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>FTE</span>
+                    <ColumnFilter 
+                      column="fte_date" 
+                      label="FTE Date" 
+                      values={getUniqueValuesForColumn('fte_date')}
+                      activeValues={columnFilters['fte_date'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('fte_date', value)}
+                      onClearAll={() => clearColumnFilter('fte_date')}
+                    />
+                  </div>
+                </th>
+                <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
+                  style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}>
+                  <div className="flex items-center justify-between">
+                    <span>TTL</span>
+                    <ColumnFilter 
+                      column="ttl" 
+                      label="Time to Location" 
+                      values={getUniqueValuesForColumn('ttl')}
+                      activeValues={columnFilters['ttl'] || []}
+                      onValueSelect={(value) => handleColumnFilterSelect('ttl', value)}
+                      onClearAll={() => clearColumnFilter('ttl')}
+                    />
+                  </div>
+                </th>
                 
+                {days.map((day) => {
+                  const dateKey = `${day.month+1}-${day.day}-${day.year}`;
+                  const dateStatuses = dateStatusValues[dateKey] || [];
+                  
+                  return (
+                    <th 
+                      key={dateKey}
+                      className={cn(
+                        "p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200",
+                        day.isWeekend ? 'weekend-shade' : '',
+                        day.isToday ? 'today-highlight' : ''
+                      )}
+                      style={{ width: `${columnWidths.date}px` }}
+                    >
+                      <div className="flex flex-col items-center">
+                        <div className="text-xs font-medium">{day.day}</div>
+                        <div className="text-xs">{day.monthName}</div>
+                        <DateColumnFilter 
+                          dateKey={dateKey}
+                          values={dateStatuses}
+                          activeValues={dateColumnFilters[dateKey] || []}
+                          onValueSelect={(value) => handleDateFilterSelect(dateKey, value)}
+                          onClearAll={() => clearDateFilter(dateKey)}
+                        />
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEmployees.map((employee) => {
                 return (
-                  <th 
-                    key={dateKey}
-                    className={cn(
-                      "p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200",
-                      day.isWeekend ? 'weekend-shade' : '',
-                      day.isToday ? 'today-highlight' : ''
-                    )}
-                    style={{ width: `${columnWidths.date}px` }}
-                  >
-                    <div className="flex flex-col items-center">
-                      <div className="text-xs font-medium">{day.day}</div>
-                      <div className="text-xs">{day.monthName}</div>
-                      <DateColumnFilter 
-                        dateKey={dateKey}
-                        values={dateStatuses}
-                        activeValues={dateColumnFilters[dateKey] || []}
-                        onValueSelect={(value) => handleDateFilterSelect(dateKey, value)}
-                        onClearAll={() => clearDateFilter(dateKey)}
-                      />
-                    </div>
-                  </th>
+                  <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.e_number || '-'}
+                    </td>
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.name || '-'}
+                    </td>
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.key_name || '-'}
+                    </td>
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.mobile_number || '-'}
+                    </td>
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.team?.team_name || '-'}
+                    </td>
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.job_title?.job_description || '-'}
+                    </td>
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.night_shift_ok ? 'Yes' : 'No'}
+                    </td>
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
+                    </td>
+                    <td 
+                      className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                      style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}
+                      onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
+                    >
+                      {employee.ttl || '-'}
+                    </td>
+                    
+                    {days.map((day) => {
+                      const dateKey = `${day.month+1}-${day.day}-${day.year}`;
+                      const rosterStatus = employee.schedule?.[dateKey] || '';
+                      const supportCode = employee.supportCodes?.[dateKey] || '';
+                      
+                      // Display support code for working roster codes (D, B1, DO), otherwise show roster code
+                      const displayStatus = (['D', 'B1', 'DO'].includes(rosterStatus) && supportCode) ? supportCode : rosterStatus;
+                      const hasStatus = displayStatus !== '';
+                      
+                      return (
+                        <TooltipProvider key={dateKey}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <td 
+                                className={cn(
+                                  "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
+                                  day.isWeekend ? 'weekend-shade' : '',
+                                  hasStatus ? statusColors[rosterStatus] || '' : '',
+                                  day.isToday ? 'today-highlight' : ''
+                                )}
+                                style={{ width: `${columnWidths.date}px`, position: 'relative' }}
+                                onClick={() => onCellClick && onCellClick(employee, dateKey, displayStatus)}
+                              >
+                                {displayStatus}
+                              </td>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
+                              <div className="space-y-1">
+                                <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
+                                <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
+                                <div className="flex items-center gap-2">
+                                  <span>Status:</span> 
+                                  <span className={cn(
+                                    "px-2 py-0.5 rounded-full text-xs",
+                                    rosterStatus === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
+                                    rosterStatus === 'AL' || rosterStatus === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
+                                    rosterStatus === 'TR' || rosterStatus === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
+                                    rosterStatus === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
+                                    rosterStatus === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                                    rosterStatus === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+                                    rosterStatus === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                                  )}>
+                                    {rosterStatus === 'D' && 'On Duty'}
+                                    {rosterStatus === 'AL' && 'Annual Leave'}
+                                    {rosterStatus === 'L' && 'On Leave'}
+                                    {rosterStatus === 'TR' || rosterStatus === 'T' ? 'Training' : ''}
+                                    {rosterStatus === 'O' && 'Off Duty'}
+                                    {rosterStatus === 'B1' && 'Half Day'}
+                                    {rosterStatus === 'SK' && 'Sick Leave'}
+                                    {rosterStatus === 'DO' && 'Overtime'}
+                                    {!rosterStatus && 'Not Assigned'}
+                                  </span>
+                                </div>
+                                {supportCode && ['D', 'B1', 'DO'].includes(rosterStatus) && (
+                                  <p>Assignment: {supportCode}</p>
+                                )}
+                                <p className="text-xs text-gray-500">Click to edit</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })}
+                  </tr>
                 );
               })}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEmployees.map((employee) => {
-              return (
-                <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.e_number || '-'}
+              
+              {filteredEmployees.length === 0 && (
+                <tr>
+                  <td colSpan={10 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
+                    {employees.length > 0 ? 'No matching employees found.' : 'No employees found.'}
                   </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.key_name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.mobile_number || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.team?.team_name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.job_title?.job_description || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.night_shift_ok ? 'Yes' : 'No'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.ttl || '-'}
-                  </td>
-                  
-                  {days.map((day) => {
-                    const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                    const rosterStatus = employee.schedule?.[dateKey] || '';
-                    const supportCode = employee.supportCodes?.[dateKey] || '';
-                    
-                    // Display support code for working roster codes (D, B1, DO), otherwise show roster code
-                    const displayStatus = (['D', 'B1', 'DO'].includes(rosterStatus) && supportCode) ? supportCode : rosterStatus;
-                    const hasStatus = displayStatus !== '';
-                    
-                    return (
-                      <TooltipProvider key={dateKey}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <td 
-                              className={cn(
-                                "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
-                                day.isWeekend ? 'weekend-shade' : '',
-                                hasStatus ? statusColors[rosterStatus] || '' : '',
-                                day.isToday ? 'today-highlight' : ''
-                              )}
-                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
-                              onClick={() => onCellClick && onCellClick(employee, dateKey, displayStatus)}
-                            >
-                              {displayStatus}
-                            </td>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
-                            <div className="space-y-1">
-                              <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
-                              <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
-                              <div className="flex items-center gap-2">
-                                <span>Status:</span> 
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded-full text-xs",
-                                  rosterStatus === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                                  rosterStatus === 'AL' || rosterStatus === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
-                                  rosterStatus === 'TR' || rosterStatus === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
-                                  rosterStatus === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
-                                  rosterStatus === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-                                  rosterStatus === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
-                                  rosterStatus === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                                )}>
-                                  {rosterStatus === 'D' && 'On Duty'}
-                                  {rosterStatus === 'AL' && 'Annual Leave'}
-                                  {rosterStatus === 'L' && 'On Leave'}
-                                  {rosterStatus === 'TR' || rosterStatus === 'T' ? 'Training' : ''}
-                                  {rosterStatus === 'O' && 'Off Duty'}
-                                  {rosterStatus === 'B1' && 'Half Day'}
-                                  {rosterStatus === 'SK' && 'Sick Leave'}
-                                  {rosterStatus === 'DO' && 'Overtime'}
-                                  {!rosterStatus && 'Not Assigned'}
-                                </span>
-                              </div>
-                              {supportCode && ['D', 'B1', 'DO'].includes(rosterStatus) && (
-                                <p>Assignment: {supportCode}</p>
-                              )}
-                              <p className="text-xs text-gray-500">Click to edit</p>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    );
-                  })}
                 </tr>
-              );
-            })}
-            
-            {filteredEmployees.length === 0 && (
-              <tr>
-                <td colSpan={10 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
-                  {employees.length > 0 ? 'No matching employees found.' : 'No employees found.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </ScrollArea>
 
       {!onEmployeeSelect && (
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
