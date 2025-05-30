@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { X } from 'lucide-react';
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
 import WorkforceMetrics from "@/components/workforce/WorkforceMetrics";
-import { WorkforceTabs } from "@/components/workforce/tabs/WorkforceTabs";
+import { WorkforceTabs } from "@/components/workforce/WorkforceTabs";
 import { FloatingActionMenu } from "@/components/workforce/FloatingActionMenu";
 import { ManagementShortcuts } from "@/components/workforce/ManagementShortcuts";
 import { CertificationList } from "@/components/workforce/CertificationList";
@@ -273,4 +273,3 @@ const CertifiedEmployeesList = ({ certificationId }: { certificationId: number }
 };
 
 export default AdminWorkforce;
-

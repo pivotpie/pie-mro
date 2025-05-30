@@ -133,11 +133,11 @@ html, body {
 
 /* Custom employee highlighting */
 .core-support-different {
-  background-color: #FFCDCD !important;
+  background-color: rgba(219, 234, 254, 0.7) !important;
 }
 
 .dark .core-support-different {
-  background-color: #4A3030 !important;
+  background-color: rgba(37, 99, 235, 0.2) !important;
 }
 
 /* Fix popover z-index to appear above sticky elements */
