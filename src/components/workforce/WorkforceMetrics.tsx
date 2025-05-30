@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { User, CalendarDays, Award, PlaneLanding, UsersRound, Timer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -81,6 +80,13 @@ export default function WorkforceMetrics() {
         // Create a copy of metrics to update
         const updatedMetrics = [...metrics];
 
+        // Find the date ID for today FIRST (declare dateData here)
+        const { data: dateData } = await supabase
+          .from('date_references')
+          .select('id')
+          .eq('actual_date', todayString)
+          .single();
+
         // 1. Fetch available employees from "AV" records in employee_supports
         if (dateData?.id) {
           // First, get all working employees for today
@@ -106,14 +112,14 @@ export default function WorkforceMetrics() {
         
             if (!availableError && availableData) {
               // Filter employees who ONLY have AV support (id: 29)
-              const availableEmployees = availableData
+              const availableEmployees: Record<number, number[]> = availableData
                 .reduce((acc, curr) => {
                   if (!acc[curr.employee_id]) {
                     acc[curr.employee_id] = [];
                   }
                   acc[curr.employee_id].push(curr.support_id);
                   return acc;
-                }, {});
+                }, {} as Record<number, number[]>);
         
               // Count employees who only have AV support
               const availableCount = Object.entries(availableEmployees)
@@ -129,17 +135,7 @@ export default function WorkforceMetrics() {
           }
         }
 
-
         // 2. Fetch employees on leave (AL and SK) from roster_assignments
-        const currentDate = format(today, 'yyyy-MM-dd');
-        
-        // Find the date ID for today
-        const { data: dateData } = await supabase
-          .from('date_references')
-          .select('id')
-          .eq('actual_date', currentDate)
-          .single();
-        
         if (dateData?.id) {
           // Get leave counts (AL and SK roster codes)
           const { data: leaveData, error: leaveError } = await supabase
