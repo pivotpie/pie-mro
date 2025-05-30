@@ -46,6 +46,7 @@ interface Employee {
   cores?: string[];
   supports?: string[];
   schedule?: Record<string, string>;
+  supportSchedule?: Record<string, string>; // New field for support codes
 }
 
 const columnWidths = {
@@ -340,7 +341,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           e_number: emp.e_number?.toString(),
           cores: [],
           supports: [],
-          schedule: {}
+          schedule: {},
+          supportSchedule: {}
         }));
 
         console.log("Fetched employees:", typedEmployees);
@@ -485,8 +487,10 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         
         if (rosterData && rosterData.length > 0) {
           const scheduleMap: Record<string, Record<string, string>> = {};
+          const supportScheduleMap: Record<string, Record<string, string>> = {};
           const dateStatusMap: Record<string, Set<string>> = {};
           
+          // First pass: build the basic schedule map
           rosterData.forEach((roster: any) => {
             const employeeId = String(roster.employee_id);
             const date = new Date(roster.date_references.actual_date);
@@ -504,6 +508,80 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             }
             dateStatusMap[dateKey].add(status);
           });
+
+          // Second pass: fetch employee supports for D, B1, DO dates and build support schedule
+          const employeeSupportsMap: Record<string, Record<string, string>> = {};
+          
+          // Get all unique dates from the schedule
+          const allDates = new Set<string>();
+          Object.values(scheduleMap).forEach(empSchedule => {
+            Object.keys(empSchedule).forEach(dateKey => allDates.add(dateKey));
+          });
+
+          // For each date, fetch employee supports
+          for (const dateKey of allDates) {
+            const [month, day, year] = dateKey.split('-').map(Number);
+            const dateString = new Date(year, month - 1, day).toISOString().split('T')[0];
+            
+            const { data: employeeSupportsData, error: supportsError } = await supabase
+              .from('employee_supports')
+              .select(`
+                employee_id,
+                support_codes!inner(support_code)
+              `)
+              .eq('assignment_date', dateString);
+
+            if (supportsError) {
+              console.error("Error fetching employee supports for date:", dateString, supportsError);
+              continue;
+            }
+
+            if (employeeSupportsData) {
+              employeeSupportsData.forEach((support: any) => {
+                const employeeId = String(support.employee_id);
+                if (!employeeSupportsMap[employeeId]) {
+                  employeeSupportsMap[employeeId] = {};
+                }
+                employeeSupportsMap[employeeId][dateKey] = support.support_codes.support_code;
+              });
+            }
+          }
+
+          // Third pass: build the final schedule maps
+          Object.keys(scheduleMap).forEach(employeeId => {
+            Object.keys(scheduleMap[employeeId]).forEach(dateKey => {
+              const rosterCode = scheduleMap[employeeId][dateKey];
+              
+              // For D, B1, DO codes, use support code if available, otherwise keep roster code
+              if (['D', 'B1', 'DO'].includes(rosterCode)) {
+                const supportCode = employeeSupportsMap[employeeId]?.[dateKey];
+                if (supportCode) {
+                  if (!supportScheduleMap[employeeId]) {
+                    supportScheduleMap[employeeId] = {};
+                  }
+                  supportScheduleMap[employeeId][dateKey] = supportCode;
+                  
+                  // Update the date status values to include support codes
+                  if (!dateStatusMap[dateKey]) {
+                    dateStatusMap[dateKey] = new Set<string>();
+                  }
+                  dateStatusMap[dateKey].add(supportCode);
+                } else {
+                  // Fallback to roster code if no support code found
+                  if (!supportScheduleMap[employeeId]) {
+                    supportScheduleMap[employeeId] = {};
+                  }
+                  supportScheduleMap[employeeId][dateKey] = rosterCode;
+                }
+              } else {
+                // For other codes (AL, SK, TR, etc.), keep the roster code
+                if (!supportScheduleMap[employeeId]) {
+                  supportScheduleMap[employeeId] = {};
+                }
+                supportScheduleMap[employeeId][dateKey] = rosterCode;
+              }
+            });
+          });
           
           const processedDateStatusValues: Record<string, string[]> = {};
           Object.entries(dateStatusMap).forEach(([dateKey, statuses]) => {
@@ -512,11 +590,13 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           setDateStatusValues(processedDateStatusValues);
           
           console.log("Processed schedule map:", scheduleMap);
+          console.log("Processed support schedule map:", supportScheduleMap);
           
           const employeesWithSchedule = typedEmployees.map(emp => {
             return {
               ...emp,
-              schedule: scheduleMap[emp.id] || {}
+              schedule: scheduleMap[emp.id] || {},
+              supportSchedule: supportScheduleMap[emp.id] || {}
             };
           });
           
@@ -527,7 +607,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           const employeesWithEmptySchedule = typedEmployees.map(emp => {
             return {
               ...emp,
-              schedule: {}
+              schedule: {},
+              supportSchedule: {}
             };
           });
           
@@ -714,6 +795,9 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
     "DO": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
     "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+    // Add support code colors
+    "AV": "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
+    // Add more support code colors as needed
   };
 
   const statusLegend = [
@@ -1035,8 +1119,10 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                    const status = employee.schedule?.[dateKey] || '';
-                    const hasStatus = status !== '';
+                    // Use supportSchedule instead of schedule for display
+                    const displayStatus = employee.supportSchedule?.[dateKey] || '';
+                    const originalStatus = employee.schedule?.[dateKey] || '';
+                    const hasStatus = displayStatus !== '';
                     
                     return (
                       <TooltipProvider key={dateKey}>
@@ -1046,13 +1132,13 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                               className={cn(
                                 "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
                                 day.isWeekend ? 'weekend-shade' : '',
-                                hasStatus ? statusColors[status] || '' : '',
+                                hasStatus ? statusColors[displayStatus] || statusColors[originalStatus] || '' : '',
                                 day.isToday ? 'today-highlight' : ''
                               )}
                               style={{ width: `${columnWidths.date}px`, position: 'relative' }}
-                              onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
+                              onClick={() => onCellClick && onCellClick(employee, dateKey, originalStatus)}
                             >
-                              {status}
+                              {displayStatus}
                             </td>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
@@ -1063,26 +1149,34 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                                 <span>Status:</span> 
                                 <span className={cn(
                                   "px-2 py-0.5 rounded-full text-xs",
-                                  status === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                                  status === 'AL' || status === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
-                                  status === 'TR' || status === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
-                                  status === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
-                                  status === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-                                  status === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
-                                  status === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
+                                  originalStatus === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
+                                  originalStatus === 'AL' || originalStatus === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
+                                  originalStatus === 'TR' || originalStatus === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
+                                  originalStatus === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
+                                  originalStatus === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                                  originalStatus === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+                                  originalStatus === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
                                   'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                                 )}>
-                                  {status === 'D' && 'On Duty'}
-                                  {status === 'AL' && 'Annual Leave'}
-                                  {status === 'L' && 'On Leave'}
-                                  {status === 'TR' || status === 'T' ? 'Training' : ''}
-                                  {status === 'O' && 'Off Duty'}
-                                  {status === 'B1' && 'Half Day'}
-                                  {status === 'SK' && 'Sick Leave'}
-                                  {status === 'DO' && 'Overtime'}
-                                  {!status && 'Not Assigned'}
+                                  {originalStatus === 'D' && 'On Duty'}
+                                  {originalStatus === 'AL' && 'Annual Leave'}
+                                  {originalStatus === 'L' && 'On Leave'}
+                                  {originalStatus === 'TR' || originalStatus === 'T' ? 'Training' : ''}
+                                  {originalStatus === 'O' && 'Off Duty'}
+                                  {originalStatus === 'B1' && 'Half Day'}
+                                  {originalStatus === 'SK' && 'Sick Leave'}
+                                  {originalStatus === 'DO' && 'Overtime'}
+                                  {!originalStatus && 'Not Assigned'}
                                 </span>
                               </div>
+                              {displayStatus !== originalStatus && ['D', 'B1', 'DO'].includes(originalStatus) && (
+                                <div className="flex items-center gap-2">
+                                  <span>Assignment:</span>
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">
+                                    {displayStatus}
+                                  </span>
+                                </div>
+                              )}
                               <p className="text-xs text-gray-500">Click to edit</p>
                             </div>
                           </TooltipContent>
