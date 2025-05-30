@@ -11,10 +11,9 @@ import { toast } from "sonner";
 import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
 import { cn } from "@/lib/utils";
 
-// Define interfaces for better type safety - updated to match DB types
 interface EmployeeRoster {
-  id: number; // Changed from string to number to match bigint from database
-  employee_id: number; // Changed from string to number to match bigint
+  id: number;
+  employee_id: number;
   date: string;
   status_code: string;
   notes: string | null;
@@ -49,7 +48,6 @@ interface Employee {
   schedule?: Record<string, string>;
 }
 
-// Define column widths for calculating total width
 const columnWidths = {
   id: 80,
   name: 200,
@@ -62,34 +60,29 @@ const columnWidths = {
   night_shift: 70,
   fte: 80,
   ttl: 80,
-  date: 45 // Width of each date column
+  date: 45
 };
 
-// Hard-coded left positions for sticky columns
 const columnLeftPositions = {
-  id: 0,        // First column starts at 0
-  name: 80,     // 0 + 80 (id width)
-  alias: 265,   // 80 + 200 (name width)
-  mobile: 350,  // 280 + 70 (alias width)  
-  team: 470,    // 350 + 130 (mobile width)
-  core: 567,    // 480 + 100 (team width)
-  support: 660, // 580 + 100 (core width)
-  title: 760,   // 680 + 100 (support width)
-  night_shift: 855, // 780 + 100 (title width)
-  fte: 930,     // 880 + 70 (night_shift width)
-  ttl: 1005     // 950 + 80 (fte width)
+  id: 0,
+  name: 80,
+  alias: 265,
+  mobile: 350,
+  team: 470,
+  core: 567,
+  support: 660,
+  title: 760,
+  night_shift: 855,
+  fte: 930,
+  ttl: 1005
 };
 
-// Helper function to calculate the total width of the table
 const calculateTotalWidth = (days: any[]) => {
-  // Calculate the width of all fixed columns
   const fixedColumnsWidth = Object.values(columnWidths).reduce((sum, width) => sum + width, 0) - columnWidths.date;
-  // Add width for each day column
   const daysWidth = days.length * columnWidths.date;
   return fixedColumnsWidth + daysWidth;
 };
 
-// Helper function to calculate left position for sticky columns
 const getLeftPositionStyle = (index: number) => {
   let position = 0;
   for (let i = 0; i < index; i++) {
@@ -98,7 +91,6 @@ const getLeftPositionStyle = (index: number) => {
   return `${position}px`;
 };
 
-// Generate days for a two-month period based on current date parameter
 const generateTwoMonthDays = (currentDate: Date) => {
   const currentMonth = startOfMonth(currentDate);
   const nextMonth = addMonths(currentMonth, 1);
@@ -120,7 +112,6 @@ const generateTwoMonthDays = (currentDate: Date) => {
   }));
 };
 
-// Column Filter Component
 const ColumnFilter = ({ 
   column, 
   label, 
@@ -139,7 +130,6 @@ const ColumnFilter = ({
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter values by search term
   const filteredValues = searchTerm ? 
     values.filter(value => value.toLowerCase().includes(searchTerm.toLowerCase())) : 
     values;
@@ -214,7 +204,6 @@ const ColumnFilter = ({
   );
 };
 
-// Date Column Filter Component for filtering calendar days
 const DateColumnFilter = ({ 
   dateKey, 
   values, 
@@ -296,7 +285,7 @@ interface EmployeeCalendarProps {
   currentDate?: Date;
   onEmployeeSelect?: (employee: any) => void;
   onCellClick?: (employee: any, date: string, status: string) => void;
-  refreshKey?: number; // Add refreshKey prop
+  refreshKey?: number;
 }
 
 export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
@@ -310,7 +299,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
   const days = useMemo(() => generateTwoMonthDays(currentDate), [currentDate]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  // Filter states
   const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
   const [supportFilterValues, setSupportFilterValues] = useState<string[]>([]);
   const [activeCoreFilters, setActiveCoreFilters] = useState<string[]>([]);
@@ -319,16 +307,13 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
   const [dateColumnFilters, setDateColumnFilters] = useState<Record<string, string[]>>({});
   const [dateStatusValues, setDateStatusValues] = useState<Record<string, string[]>>({});
 
-  // Calculate total width for the table
   const totalWidth = calculateTotalWidth(days);
 
-  // Updated useEffect to also respond to refreshKey changes
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         setIsLoading(true);
         
-        // Fetch all employees with their related data
         const { data: employeesData, error: employeesError } = await supabase
           .from('employees')
           .select(`
@@ -343,17 +328,16 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             job_title:job_title_id(job_code, job_description),
             employee_status
           `)
-          .order('e_number'); // Sort by e_number in ascending order
+          .order('e_number');
         
         if (employeesError) {
           throw employeesError;
         }
 
-        // Convert the employee data to match our Employee interface
         const typedEmployees: Employee[] = employeesData.map(emp => ({
           ...emp,
-          id: String(emp.id), // Convert id to string
-          e_number: emp.e_number?.toString(), // Convert e_number to string
+          id: String(emp.id),
+          e_number: emp.e_number?.toString(),
           cores: [],
           supports: [],
           schedule: {}
@@ -362,10 +346,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Fetched employees:", typedEmployees);
         console.log("Total employee count:", typedEmployees.length);
 
-        // Get current date in YYYY-MM-DD format for filtering
-        const currentDate = new Date().toISOString().split('T')[0]; // Gets today's date as "2025-05-30"
+        const currentDateString = new Date().toISOString().split('T')[0];
         
-        // Fetch employee cores for current date
         const { data: coresData, error: coresError } = await supabase
           .from('employee_cores')
           .select(`
@@ -374,12 +356,11 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             assignment_date,
             core:core_id(core_code)
           `)
-          .eq('assignment_date', currentDate); // Add date filtering
+          .eq('assignment_date', currentDateString);
         
         if (coresError) {
           console.error("Error fetching employee cores:", coresError);
         } else if (coresData) {
-          // Assign cores to employees (same logic as before)
           const employeesCoreMap: Record<string, string[]> = {};
           const allCores = new Set<string>();
           
@@ -397,21 +378,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             }
           });
           
-          // Update core filter values
           setCoreFilterValues(Array.from(allCores).sort());
           
-          // Add cores to employees
-          typedEmployees.forEach(emp => {
-            if (employeesCoreMap[emp.id]) {
-              emp.cores = employeesCoreMap[emp.id];
-            }
-          });
-        }
-          
-          // Update core filter values
-          setCoreFilterValues(Array.from(allCores).sort());
-          
-          // Add cores to employees
           typedEmployees.forEach(emp => {
             if (employeesCoreMap[emp.id]) {
               emp.cores = employeesCoreMap[emp.id];
@@ -419,7 +387,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           });
         }
         
-        // Fetch employee supports for current date
         const { data: supportsData, error: supportsError } = await supabase
           .from('employee_supports')
           .select(`
@@ -428,12 +395,11 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             assignment_date,
             support:support_id(support_code)
           `)
-          .eq('assignment_date', currentDate); // Add date filtering
+          .eq('assignment_date', currentDateString);
         
         if (supportsError) {
           console.error("Error fetching employee supports:", supportsError);
         } else if (supportsData) {
-          // Assign supports to employees (same logic as before)
           const employeesSupportsMap: Record<string, string[]> = {};
           const allSupports = new Set<string>();
           
@@ -451,10 +417,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             }
           });
           
-          // Update support filter values
           setSupportFilterValues(Array.from(allSupports).sort());
           
-          // Add supports to employees
           typedEmployees.forEach(emp => {
             if (employeesSupportsMap[emp.id]) {
               emp.supports = employeesSupportsMap[emp.id];
@@ -462,7 +426,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           });
         }
 
-        // Fetch attendance data for today to get TTL (time to location)
         const today = new Date();
         const todayString = format(today, 'yyyy-MM-dd');
         
@@ -477,7 +440,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         if (attendanceError) {
           console.error("Error fetching attendance data:", attendanceError);
         } else if (attendanceData) {
-          // Create a map of employee ID to check-in time
           const checkInMap: Record<string, string> = {};
           
           attendanceData.forEach((attendance: any) => {
@@ -488,7 +450,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             }
           });
           
-          // Add TTL to employees
           typedEmployees.forEach(emp => {
             if (checkInMap[emp.id]) {
               emp.ttl = checkInMap[emp.id];
@@ -496,7 +457,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           });
         }
 
-        // Get employee roster data using direct query
         console.log("Fetching roster data...");
         console.log("Using refreshKey:", refreshKey);
         
@@ -523,14 +483,11 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Raw roster data:", rosterData);
         console.log("Total roster records fetched:", rosterData ? rosterData.length : 0);
         
-        // Process employees with the roster data if available
         if (rosterData && rosterData.length > 0) {
           const scheduleMap: Record<string, Record<string, string>> = {};
           const dateStatusMap: Record<string, Set<string>> = {};
           
-          // Process roster data to create a map of employee schedules
           rosterData.forEach((roster: any) => {
-            // Convert numbers to strings for keys
             const employeeId = String(roster.employee_id);
             const date = new Date(roster.date_references.actual_date);
             const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
@@ -542,14 +499,12 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             
             scheduleMap[employeeId][dateKey] = status;
             
-            // Track unique statuses for each date
             if (!dateStatusMap[dateKey]) {
               dateStatusMap[dateKey] = new Set<string>();
             }
             dateStatusMap[dateKey].add(status);
           });
           
-          // Convert status sets to arrays
           const processedDateStatusValues: Record<string, string[]> = {};
           Object.entries(dateStatusMap).forEach(([dateKey, statuses]) => {
             processedDateStatusValues[dateKey] = Array.from(statuses).sort();
@@ -558,7 +513,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           
           console.log("Processed schedule map:", scheduleMap);
           
-          // Update employees with their schedules
           const employeesWithSchedule = typedEmployees.map(emp => {
             return {
               ...emp,
@@ -570,7 +524,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           setFilteredEmployees(employeesWithSchedule);
         } else {
           console.log("No roster data returned or empty array");
-          // If no roster data, create empty schedules
           const employeesWithEmptySchedule = typedEmployees.map(emp => {
             return {
               ...emp,
@@ -590,13 +543,11 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     };
 
     fetchEmployees();
-  }, [currentDate, refreshKey]); // Add refreshKey as a dependency
+  }, [currentDate, refreshKey]);
 
-  // Apply filters to employees
   useEffect(() => {
     let result = [...employees];
     
-    // Apply core filters
     if (activeCoreFilters.length > 0) {
       result = result.filter(emp => {
         if (!emp.cores || emp.cores.length === 0) return false;
@@ -604,7 +555,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
       });
     }
     
-    // Apply support filters
     if (activeSupportFilters.length > 0) {
       result = result.filter(emp => {
         if (!emp.supports || emp.supports.length === 0) return false;
@@ -612,7 +562,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
       });
     }
     
-    // Apply column filters
     Object.entries(columnFilters).forEach(([column, values]) => {
       if (values.length > 0) {
         result = result.filter(emp => {
@@ -632,7 +581,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
       }
     });
     
-    // Apply date column filters
     Object.entries(dateColumnFilters).forEach(([dateKey, values]) => {
       if (values.length > 0) {
         result = result.filter(emp => {
@@ -645,14 +593,12 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     setFilteredEmployees(result);
   }, [employees, activeCoreFilters, activeSupportFilters, columnFilters, dateColumnFilters]);
 
-  // Handle scroll events
   const handleScroll = () => {
     if (scrollAreaRef.current) {
       onScroll(scrollAreaRef.current.scrollLeft || 0);
     }
   };
 
-  // Handle core filter selection
   const handleCoreFilterSelect = (value: string) => {
     setActiveCoreFilters(prev => {
       if (prev.includes(value)) {
@@ -663,7 +609,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     });
   };
 
-  // Handle support filter selection
   const handleSupportFilterSelect = (value: string) => {
     setActiveSupportFilters(prev => {
       if (prev.includes(value)) {
@@ -674,17 +619,14 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     });
   };
 
-  // Clear core filters
   const clearCoreFilters = () => {
     setActiveCoreFilters([]);
   };
 
-  // Clear support filters
   const clearSupportFilters = () => {
     setActiveSupportFilters([]);
   };
 
-  // Handle column filter changes
   const handleColumnFilterSelect = (column: string, value: string) => {
     setColumnFilters(prev => {
       const currentValues = prev[column] || [];
@@ -702,7 +644,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     });
   };
   
-  // Clear column filter
   const clearColumnFilter = (column: string) => {
     setColumnFilters(prev => ({
       ...prev,
@@ -710,7 +651,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     }));
   };
 
-  // Handle date filter selection
   const handleDateFilterSelect = (dateKey: string, value: string) => {
     setDateColumnFilters(prev => {
       const currentValues = prev[dateKey] || [];
@@ -728,7 +668,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     });
   };
   
-  // Clear date filter
   const clearDateFilter = (dateKey: string) => {
     setDateColumnFilters(prev => ({
       ...prev,
@@ -736,18 +675,15 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     }));
   };
 
-  // Cell click handler
   const handleCellClick = (employee: Employee, date: string) => {
     setSelectedEmployee(employee);
     setSelectedDate(date);
     setIsDetailOpen(true);
   };
 
-  // Handle profile click - updated to also call the onEmployeeSelect callback
   const handleProfileClick = (employee: Employee) => {
     setSelectedEmployee(employee);
     setSelectedDate(null);
-    // Call the external handler if it exists
     if (onEmployeeSelect) {
       onEmployeeSelect(employee);
     } else {
@@ -755,7 +691,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     }
   };
 
-  // Get unique values for a column
   const getUniqueValuesForColumn = (columnName: string): string[] => {
     const values = employees.map(emp => {
       if (columnName === 'team') return emp.team?.team_name || '';
@@ -769,12 +704,11 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     return [...new Set(values)].sort();
   };
 
-  // Status color mapping
   const statusColors: Record<string, string> = {
     "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
     "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "status-day-off", // Using custom class for darker shade
+    "O": "status-day-off",
     "B1": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
     "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
@@ -782,7 +716,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
   };
 
-  // Legend for status codes
   const statusLegend = [
     { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
     { status: "Half Day", code: "B1", color: "bg-blue-100 border border-blue-300 dark:bg-blue-900 dark:border-blue-700" },
@@ -793,15 +726,12 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
   ];
 
-  // Add a function to check if core and support are different
   const hasDifferentCoreSupport = (employee: Employee) => {
     if (!employee.cores || !employee.supports) return false;
     if (employee.cores.length === 0 || employee.supports.length === 0) return false;
     
-    // Check if there's any overlap between cores and supports
     const hasOverlap = employee.cores.some(core => employee.supports?.includes(core));
     
-    // If there's no overlap and both have values, they're different
     return !hasOverlap && employee.cores.length > 0 && employee.supports.length > 0;
   };
 
@@ -818,7 +748,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
 
   return (
     <div>
-      {/* Status Legend */}
       <div className="flex items-center gap-4 mb-2 px-2 flex-wrap">
         {statusLegend.map((item) => (
           <div key={item.status} className="flex items-center">
@@ -828,12 +757,10 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         ))}
       </div>
       
-      {/* Simple table with direct scrolling */}
       <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
         <table className="w-full border-collapse">
           <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
             <tr>
-              {/* Fixed columns */}
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
                 <div className="flex items-center justify-between">
@@ -989,7 +916,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 </div>
               </th>
               
-              {/* Calendar days */}
               {days.map((day) => {
                 const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                 const dateStatuses = dateStatusValues[dateKey] || [];
@@ -1026,7 +952,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
               
               return (
                 <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                  {/* Fixed columns */}
                   <td 
                     className={cn(
                       "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
@@ -1108,7 +1033,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     {employee.ttl || '-'}
                   </td>
                   
-                  {/* Calendar days with tooltips - Updated for no layout shift */}
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
                     const status = employee.schedule?.[dateKey] || '';
@@ -1181,7 +1105,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         </table>
       </div>
 
-      {/* Employee Detail Sheet - only show this if onEmployeeSelect is not provided */}
       {!onEmployeeSelect && (
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
           <SheetContent className="w-full sm:max-w-lg">
