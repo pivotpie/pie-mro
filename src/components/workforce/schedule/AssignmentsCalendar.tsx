@@ -644,10 +644,10 @@ export const AssignmentsCalendar = React.forwardRef<HTMLDivElement, AssignmentsC
       
       <ScrollArea 
         ref={scrollAreaRef}
-        className="h-[calc(100vh-200px)] w-full border rounded-lg dark:border-gray-700"
+        className="h-[calc(100vh-200px)] w-full border rounded-lg dark:border-gray-700 smooth-scroll"
         onScrollCapture={handleScroll}
       >
-        <div className="relative" style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
+        <div className="relative smooth-horizontal-scroll" style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
           <table className="w-full border-collapse">
             <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
               <tr>
@@ -1085,6 +1085,20 @@ export const AssignmentsCalendar = React.forwardRef<HTMLDivElement, AssignmentsC
             pointer-events: none !important;
             z-index: 1000 !important;
             transform-origin: var(--radix-tooltip-content-transform-origin) !important;
+          }
+          .smooth-scroll {
+            scroll-behavior: smooth;
+          }
+          .smooth-horizontal-scroll {
+            scroll-behavior: smooth;
+          }
+          [data-radix-scroll-area-viewport] {
+            scroll-behavior: smooth !important;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+          }
+          .scroll-smooth {
+            scroll-behavior: smooth;
           }
         `}
       </style>
