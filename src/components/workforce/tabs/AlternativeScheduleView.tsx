@@ -149,7 +149,7 @@ export const AlternativeScheduleView = () => {
   };
 
   return (
-    <div className="h-[75vh] flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="bg-gray-100 dark:bg-gray-700 p-4 flex items-center justify-between">
         <div className="text-lg font-medium">Assignments Calendar</div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
