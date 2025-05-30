@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
-import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
+import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday, isValid, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";
 
 // Status legend for the calendar
@@ -42,6 +42,48 @@ const hasDifferentCoreSupport = (employee: Employee): boolean => {
   // has different core/support assignments compared to some baseline
   // For now, returning false as we don't have the specific business logic
   return false;
+};
+
+// Safe date parsing function
+const safeParseDate = (dateString: string): Date | null => {
+  if (!dateString || typeof dateString !== 'string') {
+    return null;
+  }
+  
+  try {
+    const parsed = parseISO(dateString);
+    return isValid(parsed) ? parsed : null;
+  } catch (error) {
+    console.error('Error parsing date:', dateString, error);
+    return null;
+  }
+};
+
+// Safe date formatting function
+const safeDateFormat = (date: Date | string | null | undefined, formatString: string = 'yyyy-MM-dd'): string => {
+  if (!date) return '-';
+  
+  try {
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      dateObj = safeParseDate(date);
+      if (!dateObj) return '-';
+    } else if (date instanceof Date) {
+      dateObj = date;
+    } else {
+      return '-';
+    }
+    
+    if (!isValid(dateObj)) {
+      return '-';
+    }
+    
+    return format(dateObj, formatString);
+  } catch (error) {
+    console.error('Error formatting date:', date, error);
+    return '-';
+  }
 };
 
 interface EmployeeRoster {
@@ -480,8 +522,10 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           attendanceData.forEach((attendance: any) => {
             const employeeId = String(attendance.employee_id);
             if (employeeId && attendance.check_in_time) {
-              const checkInTime = new Date(attendance.check_in_time);
-              checkInMap[employeeId] = format(checkInTime, 'hh:mm a');
+              const checkInDate = safeParseDate(attendance.check_in_time);
+              if (checkInDate) {
+                checkInMap[employeeId] = safeDateFormat(checkInDate, 'hh:mm a');
+              }
             }
           });
           
@@ -524,8 +568,15 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           
           rosterData.forEach((roster: any) => {
             const employeeId = String(roster.employee_id);
-            const date = new Date(roster.date_references.actual_date);
-            const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
+            
+            // Safe date parsing for roster date
+            const rosterDate = safeParseDate(roster.date_references.actual_date);
+            if (!rosterDate) {
+              console.warn('Invalid date in roster data:', roster.date_references.actual_date);
+              return;
+            }
+            
+            const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
             const status = roster.roster_codes.roster_code;
             
             if (!scheduleMap[employeeId]) {
@@ -1140,7 +1191,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
-                    {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
+                    {safeDateFormat(employee.fte_date)}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
@@ -1175,7 +1226,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                           <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
                             <div className="space-y-1">
                               <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
-                              <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
+                              <p>Date: {safeDateFormat(day.date, 'MMM dd, yyyy')}</p>
                               <div className="flex items-center gap-2">
                                 <span>Status:</span> 
                                 <span className={cn(
@@ -1265,7 +1316,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                       </div>
                       <div>
                         <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.fte_date ? format(new Date(selectedEmployee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
+                        <dd className="font-medium dark:text-gray-200">{safeDateFormat(selectedEmployee.fte_date)}</dd>
                       </div>
                       <div>
                         <dt className="text-sm text-gray-500 dark:text-gray-400">Mobile</dt>
