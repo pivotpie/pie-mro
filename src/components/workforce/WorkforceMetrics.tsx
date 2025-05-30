@@ -82,22 +82,53 @@ export default function WorkforceMetrics() {
         const updatedMetrics = [...metrics];
 
         // 1. Fetch available employees from "AV" records in employee_supports
-        const { data: availableData, error: availableError } = await supabase
-          .from('employee_supports')
-          .select('id, support_codes!inner(support_code)')
-          .eq('support_codes.support_code', 'AV')
-          .eq('assignment_date', todayString); // Add date filtering
-
+        if (dateData?.id) {
+          // First, get all working employees for today
+          const { data: workingEmployees } = await supabase
+            .from('employees')
+            .select(`
+              id,
+              roster_assignments!inner(roster_id)
+            `)
+            .eq('is_active', true)
+            .eq('roster_assignments.date_id', dateData.id)
+            .in('roster_assignments.roster_id', [3, 8, 4]); // D, B1, DO
         
-        if (!availableError && availableData) {
-          // Find the "Available Employees" metric and update it
-          const availableIndex = updatedMetrics.findIndex(m => m.title === "Available Employees");
-          if (availableIndex !== -1) {
-            updatedMetrics[availableIndex].value = availableData.length;
+          if (workingEmployees) {
+            const workingEmployeeIds = workingEmployees.map(emp => emp.id);
+        
+            // Then, get employees who ONLY have AV support (available)
+            const { data: availableData, error: availableError } = await supabase
+              .from('employee_supports')
+              .select('employee_id, support_id')
+              .eq('assignment_date', todayString)
+              .in('employee_id', workingEmployeeIds);
+        
+            if (!availableError && availableData) {
+              // Filter employees who ONLY have AV support (id: 29)
+              const availableEmployees = availableData
+                .reduce((acc, curr) => {
+                  if (!acc[curr.employee_id]) {
+                    acc[curr.employee_id] = [];
+                  }
+                  acc[curr.employee_id].push(curr.support_id);
+                  return acc;
+                }, {});
+        
+              // Count employees who only have AV support
+              const availableCount = Object.entries(availableEmployees)
+                .filter(([employeeId, supportIds]) => 
+                  supportIds.length === 1 && supportIds.includes(29)
+                ).length;
+        
+              const availableIndex = updatedMetrics.findIndex(m => m.title === "Available Employees");
+              if (availableIndex !== -1) {
+                updatedMetrics[availableIndex].value = availableCount;
+              }
+            }
           }
-        } else if (availableError) {
-          console.error("Error fetching available employees:", availableError);
         }
+
 
         // 2. Fetch employees on leave (AL and SK) from roster_assignments
         const currentDate = format(today, 'yyyy-MM-dd');
