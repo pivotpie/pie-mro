@@ -1,9 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { AssignmentsCalendar } from '../schedule/AssignmentsCalendar';
+import { EmployeeCalendar } from '../schedule/AssignmentsCalendar';
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
-import { EmployeeCalendar } from "../schedule/EmployeeCalendar";
 import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
@@ -194,7 +193,7 @@ export const AlternativeScheduleView = () => {
 
         {/* Simple container with direct overflow control and scroll position synchronization */}
         <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
-          <AssignmentsCalendar 
+          <EmployeeCalendar 
             ref={calendarRef}
             onScroll={handleCalendarScroll} 
             currentDate={currentDate}
