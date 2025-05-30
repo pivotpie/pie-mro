@@ -182,14 +182,43 @@ export const EmployeeAuthorizationList = () => {
     
     setAuthorizations([newAuth, ...authorizations]);
     setEditingId(0);
-    setEditingData(newAuth);
+    setEditingData({
+      employee_id: 0,
+      aircraft_model_id: 0,
+      authorization_type_id: 0,
+      authorization_basis: '',
+      authorization_category: '',
+      certificate_number: '',
+      issued_on: new Date().toISOString().split('T')[0],
+      expiry_date: '',
+      is_active: true
+    });
   };
 
   const handleCreate = async () => {
     try {
+      // Validate required fields
+      if (!editingData.employee_id || !editingData.aircraft_model_id || !editingData.authorization_type_id || !editingData.authorization_basis) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      // Create the insert data with all required fields
+      const insertData = {
+        employee_id: editingData.employee_id,
+        aircraft_model_id: editingData.aircraft_model_id,
+        authorization_type_id: editingData.authorization_type_id,
+        authorization_basis: editingData.authorization_basis,
+        authorization_category: editingData.authorization_category || '',
+        certificate_number: editingData.certificate_number || '',
+        issued_on: editingData.issued_on || new Date().toISOString().split('T')[0],
+        expiry_date: editingData.expiry_date || '',
+        is_active: editingData.is_active ?? true
+      };
+
       const { error } = await supabase
         .from('employee_authorizations')
-        .insert([editingData]);
+        .insert([insertData]);
 
       if (error) throw error;
 
