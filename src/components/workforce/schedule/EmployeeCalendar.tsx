@@ -347,7 +347,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Fetched employees:", typedEmployees);
         console.log("Total employee count:", typedEmployees.length);
 
-        const currentDateString = new Date().toISOString().split('T')[0];
+        // Get today's date for current core/support assignments
+        const todayString = format(new Date(), 'yyyy-MM-dd');
         
         const { data: coresData, error: coresError } = await supabase
           .from('employee_cores')
@@ -357,7 +358,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             assignment_date,
             core:core_id(core_code)
           `)
-          .eq('assignment_date', currentDateString);
+          .eq('assignment_date', todayString);
         
         if (coresError) {
           console.error("Error fetching employee cores:", coresError);
@@ -396,7 +397,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             assignment_date,
             support:support_id(support_code)
           `)
-          .eq('assignment_date', currentDateString);
+          .eq('assignment_date', todayString);
         
         if (supportsError) {
           console.error("Error fetching employee supports:", supportsError);
@@ -428,7 +429,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         }
 
         const today = new Date();
-        const todayString = format(today, 'yyyy-MM-dd');
+        const todayStringAttendance = format(today, 'yyyy-MM-dd');
         
         const { data: attendanceData, error: attendanceError } = await supabase
           .from('attendance')
@@ -436,7 +437,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             employee_id,
             check_in_time
           `)
-          .eq('date', todayString);
+          .eq('date', todayStringAttendance);
           
         if (attendanceError) {
           console.error("Error fetching attendance data:", attendanceError);
@@ -705,39 +706,21 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     return [...new Set(values)].sort();
   };
 
-  const statusColors: Record<string, string> = {
-    "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "status-day-off",
-    "B1": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-    "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
-    "DO": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-    "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-  };
-
-  const statusLegend = [
-    { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
-    { status: "Half Day", code: "B1", color: "bg-blue-100 border border-blue-300 dark:bg-blue-900 dark:border-blue-700" },
-    { status: "Annual Leave", code: "AL", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
-    { status: "Sick Leave", code: "SK", color: "bg-orange-100 border border-orange-300 dark:bg-orange-900 dark:border-orange-700" },
-    { status: "Training", code: "TR", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
-    { status: "Day Off", code: "O", color: "bg-gray-600 border border-gray-700 text-white dark:bg-gray-700 dark:border-gray-800 dark:text-gray-200" },
-    { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
-  ];
-
-  const hasDifferentCoreSupport = (employee: Employee) => {
-    if (!employee.cores || !employee.supports) return false;
-    if (employee.cores.length === 0 || employee.supports.length === 0) return false;
-    
-    const hasOverlap = employee.cores.some(core => employee.supports?.includes(core));
-    
-    return !hasOverlap && employee.cores.length > 0 && employee.supports.length > 0;
-  };
-
   const findAircraftByCore = async (coreCode: string) => {
     try {
+      // Validate input
+      if (!coreCode || typeof coreCode !== 'string' || coreCode.trim() === '') {
+        throw new Error('Invalid core code provided');
+      }
+
+      const trimmedCoreCode = coreCode.trim();
+
+      // Handle "AV" (Available) core code - no aircraft assigned
+      if (trimmedCoreCode === 'AV') {
+        toast.info('No aircraft assigned (Available status)');
+        return null;
+      }
+
       // First try to find aircraft by registration matching core code
       const { data: aircraftData, error: aircraftError } = await supabase
         .from('aircraft')
@@ -758,10 +741,14 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             hangars:hangar_id(hangar_name, hangar_code)
           )
         `)
-        .eq('registration', coreCode)
-        .single();
+        .eq('registration', trimmedCoreCode)
+        .maybeSingle();
 
-      if (!aircraftError && aircraftData) {
+      if (aircraftError) {
+        throw new Error(`Aircraft lookup error: ${aircraftError.message}`);
+      }
+
+      if (aircraftData) {
         return aircraftData;
       }
 
@@ -769,64 +756,60 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
       const { data: coreData, error: coreError } = await supabase
         .from('core_codes')
         .select('id')
-        .eq('core_code', coreCode)
-        .single();
+        .eq('core_code', trimmedCoreCode)
+        .maybeSingle();
 
-      if (!coreError && coreData) {
-        // Find aircraft that might be associated with this core
-        const { data: defaultAircraft, error: defaultError } = await supabase
-          .from('aircraft')
-          .select(`
-            id,
-            registration,
-            aircraft_name,
-            aircraft_code,
-            serial_number,
-            aircraft_types:aircraft_type_id(type_name, type_code),
-            maintenance_visits:maintenance_visits(
-              id,
-              visit_number,
-              check_type,
-              status,
-              date_in,
-              date_out,
-              hangars:hangar_id(hangar_name, hangar_code)
-            )
-          `)
-          .limit(1)
-          .single();
-
-        if (!defaultError && defaultAircraft) {
-          return {
-            ...defaultAircraft,
-            registration: coreCode, // Override with the core code
-            aircraft_name: `Core Assignment: ${coreCode}`
-          };
-        }
+      if (coreError) {
+        throw new Error(`Core code lookup error: ${coreError.message}`);
       }
 
-      return null;
-    } catch (error) {
+      if (coreData) {
+        // Create a placeholder aircraft object for valid but unmatched core codes
+        return {
+          id: `core-${trimmedCoreCode}`,
+          registration: trimmedCoreCode,
+          aircraft_name: `Core Assignment: ${trimmedCoreCode}`,
+          aircraft_code: trimmedCoreCode,
+          serial_number: null,
+          aircraft_types: null,
+          maintenance_visits: []
+        };
+      }
+
+      // No aircraft or core code found
+      throw new Error(`No aircraft or core found for: ${trimmedCoreCode}`);
+    } catch (error: any) {
       console.error('Error finding aircraft by core:', error);
-      return null;
+      throw error;
     }
   };
 
   const handleCoreClick = async (coreCode: string) => {
-    if (!onCoreClick || !coreCode || coreCode === '-') {
+    if (!onCoreClick) {
       return;
     }
 
     try {
-      const aircraft = await findAircraftByCore(coreCode);
+      // Validate input
+      if (!coreCode || typeof coreCode !== 'string') {
+        toast.error('Invalid core code');
+        return;
+      }
+
+      const trimmedCoreCode = coreCode.trim();
+      
+      if (trimmedCoreCode === '' || trimmedCoreCode === '-') {
+        toast.info('No core assigned to this employee');
+        return;
+      }
+
+      const aircraft = await findAircraftByCore(trimmedCoreCode);
       if (aircraft) {
         onCoreClick(aircraft);
-      } else {
-        toast.error(`No aircraft found for core: ${coreCode}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error handling core click:', error);
-      toast.error('Failed to load aircraft details');
+      toast.error(error.message || 'Failed to load aircraft details');
     }
   };
 
@@ -1088,10 +1071,15 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
-                    onClick={() => handleCoreClick(employee.cores?.join(', ') || '')}
+                    onClick={() => {
+                      const primaryCore = employee.cores?.[0];
+                      if (primaryCore) {
+                        handleCoreClick(primaryCore);
+                      }
+                    }}
                     title="Click to view aircraft details"
                   >
-                    {employee.cores?.join(', ') || '-'}
+                    {employee.cores?.[0] || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
