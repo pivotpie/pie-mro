@@ -8,6 +8,7 @@ import {
   ClipboardCheck, FileText, ArrowUpRight, UserPlus, Calendar, AlertCircle, 
   Briefcase, FileSpreadsheet, Download, Upload
 } from "lucide-react";
+import { EmployeeAuthorizationList } from "./certification/EmployeeAuthorizationList";
 
 interface ShortcutItem {
   id: string;
@@ -36,6 +37,91 @@ export const ManagementShortcuts = () => {
     setDialogOpen(true);
   };
 
+  const renderShortcutContent = () => {
+    if (!activeShortcut) return null;
+
+    // Render the EmployeeAuthorizationList for Certification Portal
+    if (activeShortcut.id === "certification-portal") {
+      return <EmployeeAuthorizationList />;
+    }
+
+    // Default content for other shortcuts
+    return (
+      <div className="mt-6 h-full flex flex-col">
+        <div className="mb-4 flex justify-between items-center">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Showing records from database</div>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" className="flex items-center">
+              <Upload className="h-4 w-4 mr-1" />
+              Import
+            </Button>
+            <Button variant="outline" size="sm" className="flex items-center">
+              <Download className="h-4 w-4 mr-1" />
+              Export
+            </Button>
+            <Button size="sm" className="flex items-center bg-blue-600 hover:bg-blue-700">
+              <UserPlus className="h-4 w-4 mr-1" />
+              Add New
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="rounded-md border dark:border-gray-700">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                  <th className="p-3 text-left font-medium dark:text-gray-200">ID</th>
+                  <th className="p-3 text-left font-medium dark:text-gray-200">Name</th>
+                  <th className="p-3 text-left font-medium dark:text-gray-200">Team</th>
+                  <th className="p-3 text-left font-medium dark:text-gray-200">Status</th>
+                  <th className="p-3 text-left font-medium dark:text-gray-200">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <tr key={i} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
+                    <td className="p-3 dark:text-gray-300">EMP00{i+1}</td>
+                    <td className="p-3 dark:text-gray-300">{["James Wilson", "Sarah Johnson", "Michael Brown", "Emily Davis", "Robert Miller"][i % 5]}</td>
+                    <td className="p-3 dark:text-gray-300">{["Team Alpha", "Team Beta", "Team Charlie"][i % 3]}</td>
+                    <td className="p-3">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        i % 3 === 0 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : 
+                        i % 3 === 1 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" : 
+                        "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                      }`}>
+                        {i % 3 === 0 ? "Active" : i % 3 === 1 ? "On Leave" : "In Training"}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm" className="h-8 px-2">View</Button>
+                        <Button variant="outline" size="sm" className="h-8 px-2">Edit</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="mt-4 flex justify-between items-center">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Showing records from database
+          </div>
+          <div className="flex space-x-1">
+            <Button variant="outline" size="sm" disabled>Previous</Button>
+            <Button variant="outline" size="sm" className="bg-blue-50 dark:bg-blue-900">1</Button>
+            <Button variant="outline" size="sm">2</Button>
+            <Button variant="outline" size="sm">3</Button>
+            <Button variant="outline" size="sm">Next</Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Card className="shadow-sm">
       <CardContent className="p-4">
@@ -62,84 +148,13 @@ export const ManagementShortcuts = () => {
         </div>
       </CardContent>
 
-      {/* Management Modal - Center-oriented, 80% width and height */}
+      {/* Management Modal - 90vh width and height */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[80vw] h-[80vh] max-w-[80vw] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[90vw] h-[90vh] max-w-[90vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{activeShortcut?.label}</DialogTitle>
           </DialogHeader>
-          <div className="mt-6 h-full flex flex-col">
-            <div className="mb-4 flex justify-between items-center">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Showing records from database</div>
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm" className="flex items-center">
-                  <Upload className="h-4 w-4 mr-1" />
-                  Import
-                </Button>
-                <Button variant="outline" size="sm" className="flex items-center">
-                  <Download className="h-4 w-4 mr-1" />
-                  Export
-                </Button>
-                <Button size="sm" className="flex items-center bg-blue-600 hover:bg-blue-700">
-                  <UserPlus className="h-4 w-4 mr-1" />
-                  Add New
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="rounded-md border dark:border-gray-700">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
-                      <th className="p-3 text-left font-medium dark:text-gray-200">ID</th>
-                      <th className="p-3 text-left font-medium dark:text-gray-200">Name</th>
-                      <th className="p-3 text-left font-medium dark:text-gray-200">Team</th>
-                      <th className="p-3 text-left font-medium dark:text-gray-200">Status</th>
-                      <th className="p-3 text-left font-medium dark:text-gray-200">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: 10 }).map((_, i) => (
-                      <tr key={i} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                        <td className="p-3 dark:text-gray-300">EMP00{i+1}</td>
-                        <td className="p-3 dark:text-gray-300">{["James Wilson", "Sarah Johnson", "Michael Brown", "Emily Davis", "Robert Miller"][i % 5]}</td>
-                        <td className="p-3 dark:text-gray-300">{["Team Alpha", "Team Beta", "Team Charlie"][i % 3]}</td>
-                        <td className="p-3">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            i % 3 === 0 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : 
-                            i % 3 === 1 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" : 
-                            "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                          }`}>
-                            {i % 3 === 0 ? "Active" : i % 3 === 1 ? "On Leave" : "In Training"}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" className="h-8 px-2">View</Button>
-                            <Button variant="outline" size="sm" className="h-8 px-2">Edit</Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-between items-center">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Showing records from database
-              </div>
-              <div className="flex space-x-1">
-                <Button variant="outline" size="sm" disabled>Previous</Button>
-                <Button variant="outline" size="sm" className="bg-blue-50 dark:bg-blue-900">1</Button>
-                <Button variant="outline" size="sm">2</Button>
-                <Button variant="outline" size="sm">3</Button>
-                <Button variant="outline" size="sm">Next</Button>
-              </div>
-            </div>
-          </div>
+          {renderShortcutContent()}
         </DialogContent>
       </Dialog>
     </Card>
