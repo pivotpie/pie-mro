@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -277,10 +278,10 @@ export const FloatingActionMenu = () => {
           Your CSV file must include these columns (case-insensitive):
         </p>
         <ul className="text-sm text-gray-600 dark:text-gray-300 list-disc list-inside space-y-1">
-          <li><strong>Employee Number</strong> - Employee number (required)</li>
-          <li><strong>Check in time</strong> - Time in HH:MM format (required)</li>
-          <li><strong>Status</strong> - Attendance status (required)</li>
-          <li><strong>Comments</strong> - Additional notes (optional)</li>
+          <li><strong>Employee Number</strong> - Employee's unique identifier number (required)</li>
+          <li><strong>Check in time</strong> - Time in HH:MM format, e.g., 08:30 (required)</li>
+          <li><strong>Status</strong> - Attendance status like Present, Absent, Late, etc. (required)</li>
+          <li><strong>Comments</strong> - Additional notes or remarks (optional)</li>
         </ul>
         <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
           <strong>Note:</strong> Date will be automatically set to today's date ({new Date().toLocaleDateString()})
