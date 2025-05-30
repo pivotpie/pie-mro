@@ -1340,4 +1340,4 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
   );
 });
 
-</edits_to_apply>
+EmployeeCalendar.displayName = 'EmployeeCalendar';
