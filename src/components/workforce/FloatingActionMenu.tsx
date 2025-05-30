@@ -17,12 +17,10 @@ interface ActionItem {
 }
 
 interface AttendanceRecord {
-  employee_id: number;
-  date: string;
+  employee_number: number;
+  check_in_time: string;
   status: string;
-  hours_worked?: number;
-  overtime_hours?: number;
-  notes?: string;
+  comments?: string;
 }
 
 export const FloatingActionMenu = () => {
@@ -122,11 +120,11 @@ export const FloatingActionMenu = () => {
             return;
           }
 
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
           const data: AttendanceRecord[] = [];
 
           // Validate required headers
-          const requiredHeaders = ['employee_id', 'date', 'status'];
+          const requiredHeaders = ['employee_number', 'check_in_time', 'status'];
           const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
           
           if (missingHeaders.length > 0) {
@@ -145,21 +143,19 @@ export const FloatingActionMenu = () => {
 
             // Convert and validate data types
             const attendanceRecord: AttendanceRecord = {
-              employee_id: parseInt(record.employee_id),
-              date: record.date,
+              employee_number: parseInt(record.employee_number),
+              check_in_time: record.check_in_time,
               status: record.status,
-              hours_worked: record.hours_worked ? parseFloat(record.hours_worked) : undefined,
-              overtime_hours: record.overtime_hours ? parseFloat(record.overtime_hours) : undefined,
-              notes: record.notes || undefined
+              comments: record.comments || undefined
             };
 
             // Basic validation
-            if (isNaN(attendanceRecord.employee_id)) {
-              reject(new Error(`Invalid employee_id on row ${i + 1}: ${record.employee_id}`));
+            if (isNaN(attendanceRecord.employee_number)) {
+              reject(new Error(`Invalid employee_number on row ${i + 1}: ${record.employee_number}`));
               return;
             }
 
-            if (!attendanceRecord.date || !attendanceRecord.status) {
+            if (!attendanceRecord.check_in_time || !attendanceRecord.status) {
               reject(new Error(`Missing required data on row ${i + 1}`));
               return;
             }
@@ -208,18 +204,45 @@ export const FloatingActionMenu = () => {
 
     try {
       const parsedData = await parseCsvFile(csvFile);
+      const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
       
+      // First, get employee IDs from employee numbers
+      const employeeNumbers = parsedData.map(record => record.employee_number);
+      const { data: employees, error: employeeError } = await supabase
+        .from('employees')
+        .select('id, e_number')
+        .in('e_number', employeeNumbers);
+
+      if (employeeError) {
+        console.error('Employee lookup error:', employeeError);
+        toast.error(`Error looking up employees: ${employeeError.message}`);
+        return;
+      }
+
+      // Create a map of employee numbers to IDs
+      const employeeMap = new Map();
+      employees?.forEach(emp => employeeMap.set(emp.e_number, emp.id));
+
+      // Validate that all employees exist
+      const missingEmployees = employeeNumbers.filter(num => !employeeMap.has(num));
+      if (missingEmployees.length > 0) {
+        toast.error(`Employee numbers not found: ${missingEmployees.join(', ')}`);
+        return;
+      }
+
+      // Prepare attendance records for insertion
+      const attendanceRecords = parsedData.map(record => ({
+        employee_id: employeeMap.get(record.employee_number),
+        date: currentDate,
+        check_in_time: `${currentDate} ${record.check_in_time}`,
+        status: record.status,
+        comments: record.comments || null
+      }));
+
       // Insert data into attendance table
       const { data, error } = await supabase
         .from('attendance')
-        .insert(parsedData.map(record => ({
-          employee_id: record.employee_id,
-          date: record.date,
-          status: record.status,
-          hours_worked: record.hours_worked,
-          overtime_hours: record.overtime_hours,
-          notes: record.notes
-        })));
+        .insert(attendanceRecords);
 
       if (error) {
         console.error('Supabase error:', error);
@@ -227,7 +250,7 @@ export const FloatingActionMenu = () => {
         return;
       }
 
-      toast.success(`Successfully imported ${parsedData.length} attendance records!`);
+      toast.success(`Successfully imported ${parsedData.length} attendance records for ${currentDate}!`);
       
       // Reset form
       setCsvFile(null);
@@ -254,13 +277,14 @@ export const FloatingActionMenu = () => {
           Your CSV file must include these columns (case-insensitive):
         </p>
         <ul className="text-sm text-gray-600 dark:text-gray-300 list-disc list-inside space-y-1">
-          <li><strong>employee_id</strong> - Employee ID number (required)</li>
-          <li><strong>date</strong> - Date in YYYY-MM-DD format (required)</li>
-          <li><strong>status</strong> - Attendance status (required)</li>
-          <li><strong>hours_worked</strong> - Hours worked (optional)</li>
-          <li><strong>overtime_hours</strong> - Overtime hours (optional)</li>
-          <li><strong>notes</strong> - Additional notes (optional)</li>
+          <li><strong>Employee Number</strong> - Employee number (required)</li>
+          <li><strong>Check in time</strong> - Time in HH:MM format (required)</li>
+          <li><strong>Status</strong> - Attendance status (required)</li>
+          <li><strong>Comments</strong> - Additional notes (optional)</li>
         </ul>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+          <strong>Note:</strong> Date will be automatically set to today's date ({new Date().toLocaleDateString()})
+        </p>
       </div>
 
       <div className="space-y-4">
@@ -284,21 +308,19 @@ export const FloatingActionMenu = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Employee ID</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Employee Number</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Check In Time</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Hours</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Overtime</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Comments</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
                   {previewData.map((record, index) => (
                     <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-3 py-2 whitespace-nowrap text-sm">{record.employee_id}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm">{record.date}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm">{record.employee_number}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm">{record.check_in_time}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-sm">{record.status}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm">{record.hours_worked || '-'}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-sm">{record.overtime_hours || '-'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm">{record.comments || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
