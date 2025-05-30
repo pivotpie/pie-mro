@@ -1,10 +1,9 @@
+
 import React, { useRef, useState } from 'react';
 import { AssignmentsCalendar } from '../schedule/AssignmentsCalendar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 interface Employee {
   id: string;
@@ -19,6 +18,7 @@ interface Employee {
   fte_date?: string | null;
   ttl?: string | null;
   schedule?: Record<string, string>;
+  supportCodes?: Record<string, string>;
 }
 
 interface EmployeeDetailModalProps {
@@ -75,7 +75,7 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ isOpen, onClo
                   <dt className="text-sm text-gray-500 dark:text-gray-400">Alias</dt>
                   <dd className="font-medium dark:text-gray-200">{employee.key_name || '-'}</dd>
                 </div>
-                 <div>
+                <div>
                   <dt className="text-sm text-gray-500 dark:text-gray-400">TTL</dt>
                   <dd className="font-medium dark:text-gray-200">{employee.ttl || '-'}</dd>
                 </div>
@@ -100,6 +100,13 @@ const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ isOpen, onClo
                       {employee.schedule?.[selectedDate] === 'DO' && 'Overtime'}
                     </p>
                   </div>
+                  
+                  {employee.supportCodes?.[selectedDate] && ['D', 'B1', 'DO'].includes(employee.schedule?.[selectedDate] || '') && (
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Assignment</p>
+                      <p className="font-medium dark:text-gray-200">{employee.supportCodes[selectedDate]}</p>
+                    </div>
+                  )}
                   
                   <div className="pt-2">
                     <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
@@ -141,27 +148,10 @@ export const AlternativeScheduleView = () => {
     setIsDetailOpen(true);
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = new Date(e.target.value);
-    if (!isNaN(newDate.getTime())) {
-      setCurrentDate(newDate);
-      setRefreshKey(prevKey => prevKey + 1);
-    }
-  };
-
   return (
     <div className="h-full flex flex-col">
       <div className="bg-gray-100 dark:bg-gray-700 p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Label htmlFor="date">Select Date:</Label>
-          <Input
-            type="date"
-            id="date"
-            className="dark:bg-gray-800 dark:text-white"
-            value={format(currentDate, 'yyyy-MM-dd')}
-            onChange={handleDateChange}
-          />
-        </div>
+        <div className="text-lg font-medium">Assignments Calendar</div>
         <div className="text-sm text-gray-500 dark:text-gray-400">
           Scroll Position: {scrollPosition}px
         </div>
