@@ -1,1339 +1,307 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { Check, Filter, Search, X } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
+
+import { useState, useEffect } from 'react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
-import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
-import { cn } from "@/lib/utils";
-
-interface EmployeeRoster {
-  id: number;
-  employee_id: number;
-  date: string;
-  status_code: string;
-  notes: string | null;
-}
-
-interface EmployeeCore {
-  id: string;
-  employee_id: string;
-  core_code: string;
-}
-
-interface EmployeeSupport {
-  id: string;
-  employee_id: string;
-  support_code: string;
-}
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Employee {
-  id: string;
-  e_number?: string | null;
+  id: number;
   name: string;
-  mobile_number?: string | null;
-  team?: { team_name: string } | null;
-  job_title?: { job_description: string; job_code: string } | null;
-  employee_status?: string | null;
-  key_name?: string | null;
-  night_shift_ok?: boolean | null;
-  fte_date?: string | null;
-  ttl?: string | null;
-  cores?: string[];
-  supports?: string[];
-  schedule?: Record<string, string>;
-  supportSchedule?: Record<string, string>; // New field for support codes
+  e_number: string;
+  alias: string;
+  mobile: string;
+  team: string;
+  core: string;
+  support: string;
+  title: string;
+  night: string;
+  fte: string;
+  ttl: string;
 }
 
-const columnWidths = {
-  id: 80,
-  name: 200,
-  alias: 70,
-  mobile: 130,
-  team: 100,
-  core: 100,
-  support: 100,
-  title: 100,
-  night_shift: 70,
-  fte: 80,
-  ttl: 80,
-  date: 45
-};
+interface AssignmentData {
+  employee_id: number;
+  date: string;
+  status: string;
+}
 
-const columnLeftPositions = {
-  id: 0,
-  name: 80,
-  alias: 265,
-  mobile: 350,
-  team: 470,
-  core: 567,
-  support: 660,
-  title: 760,
-  night_shift: 855,
-  fte: 930,
-  ttl: 1005
-};
-
-const calculateTotalWidth = (days: any[]) => {
-  const fixedColumnsWidth = Object.values(columnWidths).reduce((sum, width) => sum + width, 0) - columnWidths.date;
-  const daysWidth = days.length * columnWidths.date;
-  return fixedColumnsWidth + daysWidth;
-};
-
-const getLeftPositionStyle = (index: number) => {
-  let position = 0;
-  for (let i = 0; i < index; i++) {
-    position += Object.values(columnWidths)[i];
-  }
-  return `${position}px`;
-};
-
-const generateTwoMonthDays = (currentDate: Date) => {
-  const currentMonth = startOfMonth(currentDate);
-  const nextMonth = addMonths(currentMonth, 1);
-  const endOfNextMonth = endOfMonth(nextMonth);
-  
-  const dateRange = eachDayOfInterval({
-    start: currentMonth,
-    end: endOfNextMonth
-  });
-  
-  return dateRange.map(date => ({
-    date,
-    day: date.getDate(),
-    month: date.getMonth(),
-    year: date.getFullYear(),
-    isWeekend: isWeekend(date),
-    isToday: isToday(date),
-    monthName: format(date, 'MMM')
-  }));
-};
-
-const ColumnFilter = ({ 
-  column, 
-  label, 
-  values, 
-  activeValues, 
-  onValueSelect, 
-  onClearAll 
-}: { 
-  column: string; 
-  label: string; 
-  values: string[];
-  activeValues: string[];
-  onValueSelect: (value: string) => void;
-  onClearAll: () => void;
-}) => {
-  const [open, setOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const filteredValues = searchTerm ? 
-    values.filter(value => value.toLowerCase().includes(searchTerm.toLowerCase())) : 
-    values;
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className={cn(
-            "p-0 h-5 w-5", 
-            activeValues.length > 0 && "text-primary"
-          )}
-        >
-          <Filter className={cn(
-            "h-3 w-3",
-            activeValues.length > 0 && "text-primary fill-primary"
-          )} />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-60" align="end">
-        <div className="space-y-2">
-          <h4 className="font-medium text-sm">{label} Filter</h4>
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-            <Input 
-              placeholder="Search..." 
-              className="pl-8 h-9" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="max-h-60 overflow-y-auto">
-            {filteredValues.length > 0 ? (
-              filteredValues.map((value) => (
-                <div key={value} className="flex items-center py-1">
-                  <Button
-                    variant="ghost"
-                    className="px-2 py-1 h-auto justify-start text-left w-full"
-                    onClick={() => onValueSelect(value)}
-                  >
-                    <span className={cn(
-                      "mr-2 h-4 w-4 rounded border flex items-center justify-center",
-                      activeValues.includes(value) ? "bg-blue-500 border-blue-500" : "border-gray-300"
-                    )}>
-                      {activeValues.includes(value) && <Check className="h-3 w-3 text-white" />}
-                    </span>
-                    <span className="truncate">{value}</span>
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 py-2">No filter options available</p>
-            )}
-          </div>
-          {activeValues.length > 0 && (
-            <div className="pt-2 border-t flex justify-end">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={onClearAll}
-                className="text-sm text-red-500"
-              >
-                Clear filters
-              </Button>
-            </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-const DateColumnFilter = ({ 
-  dateKey, 
-  values, 
-  activeValues, 
-  onValueSelect, 
-  onClearAll 
-}: { 
-  dateKey: string; 
-  values: string[];
-  activeValues: string[];
-  onValueSelect: (value: string) => void;
-  onClearAll: () => void;
-}) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className={cn(
-            "p-0 h-4 w-4", 
-            activeValues.length > 0 && "text-primary"
-          )}
-        >
-          <Filter className={cn(
-            "h-3 w-3",
-            activeValues.length > 0 && "text-primary fill-primary"
-          )} />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-40 popover-content" align="center">
-        <div className="space-y-2">
-          <h4 className="font-medium text-sm">Status Filter</h4>
-          <div className="max-h-40 overflow-y-auto">
-            {values.length > 0 ? (
-              values.map((status) => (
-                <div key={status} className="flex items-center py-1">
-                  <Button
-                    variant="ghost"
-                    className="px-2 py-1 h-auto justify-start text-left w-full"
-                    onClick={() => onValueSelect(status)}
-                  >
-                    <span className={cn(
-                      "mr-2 h-4 w-4 rounded border flex items-center justify-center",
-                      activeValues.includes(status) ? "bg-blue-500 border-blue-500" : "border-gray-300"
-                    )}>
-                      {activeValues.includes(status) && <Check className="h-3 w-3 text-white" />}
-                    </span>
-                    <span className="truncate">{status}</span>
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 py-2">No status data</p>
-            )}
-          </div>
-          {activeValues.length > 0 && (
-            <div className="pt-2 border-t flex justify-end">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={onClearAll}
-                className="text-sm text-red-500"
-              >
-                Clear
-              </Button>
-            </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-interface EmployeeCalendarProps {
-  onScroll: (position: number) => void;
-  currentDate?: Date;
-  onEmployeeSelect?: (employee: any) => void;
-  onCellClick?: (employee: any, date: string, status: string) => void;
+interface AssignmentsCalendarProps {
+  currentDate: Date;
+  onCellClick?: (employee: Employee, date: string, status: string) => void;
   refreshKey?: number;
 }
 
-export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
-  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
+export const AssignmentsCalendar = ({ currentDate, onCellClick, refreshKey }: AssignmentsCalendarProps) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const days = useMemo(() => generateTwoMonthDays(currentDate), [currentDate]);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  
-  const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
-  const [supportFilterValues, setSupportFilterValues] = useState<string[]>([]);
-  const [activeCoreFilters, setActiveCoreFilters] = useState<string[]>([]);
-  const [activeSupportFilters, setActiveSupportFilters] = useState<string[]>([]);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
-  const [dateColumnFilters, setDateColumnFilters] = useState<Record<string, string[]>>({});
-  const [dateStatusValues, setDateStatusValues] = useState<Record<string, string[]>>({});
+  const [assignments, setAssignments] = useState<AssignmentData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const totalWidth = calculateTotalWidth(days);
+  // Generate date range for the current month
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const dates = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        setIsLoading(true);
-        
-        const { data: employeesData, error: employeesError } = await supabase
-          .from('employees')
-          .select(`
-            id,
-            e_number,
-            name,
-            mobile_number,
-            key_name,
-            night_shift_ok,
-            fte_date,
-            team:team_id(team_name),
-            job_title:job_title_id(job_code, job_description),
-            employee_status
-          `)
-          .order('e_number');
-        
-        if (employeesError) {
-          throw employeesError;
-        }
-
-        const typedEmployees: Employee[] = employeesData.map(emp => ({
-          ...emp,
-          id: String(emp.id),
-          e_number: emp.e_number?.toString(),
-          cores: [],
-          supports: [],
-          schedule: {},
-          supportSchedule: {}
-        }));
-
-        console.log("Fetched employees:", typedEmployees);
-        console.log("Total employee count:", typedEmployees.length);
-
-        const currentDateString = new Date().toISOString().split('T')[0];
-        
-        const { data: coresData, error: coresError } = await supabase
-          .from('employee_cores')
-          .select(`
-            id,
-            employee_id,
-            assignment_date,
-            core:core_id(core_code)
-          `)
-          .eq('assignment_date', currentDateString);
-        
-        if (coresError) {
-          console.error("Error fetching employee cores:", coresError);
-        } else if (coresData) {
-          const employeesCoreMap: Record<string, string[]> = {};
-          const allCores = new Set<string>();
-          
-          coresData.forEach((coreData: any) => {
-            const employeeId = String(coreData.employee_id);
-            if (employeeId) {
-              if (!employeesCoreMap[employeeId]) {
-                employeesCoreMap[employeeId] = [];
-              }
-              if (coreData.core?.core_code) {
-                const coreCode = coreData.core.core_code;
-                employeesCoreMap[employeeId].push(coreCode);
-                allCores.add(coreCode);
-              }
-            }
-          });
-          
-          setCoreFilterValues(Array.from(allCores).sort());
-          
-          typedEmployees.forEach(emp => {
-            if (employeesCoreMap[emp.id]) {
-              emp.cores = employeesCoreMap[emp.id];
-            }
-          });
-        }
-        
-        const { data: supportsData, error: supportsError } = await supabase
-          .from('employee_supports')
-          .select(`
-            id,
-            employee_id,
-            assignment_date,
-            support:support_id(support_code)
-          `)
-          .eq('assignment_date', currentDateString);
-        
-        if (supportsError) {
-          console.error("Error fetching employee supports:", supportsError);
-        } else if (supportsData) {
-          const employeesSupportsMap: Record<string, string[]> = {};
-          const allSupports = new Set<string>();
-          
-          supportsData.forEach((supportData: any) => {
-            const employeeId = String(supportData.employee_id);
-            if (employeeId) {
-              if (!employeesSupportsMap[employeeId]) {
-                employeesSupportsMap[employeeId] = [];
-              }
-              if (supportData.support?.support_code) {
-                const supportCode = supportData.support.support_code;
-                employeesSupportsMap[employeeId].push(supportCode);
-                allSupports.add(supportCode);
-              }
-            }
-          });
-          
-          setSupportFilterValues(Array.from(allSupports).sort());
-          
-          typedEmployees.forEach(emp => {
-            if (employeesSupportsMap[emp.id]) {
-              emp.supports = employeesSupportsMap[emp.id];
-            }
-          });
-        }
-
-        const today = new Date();
-        const todayString = format(today, 'yyyy-MM-dd');
-        
-        const { data: attendanceData, error: attendanceError } = await supabase
-          .from('attendance')
-          .select(`
-            employee_id,
-            check_in_time
-          `)
-          .eq('date', todayString);
-          
-        if (attendanceError) {
-          console.error("Error fetching attendance data:", attendanceError);
-        } else if (attendanceData) {
-          const checkInMap: Record<string, string> = {};
-          
-          attendanceData.forEach((attendance: any) => {
-            const employeeId = String(attendance.employee_id);
-            if (employeeId && attendance.check_in_time) {
-              const checkInTime = new Date(attendance.check_in_time);
-              checkInMap[employeeId] = format(checkInTime, 'hh:mm a');
-            }
-          });
-          
-          typedEmployees.forEach(emp => {
-            if (checkInMap[emp.id]) {
-              emp.ttl = checkInMap[emp.id];
-            }
-          });
-        }
-
-        console.log("Fetching roster data...");
-        console.log("Using refreshKey:", refreshKey);
-        
-        const { data: rosterData, error: rosterError } = await supabase
-          .from('roster_assignments')
-          .select(`
-            id,
-            employee_id,
-            date_references!inner(actual_date),
-            roster_codes!inner(roster_code)
-          `)
-          .order('employee_id', { ascending: true })
-          .order('date_references(actual_date)', { ascending: true });
-        
-        if (rosterError) {
-          console.error("Error fetching roster data:", rosterError);
-          toast.error(`Error fetching roster assignments: ${rosterError.message}`);
-          setEmployees(typedEmployees);
-          setFilteredEmployees(typedEmployees);
-          setIsLoading(false);
-          return;
-        }
-
-        console.log("Raw roster data:", rosterData);
-        console.log("Total roster records fetched:", rosterData ? rosterData.length : 0);
-        
-        if (rosterData && rosterData.length > 0) {
-          const scheduleMap: Record<string, Record<string, string>> = {};
-          const supportScheduleMap: Record<string, Record<string, string>> = {};
-          const dateStatusMap: Record<string, Set<string>> = {};
-          
-          // First pass: build the basic schedule map
-          rosterData.forEach((roster: any) => {
-            const employeeId = String(roster.employee_id);
-            const date = new Date(roster.date_references.actual_date);
-            const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
-            const status = roster.roster_codes.roster_code;
-            
-            if (!scheduleMap[employeeId]) {
-              scheduleMap[employeeId] = {};
-            }
-            
-            scheduleMap[employeeId][dateKey] = status;
-            
-            if (!dateStatusMap[dateKey]) {
-              dateStatusMap[dateKey] = new Set<string>();
-            }
-            dateStatusMap[dateKey].add(status);
-          });
-
-          // Second pass: fetch employee supports for D, B1, DO dates and build support schedule
-          const employeeSupportsMap: Record<string, Record<string, string>> = {};
-          
-          // Get all unique dates from the schedule
-          const allDates = new Set<string>();
-          Object.values(scheduleMap).forEach(empSchedule => {
-            Object.keys(empSchedule).forEach(dateKey => allDates.add(dateKey));
-          });
-
-          // For each date, fetch employee supports
-          for (const dateKey of allDates) {
-            const [month, day, year] = dateKey.split('-').map(Number);
-            const dateString = new Date(year, month - 1, day).toISOString().split('T')[0];
-            
-            const { data: employeeSupportsData, error: supportsError } = await supabase
-              .from('employee_supports')
-              .select(`
-                employee_id,
-                support_codes!inner(support_code)
-              `)
-              .eq('assignment_date', dateString);
-
-            if (supportsError) {
-              console.error("Error fetching employee supports for date:", dateString, supportsError);
-              continue;
-            }
-
-            if (employeeSupportsData) {
-              employeeSupportsData.forEach((support: any) => {
-                const employeeId = String(support.employee_id);
-                if (!employeeSupportsMap[employeeId]) {
-                  employeeSupportsMap[employeeId] = {};
-                }
-                employeeSupportsMap[employeeId][dateKey] = support.support_codes.support_code;
-              });
-            }
-          }
-
-          // Third pass: build the final schedule maps
-          Object.keys(scheduleMap).forEach(employeeId => {
-            Object.keys(scheduleMap[employeeId]).forEach(dateKey => {
-              const rosterCode = scheduleMap[employeeId][dateKey];
-              
-              // For D, B1, DO codes, use support code if available, otherwise keep roster code
-              if (['D', 'B1', 'DO'].includes(rosterCode)) {
-                const supportCode = employeeSupportsMap[employeeId]?.[dateKey];
-                if (supportCode) {
-                  if (!supportScheduleMap[employeeId]) {
-                    supportScheduleMap[employeeId] = {};
-                  }
-                  supportScheduleMap[employeeId][dateKey] = supportCode;
-                  
-                  // Update the date status values to include support codes
-                  if (!dateStatusMap[dateKey]) {
-                    dateStatusMap[dateKey] = new Set<string>();
-                  }
-                  dateStatusMap[dateKey].add(supportCode);
-                } else {
-                  // Fallback to roster code if no support code found
-                  if (!supportScheduleMap[employeeId]) {
-                    supportScheduleMap[employeeId] = {};
-                  }
-                  supportScheduleMap[employeeId][dateKey] = rosterCode;
-                }
-              } else {
-                // For other codes (AL, SK, TR, etc.), keep the roster code
-                if (!supportScheduleMap[employeeId]) {
-                  supportScheduleMap[employeeId] = {};
-                }
-                supportScheduleMap[employeeId][dateKey] = rosterCode;
-              }
-            });
-          });
-          
-          const processedDateStatusValues: Record<string, string[]> = {};
-          Object.entries(dateStatusMap).forEach(([dateKey, statuses]) => {
-            processedDateStatusValues[dateKey] = Array.from(statuses).sort();
-          });
-          setDateStatusValues(processedDateStatusValues);
-          
-          console.log("Processed schedule map:", scheduleMap);
-          console.log("Processed support schedule map:", supportScheduleMap);
-          
-          const employeesWithSchedule = typedEmployees.map(emp => {
-            return {
-              ...emp,
-              schedule: scheduleMap[emp.id] || {},
-              supportSchedule: supportScheduleMap[emp.id] || {}
-            };
-          });
-          
-          setEmployees(employeesWithSchedule);
-          setFilteredEmployees(employeesWithSchedule);
-        } else {
-          console.log("No roster data returned or empty array");
-          const employeesWithEmptySchedule = typedEmployees.map(emp => {
-            return {
-              ...emp,
-              schedule: {},
-              supportSchedule: {}
-            };
-          });
-          
-          setEmployees(employeesWithEmptySchedule);
-          setFilteredEmployees(employeesWithEmptySchedule);
-        }
-      } catch (error: any) {
-        toast.error(`Error loading employees: ${error.message}`);
-        console.error("Error fetching employees:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchEmployees();
+    fetchData();
   }, [currentDate, refreshKey]);
 
-  useEffect(() => {
-    let result = [...employees];
-    
-    if (activeCoreFilters.length > 0) {
-      result = result.filter(emp => {
-        if (!emp.cores || emp.cores.length === 0) return false;
-        return emp.cores.some(core => activeCoreFilters.includes(core));
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([fetchEmployees(), fetchAssignments()]);
+    } catch (error) {
+      console.error('Error fetching calendar data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const { data: employeesData, error: employeesError } = await supabase
+        .from('employees')
+        .select(`
+          id,
+          name,
+          e_number,
+          job_titles:job_title_id (job_description),
+          teams:team_id (team_name),
+          employee_supports (
+            support_codes:support_id (support_code)
+          ),
+          employee_cores (
+            core_codes:core_id (core_code)
+          )
+        `)
+        .eq('is_active', true)
+        .order('e_number');
+
+      if (employeesError) throw employeesError;
+
+      const processedEmployees = employeesData?.map((emp: any) => ({
+        id: emp.id,
+        name: emp.name,
+        e_number: emp.e_number?.toString() || '',
+        alias: emp.name.split(' ').map((n: string) => n[0]).join(''),
+        mobile: '+971XXXXXXXX', // Mock data
+        team: emp.teams?.team_name || 'Unassigned',
+        core: emp.employee_cores?.map((c: any) => c.core_codes?.core_code).filter(Boolean).join(', ') || '-',
+        support: emp.employee_supports?.map((s: any) => s.support_codes?.support_code).filter(Boolean).join(', ') || 'AV',
+        title: emp.job_titles?.job_description || 'TECH',
+        night: Math.random() > 0.5 ? 'Yes' : 'No',
+        fte: Math.random() > 0.7 ? '2020-03-06' : '-',
+        ttl: Math.random() > 0.8 ? '6' : '-'
+      })) || [];
+
+      setEmployees(processedEmployees);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
+
+  const fetchAssignments = async () => {
+    try {
+      const startDate = format(monthStart, 'yyyy-MM-dd');
+      const endDate = format(monthEnd, 'yyyy-MM-dd');
+
+      // Fetch support assignments (the primary data we want to show)
+      const { data: supportData, error: supportError } = await supabase
+        .from('employee_supports')
+        .select(`
+          employee_id,
+          assignment_date,
+          support_codes:support_id (support_code)
+        `)
+        .gte('assignment_date', startDate)
+        .lte('assignment_date', endDate);
+
+      if (supportError) throw supportError;
+
+      // Process support assignments
+      const supportAssignments = supportData?.map((assignment: any) => ({
+        employee_id: assignment.employee_id,
+        date: assignment.assignment_date,
+        status: assignment.support_codes?.support_code || 'AV'
+      })) || [];
+
+      // Fetch roster assignments as fallback for days without support assignments
+      const { data: rosterData, error: rosterError } = await supabase
+        .from('roster_assignments')
+        .select(`
+          employee_id,
+          date_references:date_id (actual_date),
+          roster_codes:roster_id (roster_code)
+        `)
+        .gte('date_references.actual_date', startDate)
+        .lte('date_references.actual_date', endDate);
+
+      if (rosterError) throw rosterError;
+
+      // Process roster assignments and convert to support codes
+      const rosterAssignments = rosterData?.map((assignment: any) => ({
+        employee_id: assignment.employee_id,
+        date: assignment.date_references?.actual_date,
+        status: convertRosterToSupport(assignment.roster_codes?.roster_code)
+      })).filter(Boolean) || [];
+
+      // Combine and prioritize support assignments over roster assignments
+      const combinedAssignments = [...supportAssignments];
+      
+      // Add roster assignments only for dates/employees not covered by support assignments
+      rosterAssignments.forEach(roster => {
+        const hasSupport = supportAssignments.find(support => 
+          support.employee_id === roster.employee_id && support.date === roster.date
+        );
+        if (!hasSupport) {
+          combinedAssignments.push(roster);
+        }
       });
-    }
-    
-    if (activeSupportFilters.length > 0) {
-      result = result.filter(emp => {
-        if (!emp.supports || emp.supports.length === 0) return false;
-        return emp.supports.some(support => activeSupportFilters.includes(support));
-      });
-    }
-    
-    Object.entries(columnFilters).forEach(([column, values]) => {
-      if (values.length > 0) {
-        result = result.filter(emp => {
-          if (column === 'team') {
-            return values.includes(emp.team?.team_name || '');
-          }
-          if (column === 'job_title') {
-            return values.includes(emp.job_title?.job_description || '');
-          }
-          if (column === 'night_shift') {
-            const nightShiftValue = emp.night_shift_ok ? 'Yes' : 'No';
-            return values.includes(nightShiftValue);
-          }
-          const empValue = emp[column as keyof Employee];
-          return values.includes(String(empValue || ''));
-        });
-      }
-    });
-    
-    Object.entries(dateColumnFilters).forEach(([dateKey, values]) => {
-      if (values.length > 0) {
-        result = result.filter(emp => {
-          const status = emp.schedule?.[dateKey] || '';
-          return values.includes(status);
-        });
-      }
-    });
-    
-    setFilteredEmployees(result);
-  }, [employees, activeCoreFilters, activeSupportFilters, columnFilters, dateColumnFilters]);
 
-  const handleScroll = () => {
-    if (scrollAreaRef.current) {
-      onScroll(scrollAreaRef.current.scrollLeft || 0);
+      setAssignments(combinedAssignments);
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
     }
   };
 
-  const handleCoreFilterSelect = (value: string) => {
-    setActiveCoreFilters(prev => {
-      if (prev.includes(value)) {
-        return prev.filter(v => v !== value);
-      } else {
-        return [...prev, value];
-      }
-    });
+  // Convert roster codes to support codes for display consistency
+  const convertRosterToSupport = (rosterCode: string): string => {
+    const mapping: { [key: string]: string } = {
+      'D': 'AV',      // On Duty -> Available
+      'O': 'AV',      // Off Duty -> Available  
+      'AL': 'AL',     // Annual Leave -> Annual Leave
+      'SK': 'SK',     // Sick Leave -> Sick Leave
+      'TR': 'TR',     // Training -> Training
+      'B1': 'AV',     // Half Day -> Available
+      'DO': 'AV'      // Overtime -> Available
+    };
+    
+    return mapping[rosterCode] || 'AV';
   };
 
-  const handleSupportFilterSelect = (value: string) => {
-    setActiveSupportFilters(prev => {
-      if (prev.includes(value)) {
-        return prev.filter(v => v !== value);
-      } else {
-        return [...prev, value];
-      }
-    });
+  const getAssignmentForEmployeeAndDate = (employeeId: number, date: Date): string => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const assignment = assignments.find(
+      a => a.employee_id === employeeId && a.date === dateStr
+    );
+    
+    // If no specific assignment found, use the employee's default support code
+    if (!assignment) {
+      const employee = employees.find(e => e.id === employeeId);
+      return employee?.support?.split(',')[0]?.trim() || 'AV';
+    }
+    
+    return assignment.status;
   };
 
-  const clearCoreFilters = () => {
-    setActiveCoreFilters([]);
+  const getCellStyle = (status: string) => {
+    const styles: { [key: string]: string } = {
+      'AV': 'bg-gray-100 text-gray-700 border-gray-200',
+      'G-BWTB': 'bg-green-100 text-green-800 border-green-200',
+      'G-BVYC': 'bg-green-100 text-green-800 border-green-200', 
+      'A6-IDS': 'bg-blue-100 text-blue-800 border-blue-200',
+      'A6-EVA': 'bg-purple-100 text-purple-800 border-purple-200',
+      'A6-BVZ': 'bg-amber-100 text-amber-800 border-amber-200',
+      'AL': 'bg-red-100 text-red-800 border-red-200',
+      'SK': 'bg-orange-100 text-orange-800 border-orange-200',
+      'TR': 'bg-purple-100 text-purple-800 border-purple-200',
+      'N-285TJ': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      'SYOS': 'bg-teal-100 text-teal-800 border-teal-200',
+      'default': 'bg-gray-50 text-gray-600 border-gray-100'
+    };
+    
+    return styles[status] || styles.default;
   };
 
-  const clearSupportFilters = () => {
-    setActiveSupportFilters([]);
-  };
-
-  const handleColumnFilterSelect = (column: string, value: string) => {
-    setColumnFilters(prev => {
-      const currentValues = prev[column] || [];
-      if (currentValues.includes(value)) {
-        return {
-          ...prev,
-          [column]: currentValues.filter(v => v !== value)
-        };
-      } else {
-        return {
-          ...prev,
-          [column]: [...currentValues, value]
-        };
-      }
-    });
-  };
-  
-  const clearColumnFilter = (column: string) => {
-    setColumnFilters(prev => ({
-      ...prev,
-      [column]: []
-    }));
-  };
-
-  const handleDateFilterSelect = (dateKey: string, value: string) => {
-    setDateColumnFilters(prev => {
-      const currentValues = prev[dateKey] || [];
-      if (currentValues.includes(value)) {
-        return {
-          ...prev,
-          [dateKey]: currentValues.filter(v => v !== value)
-        };
-      } else {
-        return {
-          ...prev,
-          [dateKey]: [...currentValues, value]
-        };
-      }
-    });
-  };
-  
-  const clearDateFilter = (dateKey: string) => {
-    setDateColumnFilters(prev => ({
-      ...prev,
-      [dateKey]: []
-    }));
-  };
-
-  const handleCellClick = (employee: Employee, date: string) => {
-    setSelectedEmployee(employee);
-    setSelectedDate(date);
-    setIsDetailOpen(true);
-  };
-
-  const handleProfileClick = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setSelectedDate(null);
-    if (onEmployeeSelect) {
-      onEmployeeSelect(employee);
-    } else {
-      setIsDetailOpen(true);
+  const handleCellClick = (employee: Employee, date: Date, status: string) => {
+    if (onCellClick) {
+      const dateStr = format(date, 'M-d-yyyy');
+      onCellClick(employee, dateStr, status);
     }
   };
 
-  const getUniqueValuesForColumn = (columnName: string): string[] => {
-    const values = employees.map(emp => {
-      if (columnName === 'team') return emp.team?.team_name || '';
-      if (columnName === 'job_title') return emp.job_title?.job_description || '';
-      if (columnName === 'night_shift') {
-        return emp.night_shift_ok ? 'Yes' : 'No';
-      }
-      return String(emp[columnName as keyof Employee] || '');
-    }).filter(Boolean);
-    
-    return [...new Set(values)].sort();
-  };
-
-  const statusColors: Record<string, string> = {
-    "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    "O": "status-day-off",
-    "B1": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-    "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
-    "DO": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
-    "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    // Add support code colors
-    "AV": "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-    // Add more support code colors as needed
-  };
-
-  const statusLegend = [
-    { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
-    { status: "Half Day", code: "B1", color: "bg-blue-100 border border-blue-300 dark:bg-blue-900 dark:border-blue-700" },
-    { status: "Annual Leave", code: "AL", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
-    { status: "Sick Leave", code: "SK", color: "bg-orange-100 border border-orange-300 dark:bg-orange-900 dark:border-orange-700" },
-    { status: "Training", code: "TR", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
-    { status: "Day Off", code: "O", color: "bg-gray-600 border border-gray-700 text-white dark:bg-gray-700 dark:border-gray-800 dark:text-gray-200" },
-    { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
-  ];
-
-  const hasDifferentCoreSupport = (employee: Employee) => {
-    if (!employee.cores || !employee.supports) return false;
-    if (employee.cores.length === 0 || employee.supports.length === 0) return false;
-    
-    const hasOverlap = employee.cores.some(core => employee.supports?.includes(core));
-    
-    return !hasOverlap && employee.cores.length > 0 && employee.supports.length > 0;
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-500 dark:text-gray-400">Loading employee schedule data...</p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-4 mb-2 px-2 flex-wrap">
-        {statusLegend.map((item) => (
-          <div key={item.status} className="flex items-center">
-            <span className={`inline-block w-3 h-3 rounded-full mr-1 ${item.color}`}></span>
-            <span className="text-xs text-gray-600 dark:text-gray-400">{item.status} ({item.code})</span>
+    <div className="w-full">
+      <ScrollArea className="w-full h-[75vh]">
+        <div className="min-w-full">
+          {/* Fixed column widths for better alignment */}
+          <div className="sticky top-0 z-20 bg-white border-b-2 border-gray-200">
+            <div className="flex">
+              {/* Employee Info Header - Fixed width sections */}
+              <div className="flex bg-blue-50 border-r border-gray-200">
+                <div className="w-16 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Emp#</div>
+                <div className="w-32 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Name</div>
+                <div className="w-12 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Alias</div>
+                <div className="w-24 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Mobile</div>
+                <div className="w-20 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Team</div>
+                <div className="w-16 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Core</div>
+                <div className="w-20 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Support</div>
+                <div className="w-16 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Title</div>
+                <div className="w-16 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">Night</div>
+                <div className="w-20 px-2 py-3 text-xs font-semibold text-center border-r border-gray-200">FTE</div>
+                <div className="w-12 px-2 py-3 text-xs font-semibold text-center">TTL</div>
+              </div>
+              
+              {/* Date Headers - Fixed width */}
+              <div className="flex bg-orange-50">
+                {dates.map((date) => (
+                  <div key={date.toISOString()} className="w-20 px-1 py-1 border-r border-gray-200">
+                    <div className="text-xs font-semibold text-center">{format(date, 'd')}</div>
+                    <div className="text-xs text-center text-gray-600">{format(date, 'MMM')}</div>
+                    <div className="text-xs text-center text-gray-600">{format(date, 'eee')}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
-      
-      <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
-        <table className="w-full border-collapse">
-          <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
-            <tr>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Emp#</span>
-                  <ColumnFilter 
-                    column="e_number" 
-                    label="ID" 
-                    values={getUniqueValuesForColumn('e_number')}
-                    activeValues={columnFilters['e_number'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('e_number', value)}
-                    onClearAll={() => clearColumnFilter('e_number')}
-                  />
+
+          {/* Employee Rows */}
+          <div className="divide-y divide-gray-200">
+            {employees.map((employee) => (
+              <div key={employee.id} className="flex hover:bg-gray-50">
+                {/* Employee Info - Match header widths exactly */}
+                <div className="flex bg-gray-50 border-r border-gray-200">
+                  <div className="w-16 px-2 py-2 text-xs text-center border-r border-gray-200">{employee.e_number}</div>
+                  <div className="w-32 px-2 py-2 text-xs text-center border-r border-gray-200 truncate" title={employee.name}>{employee.name}</div>
+                  <div className="w-12 px-2 py-2 text-xs text-center border-r border-gray-200">{employee.alias}</div>
+                  <div className="w-24 px-2 py-2 text-xs text-center border-r border-gray-200">{employee.mobile}</div>
+                  <div className="w-20 px-2 py-2 text-xs text-center border-r border-gray-200 truncate" title={employee.team}>{employee.team}</div>
+                  <div className="w-16 px-2 py-2 text-xs text-center border-r border-gray-200">{employee.core}</div>
+                  <div className="w-20 px-2 py-2 text-xs text-center border-r border-gray-200 truncate" title={employee.support}>{employee.support}</div>
+                  <div className="w-16 px-2 py-2 text-xs text-center border-r border-gray-200">{employee.title}</div>
+                  <div className="w-16 px-2 py-2 text-xs text-center border-r border-gray-200">{employee.night}</div>
+                  <div className="w-20 px-2 py-2 text-xs text-center border-r border-gray-200">{employee.fte}</div>
+                  <div className="w-12 px-2 py-2 text-xs text-center">{employee.ttl}</div>
                 </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Name</span>
-                  <ColumnFilter 
-                    column="name" 
-                    label="Name" 
-                    values={getUniqueValuesForColumn('name')}
-                    activeValues={columnFilters['name'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('name', value)}
-                    onClearAll={() => clearColumnFilter('name')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Alias</span>
-                  <ColumnFilter 
-                    column="key_name" 
-                    label="Alias" 
-                    values={getUniqueValuesForColumn('key_name')}
-                    activeValues={columnFilters['key_name'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('key_name', value)}
-                    onClearAll={() => clearColumnFilter('key_name')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Mobile</span>
-                  <ColumnFilter 
-                    column="mobile_number" 
-                    label="Mobile" 
-                    values={getUniqueValuesForColumn('mobile_number')}
-                    activeValues={columnFilters['mobile_number'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('mobile_number', value)}
-                    onClearAll={() => clearColumnFilter('mobile_number')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Team</span>
-                  <ColumnFilter 
-                    column="team" 
-                    label="Team" 
-                    values={getUniqueValuesForColumn('team')}
-                    activeValues={columnFilters['team'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('team', value)}
-                    onClearAll={() => clearColumnFilter('team')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Core</span>
-                  <ColumnFilter 
-                    column="core" 
-                    label="Core" 
-                    values={coreFilterValues}
-                    activeValues={activeCoreFilters}
-                    onValueSelect={handleCoreFilterSelect}
-                    onClearAll={clearCoreFilters}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Support</span>
-                  <ColumnFilter 
-                    column="support" 
-                    label="Support" 
-                    values={supportFilterValues}
-                    activeValues={activeSupportFilters}
-                    onValueSelect={handleSupportFilterSelect}
-                    onClearAll={clearSupportFilters}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Title</span>
-                  <ColumnFilter 
-                    column="job_title" 
-                    label="Title" 
-                    values={getUniqueValuesForColumn('job_title')}
-                    activeValues={columnFilters['job_title'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('job_title', value)}
-                    onClearAll={() => clearColumnFilter('job_title')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Night</span>
-                  <ColumnFilter 
-                    column="night_shift" 
-                    label="Night Shift" 
-                    values={getUniqueValuesForColumn('night_shift')}
-                    activeValues={columnFilters['night_shift'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('night_shift', value)}
-                    onClearAll={() => clearColumnFilter('night_shift')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>FTE</span>
-                  <ColumnFilter 
-                    column="fte_date" 
-                    label="FTE Date" 
-                    values={getUniqueValuesForColumn('fte_date')}
-                    activeValues={columnFilters['fte_date'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('fte_date', value)}
-                    onClearAll={() => clearColumnFilter('fte_date')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>TTL</span>
-                  <ColumnFilter 
-                    column="ttl" 
-                    label="Time to Location" 
-                    values={getUniqueValuesForColumn('ttl')}
-                    activeValues={columnFilters['ttl'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('ttl', value)}
-                    onClearAll={() => clearColumnFilter('ttl')}
-                  />
-                </div>
-              </th>
-              
-              {days.map((day) => {
-                const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                const dateStatuses = dateStatusValues[dateKey] || [];
                 
-                return (
-                  <th 
-                    key={dateKey}
-                    className={cn(
-                      "p-2 text-center border-r sticky top-0 z-10 dark:border-gray-700 dark:text-gray-200",
-                      day.isWeekend ? 'weekend-shade' : '',
-                      day.isToday ? 'today-highlight' : ''
-                    )}
-                    style={{ width: `${columnWidths.date}px` }}
-                  >
-                    <div className="flex flex-col items-center">
-                      <div className="text-xs font-medium">{day.day}</div>
-                      <div className="text-xs">{day.monthName}</div>
-                      <DateColumnFilter 
-                        dateKey={dateKey}
-                        values={dateStatuses}
-                        activeValues={dateColumnFilters[dateKey] || []}
-                        onValueSelect={(value) => handleDateFilterSelect(dateKey, value)}
-                        onClearAll={() => clearDateFilter(dateKey)}
-                      />
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEmployees.map((employee) => {
-              const isDifferent = hasDifferentCoreSupport(employee);
-              
-              return (
-                <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-                  <td 
-                    className={cn(
-                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
-                      isDifferent ? 'core-support-different' : ''
-                    )}
-                    style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.e_number || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.key_name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.mobile_number || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.team?.team_name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.cores?.join(', ') || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.supports?.join(', ') || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.job_title?.job_description || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.night_shift_ok ? 'Yes' : 'No'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.ttl || '-'}
-                  </td>
-                  
-                  {days.map((day) => {
-                    const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                    // Use supportSchedule instead of schedule for display
-                    const displayStatus = employee.supportSchedule?.[dateKey] || '';
-                    const originalStatus = employee.schedule?.[dateKey] || '';
-                    const hasStatus = displayStatus !== '';
-                    
+                {/* Assignment Cells - Match date header widths exactly */}
+                <div className="flex">
+                  {dates.map((date) => {
+                    const status = getAssignmentForEmployeeAndDate(employee.id, date);
                     return (
-                      <TooltipProvider key={dateKey}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <td 
-                              className={cn(
-                                "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
-                                day.isWeekend ? 'weekend-shade' : '',
-                                hasStatus ? statusColors[displayStatus] || statusColors[originalStatus] || '' : '',
-                                day.isToday ? 'today-highlight' : ''
-                              )}
-                              style={{ width: `${columnWidths.date}px`, position: 'relative' }}
-                              onClick={() => onCellClick && onCellClick(employee, dateKey, originalStatus)}
-                            >
-                              {displayStatus}
-                            </td>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
-                            <div className="space-y-1">
-                              <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
-                              <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
-                              <div className="flex items-center gap-2">
-                                <span>Status:</span> 
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded-full text-xs",
-                                  originalStatus === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                                  originalStatus === 'AL' || originalStatus === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
-                                  originalStatus === 'TR' || originalStatus === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
-                                  originalStatus === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
-                                  originalStatus === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-                                  originalStatus === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
-                                  originalStatus === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                                )}>
-                                  {originalStatus === 'D' && 'On Duty'}
-                                  {originalStatus === 'AL' && 'Annual Leave'}
-                                  {originalStatus === 'L' && 'On Leave'}
-                                  {originalStatus === 'TR' || originalStatus === 'T' ? 'Training' : ''}
-                                  {originalStatus === 'O' && 'Off Duty'}
-                                  {originalStatus === 'B1' && 'Half Day'}
-                                  {originalStatus === 'SK' && 'Sick Leave'}
-                                  {originalStatus === 'DO' && 'Overtime'}
-                                  {!originalStatus && 'Not Assigned'}
-                                </span>
-                              </div>
-                              {displayStatus !== originalStatus && ['D', 'B1', 'DO'].includes(originalStatus) && (
-                                <div className="flex items-center gap-2">
-                                  <span>Assignment:</span>
-                                  <span className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">
-                                    {displayStatus}
-                                  </span>
-                                </div>
-                              )}
-                              <p className="text-xs text-gray-500">Click to edit</p>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div
+                        key={date.toISOString()}
+                        className={`w-20 px-1 py-2 text-xs text-center border-r border-gray-200 cursor-pointer hover:opacity-80 transition-opacity ${getCellStyle(status)}`}
+                        onClick={() => handleCellClick(employee, date, status)}
+                        title={`${employee.name} - ${format(date, 'MMM d, yyyy')} - ${status}`}
+                      >
+                        <div className="truncate">{status}</div>
+                      </div>
                     );
                   })}
-                </tr>
-              );
-            })}
-            
-            {filteredEmployees.length === 0 && (
-              <tr>
-                <td colSpan={12 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
-                  {employees.length > 0 ? 'No matching employees found.' : 'No employees found.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {!onEmployeeSelect && (
-        <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <SheetContent className="w-full sm:max-w-lg">
-            <SheetHeader>
-              <SheetTitle>Employee {selectedDate ? 'Schedule' : 'Profile'} Detail</SheetTitle>
-            </SheetHeader>
-            
-            {selectedEmployee && (
-              <div className="space-y-6 mt-6">
-                <div className="grid gap-4">
-                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium mb-2">Employee Information</h3>
-                    <dl className="grid grid-cols-2 gap-3">
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Name</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.name}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">ID</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.e_number}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Team</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.team?.team_name || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Position</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.job_title?.job_description || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Core</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.cores?.join(', ') || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Support</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.supports?.join(', ') || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Night Shift</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.night_shift_ok ? 'Yes' : 'No'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.fte_date ? format(new Date(selectedEmployee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Mobile</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.mobile_number || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Alias</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.key_name || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">TTL</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.ttl || '-'}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                  
-                  {selectedDate && selectedEmployee.schedule?.[selectedDate] && (
-                    <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                      <h3 className="text-lg font-medium mb-2">Schedule for {selectedDate}</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-                          <p className="font-medium dark:text-gray-200">
-                            {selectedEmployee.schedule?.[selectedDate] === 'D' && 'On Duty'}
-                            {selectedEmployee.schedule?.[selectedDate] === 'AL' && 'Annual Leave'}
-                            {selectedEmployee.schedule?.[selectedDate] === 'L' && 'On Leave'}
-                            {selectedEmployee.schedule?.[selectedDate] === 'TR' && 'Training'}
-                            {selectedEmployee.schedule?.[selectedDate] === 'T' && 'Training'}
-                            {selectedEmployee.schedule?.[selectedDate] === 'O' && 'Day Off'}
-                            {selectedEmployee.schedule?.[selectedDate] === 'B1' && 'Half Day'}
-                            {selectedEmployee.schedule?.[selectedDate] === 'SK' && 'Sick Leave'}
-                            {selectedEmployee.schedule?.[selectedDate] === 'DO' && 'Overtime'}
-                          </p>
-                        </div>
-                        
-                        <div className="pt-2">
-                          <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
-                            Edit Schedule
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
-            )}
-          </SheetContent>
-        </Sheet>
-      )}
-
-      <style>
-        {`
-          .weekend-shade {
-            background-color: rgba(107, 114, 128, 0.8);
-            color: white;
-          }
-          .dark .weekend-shade {
-            background-color: rgba(75, 85, 99, 0.9);
-            color: rgba(229, 231, 235, 1);
-          }
-          .today-highlight {
-            border: 2px solid #3b82f6;
-          }
-          .status-day-off {
-            background-color: rgba(75, 85, 99, 0.9);
-            color: white;
-          }
-          .dark .status-day-off {
-            background-color: rgba(55, 65, 81, 1);
-            color: rgba(229, 231, 235, 1);
-          }
-          .core-support-different {
-            border-left: 4px solid #ef4444;
-          }
-          .tooltip-fixed {
-            position: absolute !important; 
-            pointer-events: none !important;
-            z-index: 100 !important;
-            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
-          }
-          .popover-content {
-            z-index: 100;
-          }
-          .fixed-tooltip {
-            position: absolute !important; 
-            pointer-events: none !important;
-            z-index: 1000 !important;
-            transform-origin: var(--radix-tooltip-content-transform-origin) !important;
-          }
-        `}
-      </style>
+            ))}
+          </div>
+        </div>
+      </ScrollArea>
     </div>
   );
-});
+};
