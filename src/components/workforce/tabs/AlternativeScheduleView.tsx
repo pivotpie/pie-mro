@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+
+import { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
-import { EmployeeCalendar } from "../schedule/EmployeeCalendar";
+import { AlternativeEmployeeCalendar } from "../schedule/AlternativeEmployeeCalendar";
 import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { 
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 
-export const EmployeeScheduleView = () => {
+export const AlternativeScheduleView = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -28,11 +29,11 @@ export const EmployeeScheduleView = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key state
-  const calendarRef = useRef<any>(null); // Add ref for the calendar component
+  const [refreshKey, setRefreshKey] = useState(0);
+  const calendarRef = useRef<any>(null);
   const isMobile = useIsMobile();
 
-  // Handler to receive scroll position updates from the employee calendar
+  // Handler to receive scroll position updates from the calendar
   const handleCalendarScroll = (position: number) => {
     setScrollPosition(position);
   };
@@ -58,8 +59,7 @@ export const EmployeeScheduleView = () => {
 
   // Export handler
   const handleExport = () => {
-    // Implementation would go here
-    console.log("Export requested");
+    console.log("Export requested from alternative view");
   };
 
   // Open employee detail panel
@@ -80,10 +80,10 @@ export const EmployeeScheduleView = () => {
   // Function to force refresh the calendar data
   const refreshCalendarData = () => {
     setRefreshKey(prev => prev + 1);
-    console.log("Calendar data refresh requested");
+    console.log("Alternative calendar data refresh requested");
   };
 
-  // Handle schedule update
+  // Handle schedule update (same logic as EmployeeScheduleView)
   const handleUpdateSchedule = async () => {
     if (!selectedEmployee?.id || !selectedDate) return;
 
@@ -178,7 +178,7 @@ export const EmployeeScheduleView = () => {
     <div className="space-y-6 w-full">
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Employee Schedule</h2>
+          <h2 className="text-lg font-semibold">Alternative Employee Schedule</h2>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={goToPreviousMonth}>Previous</Button>
             <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
@@ -190,20 +190,20 @@ export const EmployeeScheduleView = () => {
           </div>
         </div>
 
-        {/* Simple container with direct overflow control and scroll position synchronization */}
+        {/* Container with the alternative calendar */}
         <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
-          <EmployeeCalendar 
+          <AlternativeEmployeeCalendar 
             ref={calendarRef}
             onScroll={handleCalendarScroll} 
             currentDate={currentDate}
             onEmployeeSelect={handleEmployeeSelect}
             onCellClick={handleScheduleCellClick}
-            refreshKey={refreshKey} // Pass refresh key to force re-rendering
+            refreshKey={refreshKey}
           />
         </div>
       </div>
-      
-      {/* Employee Detail Panel */}
+
+      {/* Employee Detail Panel (same as in EmployeeScheduleView) */}
       {selectedEmployee && !selectedDate && (
         <EmployeeDetailPanel
           employee={selectedEmployee}
@@ -212,7 +212,7 @@ export const EmployeeScheduleView = () => {
         />
       )}
 
-      {/* Schedule Detail Sheet */}
+      {/* Schedule Detail Sheet (same as in EmployeeScheduleView) */}
       {selectedEmployee && selectedDate && (
         <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
           <SheetContent className={`w-full ${isMobile ? '' : 'sm:max-w-lg'}`}>
