@@ -1,296 +1,189 @@
-
-import { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import { AssignmentsCalendar } from '../schedule/AssignmentsCalendar';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight } from "lucide-react";
-import { AlternativeEmployeeCalendar } from "../schedule/AlternativeEmployeeCalendar";
-import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
-  SheetTitle 
-} from "@/components/ui/sheet";
-import { toast } from "sonner";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { supabase } from '@/integrations/supabase/client';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+interface Employee {
+  id: string;
+  e_number?: string | null;
+  name: string;
+  mobile_number?: string | null;
+  team?: { team_name: string } | null;
+  job_title?: { job_description: string; job_code: string } | null;
+  employee_status?: string | null;
+  key_name?: string | null;
+  night_shift_ok?: boolean | null;
+  fte_date?: string | null;
+  ttl?: string | null;
+  schedule?: Record<string, string>;
+}
+
+interface EmployeeDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  employee: Employee | null;
+  selectedDate: string | null;
+}
+
+const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ isOpen, onClose, employee, selectedDate }) => {
+  if (!employee) return null;
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className="w-full sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>Employee {selectedDate ? 'Schedule' : 'Profile'} Detail</SheetTitle>
+        </SheetHeader>
+        
+        <div className="space-y-6 mt-6">
+          <div className="grid gap-4">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+              <h3 className="text-lg font-medium mb-2">Employee Information</h3>
+              <dl className="grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">Name</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.name}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">ID</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.e_number}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">Team</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.team?.team_name || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">Position</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.job_title?.job_description || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">Night Shift</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.night_shift_ok ? 'Yes' : 'No'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">Mobile</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.mobile_number || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">Alias</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.key_name || '-'}</dd>
+                </div>
+                 <div>
+                  <dt className="text-sm text-gray-500 dark:text-gray-400">TTL</dt>
+                  <dd className="font-medium dark:text-gray-200">{employee.ttl || '-'}</dd>
+                </div>
+              </dl>
+            </div>
+            
+            {selectedDate && employee.schedule?.[selectedDate] && (
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                <h3 className="text-lg font-medium mb-2">Schedule for {selectedDate}</h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                    <p className="font-medium dark:text-gray-200">
+                      {employee.schedule?.[selectedDate] === 'D' && 'On Duty'}
+                      {employee.schedule?.[selectedDate] === 'AL' && 'Annual Leave'}
+                      {employee.schedule?.[selectedDate] === 'L' && 'On Leave'}
+                      {employee.schedule?.[selectedDate] === 'TR' && 'Training'}
+                      {employee.schedule?.[selectedDate] === 'T' && 'Training'}
+                      {employee.schedule?.[selectedDate] === 'O' && 'Day Off'}
+                      {employee.schedule?.[selectedDate] === 'B1' && 'Half Day'}
+                      {employee.schedule?.[selectedDate] === 'SK' && 'Sick Leave'}
+                      {employee.schedule?.[selectedDate] === 'DO' && 'Overtime'}
+                    </p>
+                  </div>
+                  
+                  <div className="pt-2">
+                    <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
+                      Edit Schedule
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
 
 export const AlternativeScheduleView = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [isUpdateLoading, setIsUpdateLoading] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const calendarRef = useRef<any>(null);
-  const isMobile = useIsMobile();
+  const calendarRef = useRef<HTMLDivElement>(null);
 
-  // Handler to receive scroll position updates from the calendar
-  const handleCalendarScroll = (position: number) => {
+  const handleScroll = (position: number) => {
     setScrollPosition(position);
   };
 
-  // Navigate to previous month
-  const goToPreviousMonth = () => {
-    const prevMonth = new Date(currentDate);
-    prevMonth.setMonth(prevMonth.getMonth() - 1);
-    setCurrentDate(prevMonth);
-  };
-
-  // Navigate to today
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
-
-  // Navigate to next month
-  const goToNextMonth = () => {
-    const nextMonth = new Date(currentDate);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    setCurrentDate(nextMonth);
-  };
-
-  // Export handler
-  const handleExport = () => {
-    console.log("Export requested from alternative view");
-  };
-
-  // Open employee detail panel
-  const handleEmployeeSelect = (employee: any) => {
+  const handleEmployeeSelect = (employee: Employee) => {
     setSelectedEmployee(employee);
     setSelectedDate(null);
     setIsDetailOpen(true);
   };
 
-  // Handle schedule cell click
-  const handleScheduleCellClick = (employee: any, date: string, status: string) => {
+  const handleCellClick = (employee: Employee, date: string, status: string) => {
     setSelectedEmployee(employee);
     setSelectedDate(date);
-    setSelectedStatus(status || "");
     setIsDetailOpen(true);
   };
 
-  // Function to force refresh the calendar data
-  const refreshCalendarData = () => {
-    setRefreshKey(prev => prev + 1);
-    console.log("Alternative calendar data refresh requested");
-  };
-
-  // Handle schedule update (same logic as EmployeeScheduleView)
-  const handleUpdateSchedule = async () => {
-    if (!selectedEmployee?.id || !selectedDate) return;
-
-    try {
-      setIsUpdateLoading(true);
-
-      // Parse the date from the format M-D-YYYY to ISO format
-      const [month, day, year] = selectedDate.split('-').map(Number);
-      const formattedDate = new Date(year, month - 1, day).toISOString().split('T')[0];
-
-      // Find the date_id from date_references table
-      const { data: dateRef, error: dateError } = await supabase
-        .from('date_references')
-        .select('id')
-        .eq('actual_date', formattedDate)
-        .single();
-
-      if (dateError) {
-        throw new Error(`Date reference error: ${dateError.message}`);
-      }
-
-      if (!dateRef?.id) {
-        throw new Error('Date reference not found');
-      }
-
-      // Find the roster_id from roster_codes table
-      const { data: rosterCode, error: rosterError } = await supabase
-        .from('roster_codes')
-        .select('id')
-        .eq('roster_code', selectedStatus)
-        .single();
-
-      if (rosterError) {
-        throw new Error(`Roster code error: ${rosterError.message}`);
-      }
-
-      if (!rosterCode?.id) {
-        throw new Error('Roster code not found');
-      }
-
-      // Check if there's an existing roster assignment
-      const { data: existingAssignment, error: checkError } = await supabase
-        .from('roster_assignments')
-        .select('id')
-        .eq('employee_id', selectedEmployee.id)
-        .eq('date_id', dateRef.id);
-
-      if (checkError) {
-        throw new Error(`Check existing assignment error: ${checkError.message}`);
-      }
-
-      let updateResult;
-      
-      if (existingAssignment && existingAssignment.length > 0) {
-        // Update existing assignment
-        updateResult = await supabase
-          .from('roster_assignments')
-          .update({ roster_id: rosterCode.id })
-          .eq('id', existingAssignment[0].id);
-      } else {
-        // Create new assignment
-        updateResult = await supabase
-          .from('roster_assignments')
-          .insert([
-            {
-              employee_id: selectedEmployee.id,
-              date_id: dateRef.id,
-              roster_id: rosterCode.id
-            }
-          ]);
-      }
-
-      if (updateResult.error) {
-        throw new Error(`Update error: ${updateResult.error.message}`);
-      }
-
-      toast.success('Schedule updated successfully');
-      setIsDetailOpen(false);
-      
-      // Immediately refresh the calendar data after update
-      refreshCalendarData();
-      
-    } catch (error: any) {
-      console.error('Update schedule error:', error);
-      toast.error(`Failed to update schedule: ${error.message}`);
-    } finally {
-      setIsUpdateLoading(false);
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = new Date(e.target.value);
+    if (!isNaN(newDate.getTime())) {
+      setCurrentDate(newDate);
+      setRefreshKey(prevKey => prevKey + 1);
     }
   };
 
   return (
-    <div className="space-y-6 w-full">
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Alternative Employee Schedule</h2>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={goToPreviousMonth}>Previous</Button>
-            <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
-            <Button variant="outline" size="sm" onClick={goToNextMonth}>Next</Button>
-            <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={handleExport}>
-              <ArrowUpRight className="h-4 w-4" />
-              Export
-            </Button>
-          </div>
-        </div>
-
-        {/* Container with the alternative calendar */}
-        <div className="w-full h-[75vh] overflow-auto border rounded-lg shadow-sm">
-          <AlternativeEmployeeCalendar 
-            ref={calendarRef}
-            onScroll={handleCalendarScroll} 
-            currentDate={currentDate}
-            onEmployeeSelect={handleEmployeeSelect}
-            onCellClick={handleScheduleCellClick}
-            refreshKey={refreshKey}
+    <div className="h-full flex flex-col">
+      <div className="bg-gray-100 dark:bg-gray-700 p-4 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Label htmlFor="date">Select Date:</Label>
+          <Input
+            type="date"
+            id="date"
+            className="dark:bg-gray-800 dark:text-white"
+            value={format(currentDate, 'yyyy-MM-dd')}
+            onChange={handleDateChange}
           />
         </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          Scroll Position: {scrollPosition}px
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-hidden">
+        <AssignmentsCalendar
+          ref={calendarRef}
+          onScroll={handleScroll}
+          currentDate={currentDate}
+          onEmployeeSelect={handleEmployeeSelect}
+          onCellClick={handleCellClick}
+          refreshKey={refreshKey}
+        />
       </div>
 
-      {/* Employee Detail Panel (same as in EmployeeScheduleView) */}
-      {selectedEmployee && !selectedDate && (
-        <EmployeeDetailPanel
-          employee={selectedEmployee}
-          open={isDetailOpen}
-          onOpenChange={setIsDetailOpen}
-        />
-      )}
-
-      {/* Schedule Detail Sheet (same as in EmployeeScheduleView) */}
-      {selectedEmployee && selectedDate && (
-        <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <SheetContent className={`w-full ${isMobile ? '' : 'sm:max-w-lg'}`}>
-            <SheetHeader>
-              <SheetTitle>Schedule Details</SheetTitle>
-            </SheetHeader>
-            
-            <div className="space-y-6 mt-6">
-              <div className="flex flex-col space-y-2">
-                <h3 className="text-lg font-semibold">{selectedEmployee.name}</h3>
-                <div className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm px-2 py-1 rounded inline-block w-fit">
-                  {selectedEmployee.e_number || 'No ID'}
-                </div>
-              </div>
-              
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Date</p>
-                <p className="font-medium">{selectedDate}</p>
-              </div>
-              
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Current Status</p>
-                <div className={`mt-1 px-3 py-1 rounded-full text-sm inline-flex items-center ${
-                  selectedStatus === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                  selectedStatus === 'AL' || selectedStatus === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
-                  selectedStatus === 'TR' || selectedStatus === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
-                  selectedStatus === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
-                  selectedStatus === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-                  selectedStatus === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
-                  selectedStatus === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
-                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                }`}>
-                  {selectedStatus === 'D' && 'On Duty'}
-                  {selectedStatus === 'AL' && 'Annual Leave'}
-                  {selectedStatus === 'L' && 'On Leave'}
-                  {selectedStatus === 'TR' || selectedStatus === 'T' ? 'Training' : ''}
-                  {selectedStatus === 'O' && 'Off Duty'}
-                  {selectedStatus === 'B1' && 'Half Day'}
-                  {selectedStatus === 'SK' && 'Sick Leave'}
-                  {selectedStatus === 'DO' && 'Overtime'}
-                  {!selectedStatus && 'Not Assigned'}
-                </div>
-              </div>
-              
-              <div className="border-t pt-4 mt-4">
-                <h4 className="font-medium mb-2">Update Status</h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm text-gray-500 dark:text-gray-400">Status for {selectedDate}</label>
-                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                      <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="D">On Duty (D)</SelectItem>
-                        <SelectItem value="B1">Half Day (B1)</SelectItem>
-                        <SelectItem value="O">Off Duty (O)</SelectItem>
-                        <SelectItem value="AL">Annual Leave (AL)</SelectItem>
-                        <SelectItem value="SK">Sick Leave (SK)</SelectItem>
-                        <SelectItem value="TR">Training (TR)</SelectItem>
-                        <SelectItem value="DO">Overtime (DO)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <Button 
-                    className="w-full"
-                    onClick={handleUpdateSchedule}
-                    disabled={isUpdateLoading}
-                  >
-                    {isUpdateLoading ? 'Updating...' : 'Update Schedule'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
-      )}
+      <EmployeeDetailModal
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        employee={selectedEmployee}
+        selectedDate={selectedDate}
+      />
     </div>
   );
 };

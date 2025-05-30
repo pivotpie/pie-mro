@@ -20,18 +20,6 @@ interface EmployeeRoster {
   notes: string | null;
 }
 
-interface EmployeeCore {
-  id: string;
-  employee_id: string;
-  core_code: string;
-}
-
-interface EmployeeSupport {
-  id: string;
-  employee_id: string;
-  support_code: string;
-}
-
 interface Employee {
   id: string;
   e_number?: string | null;
@@ -44,8 +32,6 @@ interface Employee {
   night_shift_ok?: boolean | null;
   fte_date?: string | null;
   ttl?: string | null;
-  cores?: string[];
-  supports?: string[];
   schedule?: Record<string, string>;
 }
 
@@ -55,8 +41,6 @@ const columnWidths = {
   alias: 70,
   mobile: 130,
   team: 100,
-  core: 100,
-  support: 100,
   title: 100,
   night_shift: 70,
   fte: 80,
@@ -70,12 +54,10 @@ const columnLeftPositions = {
   alias: 265,
   mobile: 350,
   team: 470,
-  core: 567,
-  support: 660,
-  title: 760,
-  night_shift: 855,
-  fte: 930,
-  ttl: 1005
+  title: 567,
+  night_shift: 657,
+  fte: 732,
+  ttl: 807
 };
 
 const calculateTotalWidth = (days: any[]) => {
@@ -281,7 +263,7 @@ const DateColumnFilter = ({
   );
 };
 
-interface AlternativeEmployeeCalendarProps {
+interface AssignmentsCalendarProps {
   onScroll: (position: number) => void;
   currentDate?: Date;
   onEmployeeSelect?: (employee: any) => void;
@@ -289,7 +271,7 @@ interface AlternativeEmployeeCalendarProps {
   refreshKey?: number;
 }
 
-export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, AlternativeEmployeeCalendarProps>(
+export const AssignmentsCalendar = React.forwardRef<HTMLDivElement, AssignmentsCalendarProps>(
   ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
@@ -300,10 +282,6 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
   const days = useMemo(() => generateTwoMonthDays(currentDate), [currentDate]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
-  const [supportFilterValues, setSupportFilterValues] = useState<string[]>([]);
-  const [activeCoreFilters, setActiveCoreFilters] = useState<string[]>([]);
-  const [activeSupportFilters, setActiveSupportFilters] = useState<string[]>([]);
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
   const [dateColumnFilters, setDateColumnFilters] = useState<Record<string, string[]>>({});
   const [dateStatusValues, setDateStatusValues] = useState<Record<string, string[]>>({});
@@ -339,93 +317,11 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
           ...emp,
           id: String(emp.id),
           e_number: emp.e_number?.toString(),
-          cores: [],
-          supports: [],
           schedule: {}
         }));
 
         console.log("Fetched employees:", typedEmployees);
         console.log("Total employee count:", typedEmployees.length);
-
-        const currentDateString = new Date().toISOString().split('T')[0];
-        
-        const { data: coresData, error: coresError } = await supabase
-          .from('employee_cores')
-          .select(`
-            id,
-            employee_id,
-            assignment_date,
-            core:core_id(core_code)
-          `)
-          .eq('assignment_date', currentDateString);
-        
-        if (coresError) {
-          console.error("Error fetching employee cores:", coresError);
-        } else if (coresData) {
-          const employeesCoreMap: Record<string, string[]> = {};
-          const allCores = new Set<string>();
-          
-          coresData.forEach((coreData: any) => {
-            const employeeId = String(coreData.employee_id);
-            if (employeeId) {
-              if (!employeesCoreMap[employeeId]) {
-                employeesCoreMap[employeeId] = [];
-              }
-              if (coreData.core?.core_code) {
-                const coreCode = coreData.core.core_code;
-                employeesCoreMap[employeeId].push(coreCode);
-                allCores.add(coreCode);
-              }
-            }
-          });
-          
-          setCoreFilterValues(Array.from(allCores).sort());
-          
-          typedEmployees.forEach(emp => {
-            if (employeesCoreMap[emp.id]) {
-              emp.cores = employeesCoreMap[emp.id];
-            }
-          });
-        }
-        
-        const { data: supportsData, error: supportsError } = await supabase
-          .from('employee_supports')
-          .select(`
-            id,
-            employee_id,
-            assignment_date,
-            support:support_id(support_code)
-          `)
-          .eq('assignment_date', currentDateString);
-        
-        if (supportsError) {
-          console.error("Error fetching employee supports:", supportsError);
-        } else if (supportsData) {
-          const employeesSupportsMap: Record<string, string[]> = {};
-          const allSupports = new Set<string>();
-          
-          supportsData.forEach((supportData: any) => {
-            const employeeId = String(supportData.employee_id);
-            if (employeeId) {
-              if (!employeesSupportsMap[employeeId]) {
-                employeesSupportsMap[employeeId] = [];
-              }
-              if (supportData.support?.support_code) {
-                const supportCode = supportData.support.support_code;
-                employeesSupportsMap[employeeId].push(supportCode);
-                allSupports.add(supportCode);
-              }
-            }
-          });
-          
-          setSupportFilterValues(Array.from(allSupports).sort());
-          
-          typedEmployees.forEach(emp => {
-            if (employeesSupportsMap[emp.id]) {
-              emp.supports = employeesSupportsMap[emp.id];
-            }
-          });
-        }
 
         const today = new Date();
         const todayString = format(today, 'yyyy-MM-dd');
@@ -549,20 +445,6 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
   useEffect(() => {
     let result = [...employees];
     
-    if (activeCoreFilters.length > 0) {
-      result = result.filter(emp => {
-        if (!emp.cores || emp.cores.length === 0) return false;
-        return emp.cores.some(core => activeCoreFilters.includes(core));
-      });
-    }
-    
-    if (activeSupportFilters.length > 0) {
-      result = result.filter(emp => {
-        if (!emp.supports || emp.supports.length === 0) return false;
-        return emp.supports.some(support => activeSupportFilters.includes(support));
-      });
-    }
-    
     Object.entries(columnFilters).forEach(([column, values]) => {
       if (values.length > 0) {
         result = result.filter(emp => {
@@ -592,40 +474,12 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
     });
     
     setFilteredEmployees(result);
-  }, [employees, activeCoreFilters, activeSupportFilters, columnFilters, dateColumnFilters]);
+  }, [employees, columnFilters, dateColumnFilters]);
 
   const handleScroll = () => {
     if (scrollAreaRef.current) {
       onScroll(scrollAreaRef.current.scrollLeft || 0);
     }
-  };
-
-  const handleCoreFilterSelect = (value: string) => {
-    setActiveCoreFilters(prev => {
-      if (prev.includes(value)) {
-        return prev.filter(v => v !== value);
-      } else {
-        return [...prev, value];
-      }
-    });
-  };
-
-  const handleSupportFilterSelect = (value: string) => {
-    setActiveSupportFilters(prev => {
-      if (prev.includes(value)) {
-        return prev.filter(v => v !== value);
-      } else {
-        return [...prev, value];
-      }
-    });
-  };
-
-  const clearCoreFilters = () => {
-    setActiveCoreFilters([]);
-  };
-
-  const clearSupportFilters = () => {
-    setActiveSupportFilters([]);
   };
 
   const handleColumnFilterSelect = (column: string, value: string) => {
@@ -727,15 +581,6 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
     { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
   ];
 
-  const hasDifferentCoreSupport = (employee: Employee) => {
-    if (!employee.cores || !employee.supports) return false;
-    if (employee.cores.length === 0 || employee.supports.length === 0) return false;
-    
-    const hasOverlap = employee.cores.some(core => employee.supports?.includes(core));
-    
-    return !hasOverlap && employee.cores.length > 0 && employee.supports.length > 0;
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full border rounded-lg dark:border-gray-700">
@@ -833,34 +678,6 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
                 </div>
               </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Core</span>
-                  <ColumnFilter 
-                    column="core" 
-                    label="Core" 
-                    values={coreFilterValues}
-                    activeValues={activeCoreFilters}
-                    onValueSelect={handleCoreFilterSelect}
-                    onClearAll={clearCoreFilters}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Support</span>
-                  <ColumnFilter 
-                    column="support" 
-                    label="Support" 
-                    values={supportFilterValues}
-                    activeValues={activeSupportFilters}
-                    onValueSelect={handleSupportFilterSelect}
-                    onClearAll={clearSupportFilters}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}>
                 <div className="flex items-center justify-between">
                   <span>Title</span>
@@ -949,15 +766,10 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
           </thead>
           <tbody>
             {filteredEmployees.map((employee) => {
-              const isDifferent = hasDifferentCoreSupport(employee);
-              
               return (
                 <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                   <td 
-                    className={cn(
-                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
-                      isDifferent ? 'core-support-different' : ''
-                    )}
+                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
@@ -990,20 +802,6 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.team?.team_name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.cores?.join(', ') || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.supports?.join(', ') || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
@@ -1097,7 +895,7 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
             
             {filteredEmployees.length === 0 && (
               <tr>
-                <td colSpan={12 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
+                <td colSpan={10 + days.length} className="text-center py-4 text-gray-500 dark:text-gray-400">
                   {employees.length > 0 ? 'No matching employees found.' : 'No employees found.'}
                 </td>
               </tr>
@@ -1134,14 +932,6 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
                       <div>
                         <dt className="text-sm text-gray-500 dark:text-gray-400">Position</dt>
                         <dd className="font-medium dark:text-gray-200">{selectedEmployee.job_title?.job_description || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Core</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.cores?.join(', ') || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm text-gray-500 dark:text-gray-400">Support</dt>
-                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.supports?.join(', ') || '-'}</dd>
                       </div>
                       <div>
                         <dt className="text-sm text-gray-500 dark:text-gray-400">Night Shift</dt>
@@ -1221,9 +1011,6 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
             background-color: rgba(55, 65, 81, 1);
             color: rgba(229, 231, 235, 1);
           }
-          .core-support-different {
-            border-left: 4px solid #ef4444;
-          }
           .tooltip-fixed {
             position: absolute !important; 
             pointer-events: none !important;
@@ -1245,4 +1032,4 @@ export const AlternativeEmployeeCalendar = React.forwardRef<HTMLDivElement, Alte
   );
 });
 
-AlternativeEmployeeCalendar.displayName = 'AlternativeEmployeeCalendar';
+AssignmentsCalendar.displayName = 'AssignmentsCalendar';
