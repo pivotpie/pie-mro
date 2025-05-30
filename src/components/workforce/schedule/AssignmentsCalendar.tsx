@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -647,7 +647,7 @@ export const AssignmentsCalendar = React.forwardRef<HTMLDivElement, AssignmentsC
         className="h-[calc(100vh-200px)] w-full border rounded-lg dark:border-gray-700"
         onScrollCapture={handleScroll}
       >
-        <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
+        <div className="relative" style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
           <table className="w-full border-collapse">
             <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
               <tr>
@@ -954,6 +954,7 @@ export const AssignmentsCalendar = React.forwardRef<HTMLDivElement, AssignmentsC
             </tbody>
           </table>
         </div>
+        <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
       {!onEmployeeSelect && (
