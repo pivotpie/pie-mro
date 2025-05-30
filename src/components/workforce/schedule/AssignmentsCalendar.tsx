@@ -46,6 +46,7 @@ interface Employee {
   cores?: string[];
   supports?: string[];
   schedule?: Record<string, string>;
+  supportSchedule?: Record<string, string>; // Add support schedule mapping
 }
 
 const columnWidths = {
@@ -340,7 +341,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           e_number: emp.e_number?.toString(),
           cores: [],
           supports: [],
-          schedule: {}
+          schedule: {},
+          supportSchedule: {}
         }));
 
         console.log("Fetched employees:", typedEmployees);
@@ -483,10 +485,27 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Raw roster data:", rosterData);
         console.log("Total roster records fetched:", rosterData ? rosterData.length : 0);
         
+        // Fetch support data for employees with D, B1, or DO roster codes
+        const { data: supportData, error: supportError } = await supabase
+          .from('employee_supports')
+          .select(`
+            employee_id,
+            assignment_date,
+            support_codes!inner(support_code)
+          `);
+        
+        if (supportError) {
+          console.error("Error fetching support data:", supportError);
+        }
+
+        console.log("Support data fetched:", supportData);
+        
         if (rosterData && rosterData.length > 0) {
           const scheduleMap: Record<string, Record<string, string>> = {};
+          const supportScheduleMap: Record<string, Record<string, string>> = {};
           const dateStatusMap: Record<string, Set<string>> = {};
           
+          // Process roster data
           rosterData.forEach((roster: any) => {
             const employeeId = String(roster.employee_id);
             const date = new Date(roster.date_references.actual_date);
@@ -504,6 +523,26 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             }
             dateStatusMap[dateKey].add(status);
           });
+
+          // Process support data and map to roster dates
+          if (supportData && supportData.length > 0) {
+            supportData.forEach((support: any) => {
+              const employeeId = String(support.employee_id);
+              const date = new Date(support.assignment_date);
+              const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
+              const supportCode = support.support_codes.support_code;
+              
+              if (!supportScheduleMap[employeeId]) {
+                supportScheduleMap[employeeId] = {};
+              }
+              
+              // Only map support codes for dates where employee has D, B1, or DO roster codes
+              const rosterCode = scheduleMap[employeeId]?.[dateKey];
+              if (rosterCode && ['D', 'B1', 'DO'].includes(rosterCode)) {
+                supportScheduleMap[employeeId][dateKey] = supportCode;
+              }
+            });
+          }
           
           const processedDateStatusValues: Record<string, string[]> = {};
           Object.entries(dateStatusMap).forEach(([dateKey, statuses]) => {
@@ -512,11 +551,13 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           setDateStatusValues(processedDateStatusValues);
           
           console.log("Processed schedule map:", scheduleMap);
+          console.log("Processed support schedule map:", supportScheduleMap);
           
           const employeesWithSchedule = typedEmployees.map(emp => {
             return {
               ...emp,
-              schedule: scheduleMap[emp.id] || {}
+              schedule: scheduleMap[emp.id] || {},
+              supportSchedule: supportScheduleMap[emp.id] || {}
             };
           });
           
@@ -527,7 +568,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           const employeesWithEmptySchedule = typedEmployees.map(emp => {
             return {
               ...emp,
-              schedule: {}
+              schedule: {},
+              supportSchedule: {}
             };
           });
           
@@ -1035,8 +1077,18 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   
                   {days.map((day) => {
                     const dateKey = `${day.month+1}-${day.day}-${day.year}`;
-                    const status = employee.schedule?.[dateKey] || '';
-                    const hasStatus = status !== '';
+                    const rosterStatus = employee.schedule?.[dateKey] || '';
+                    
+                    // Use support code for D, B1, DO; otherwise use roster code
+                    let displayStatus = rosterStatus;
+                    if (['D', 'B1', 'DO'].includes(rosterStatus)) {
+                      const supportCode = employee.supportSchedule?.[dateKey];
+                      if (supportCode) {
+                        displayStatus = supportCode;
+                      }
+                    }
+                    
+                    const hasStatus = displayStatus !== '';
                     
                     return (
                       <TooltipProvider key={dateKey}>
@@ -1046,13 +1098,13 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                               className={cn(
                                 "p-2 text-center border-r cursor-pointer text-sm dark:border-gray-700",
                                 day.isWeekend ? 'weekend-shade' : '',
-                                hasStatus ? statusColors[status] || '' : '',
+                                hasStatus ? statusColors[rosterStatus] || '' : '',
                                 day.isToday ? 'today-highlight' : ''
                               )}
                               style={{ width: `${columnWidths.date}px`, position: 'relative' }}
-                              onClick={() => onCellClick && onCellClick(employee, dateKey, status)}
+                              onClick={() => onCellClick && onCellClick(employee, dateKey, rosterStatus)}
                             >
-                              {status}
+                              {displayStatus}
                             </td>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
@@ -1063,26 +1115,29 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                                 <span>Status:</span> 
                                 <span className={cn(
                                   "px-2 py-0.5 rounded-full text-xs",
-                                  status === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                                  status === 'AL' || status === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
-                                  status === 'TR' || status === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
-                                  status === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
-                                  status === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-                                  status === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
-                                  status === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
+                                  rosterStatus === 'D' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
+                                  rosterStatus === 'AL' || rosterStatus === 'L' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' : 
+                                  rosterStatus === 'TR' || rosterStatus === 'T' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
+                                  rosterStatus === 'O' ? 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200' :
+                                  rosterStatus === 'B1' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                                  rosterStatus === 'SK' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' :
+                                  rosterStatus === 'DO' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
                                   'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                                 )}>
-                                  {status === 'D' && 'On Duty'}
-                                  {status === 'AL' && 'Annual Leave'}
-                                  {status === 'L' && 'On Leave'}
-                                  {status === 'TR' || status === 'T' ? 'Training' : ''}
-                                  {status === 'O' && 'Off Duty'}
-                                  {status === 'B1' && 'Half Day'}
-                                  {status === 'SK' && 'Sick Leave'}
-                                  {status === 'DO' && 'Overtime'}
-                                  {!status && 'Not Assigned'}
+                                  {rosterStatus === 'D' && 'On Duty'}
+                                  {rosterStatus === 'AL' && 'Annual Leave'}
+                                  {rosterStatus === 'L' && 'On Leave'}
+                                  {rosterStatus === 'TR' || rosterStatus === 'T' ? 'Training' : ''}
+                                  {rosterStatus === 'O' && 'Off Duty'}
+                                  {rosterStatus === 'B1' && 'Half Day'}
+                                  {rosterStatus === 'SK' && 'Sick Leave'}
+                                  {rosterStatus === 'DO' && 'Overtime'}
+                                  {!rosterStatus && 'Not Assigned'}
                                 </span>
                               </div>
+                              {['D', 'B1', 'DO'].includes(rosterStatus) && displayStatus !== rosterStatus && (
+                                <p className="text-xs text-blue-500">Support: {displayStatus}</p>
+                              )}
                               <p className="text-xs text-gray-500">Click to edit</p>
                             </div>
                           </TooltipContent>
