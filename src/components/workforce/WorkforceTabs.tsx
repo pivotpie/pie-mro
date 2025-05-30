@@ -9,7 +9,7 @@ export const WorkforceTabs = () => {
       <Tabs defaultValue="employee-schedule" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="employee-schedule">Employee Schedule</TabsTrigger>
-          <TabsTrigger value="alternative-schedule">Alternative View</TabsTrigger>
+          <TabsTrigger value="alternative-schedule">Assignments Calendar</TabsTrigger>
         </TabsList>
         
         <TabsContent value="employee-schedule" className="mt-4">
