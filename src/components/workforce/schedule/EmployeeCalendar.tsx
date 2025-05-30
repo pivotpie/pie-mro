@@ -362,19 +362,24 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Fetched employees:", typedEmployees);
         console.log("Total employee count:", typedEmployees.length);
 
-        // Fetch employee cores
+        // Get current date in YYYY-MM-DD format for filtering
+        const currentDate = new Date().toISOString().split('T')[0]; // Gets today's date as "2025-05-30"
+        
+        // Fetch employee cores for current date
         const { data: coresData, error: coresError } = await supabase
           .from('employee_cores')
           .select(`
             id,
             employee_id,
+            assignment_date,
             core:core_id(core_code)
-          `);
-          
+          `)
+          .eq('assignment_date', currentDate); // Add date filtering
+        
         if (coresError) {
           console.error("Error fetching employee cores:", coresError);
         } else if (coresData) {
-          // Assign cores to employees
+          // Assign cores to employees (same logic as before)
           const employeesCoreMap: Record<string, string[]> = {};
           const allCores = new Set<string>();
           
@@ -402,20 +407,33 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             }
           });
         }
+          
+          // Update core filter values
+          setCoreFilterValues(Array.from(allCores).sort());
+          
+          // Add cores to employees
+          typedEmployees.forEach(emp => {
+            if (employeesCoreMap[emp.id]) {
+              emp.cores = employeesCoreMap[emp.id];
+            }
+          });
+        }
         
-        // Fetch employee supports
+        // Fetch employee supports for current date
         const { data: supportsData, error: supportsError } = await supabase
           .from('employee_supports')
           .select(`
             id,
             employee_id,
+            assignment_date,
             support:support_id(support_code)
-          `);
-          
+          `)
+          .eq('assignment_date', currentDate); // Add date filtering
+        
         if (supportsError) {
           console.error("Error fetching employee supports:", supportsError);
         } else if (supportsData) {
-          // Assign supports to employees
+          // Assign supports to employees (same logic as before)
           const employeesSupportsMap: Record<string, string[]> = {};
           const allSupports = new Set<string>();
           
