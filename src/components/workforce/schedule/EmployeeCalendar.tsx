@@ -11,6 +11,39 @@ import { toast } from "sonner";
 import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
 import { cn } from "@/lib/utils";
 
+// Status legend for the calendar
+const statusLegend = [
+  { status: 'On Duty', code: 'D', color: 'bg-green-500' },
+  { status: 'Annual Leave', code: 'AL', color: 'bg-red-500' },
+  { status: 'On Leave', code: 'L', color: 'bg-red-400' },
+  { status: 'Training', code: 'TR/T', color: 'bg-purple-500' },
+  { status: 'Day Off', code: 'O', color: 'bg-gray-600' },
+  { status: 'Half Day', code: 'B1', color: 'bg-blue-500' },
+  { status: 'Sick Leave', code: 'SK', color: 'bg-orange-500' },
+  { status: 'Overtime', code: 'DO', color: 'bg-yellow-500' }
+];
+
+// Status colors mapping for calendar cells
+const statusColors: Record<string, string> = {
+  'D': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+  'AL': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  'L': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  'TR': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+  'T': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+  'O': 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200',
+  'B1': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  'SK': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+  'DO': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+};
+
+// Helper function to check if employee has different core/support assignments
+const hasDifferentCoreSupport = (employee: Employee): boolean => {
+  // This is a placeholder - you can implement logic to check if the employee 
+  // has different core/support assignments compared to some baseline
+  // For now, returning false as we don't have the specific business logic
+  return false;
+};
+
 interface EmployeeRoster {
   id: number;
   employee_id: number;
