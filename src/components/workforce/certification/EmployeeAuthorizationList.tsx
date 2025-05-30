@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -278,7 +277,7 @@ export const EmployeeAuthorizationList = () => {
               <SelectValue placeholder="Filter by employee" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Employees</SelectItem>
+              <SelectItem value="all">All Employees</SelectItem>
               {lookupData.employees.map(emp => (
                 <SelectItem key={emp.id} value={emp.id.toString()}>
                   {emp.name}
@@ -292,7 +291,7 @@ export const EmployeeAuthorizationList = () => {
               <SelectValue placeholder="Filter by aircraft" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Aircraft</SelectItem>
+              <SelectItem value="all">All Aircraft</SelectItem>
               {lookupData.aircraftModels.map(model => (
                 <SelectItem key={model.id} value={model.id.toString()}>
                   {model.model_code} - {model.model_name}
@@ -306,7 +305,7 @@ export const EmployeeAuthorizationList = () => {
               <SelectValue placeholder="Filter by type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Types</SelectItem>
+              <SelectItem value="all">All Types</SelectItem>
               {lookupData.authorizationTypes.map(type => (
                 <SelectItem key={type.id} value={type.id.toString()}>
                   {type.name}
@@ -320,7 +319,7 @@ export const EmployeeAuthorizationList = () => {
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Status</SelectItem>
+              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="true">Active</SelectItem>
               <SelectItem value="false">Inactive</SelectItem>
             </SelectContent>
@@ -351,7 +350,7 @@ export const EmployeeAuthorizationList = () => {
                 <TableCell>
                   {editingId === auth.id ? (
                     <Select 
-                      value={editingData.employee_id?.toString()} 
+                      value={editingData.employee_id?.toString() || ""} 
                       onValueChange={(value) => setEditingData({...editingData, employee_id: parseInt(value)})}
                     >
                       <SelectTrigger className="w-full">
@@ -373,7 +372,7 @@ export const EmployeeAuthorizationList = () => {
                 <TableCell>
                   {editingId === auth.id ? (
                     <Select 
-                      value={editingData.aircraft_model_id?.toString()} 
+                      value={editingData.aircraft_model_id?.toString() || ""} 
                       onValueChange={(value) => setEditingData({...editingData, aircraft_model_id: parseInt(value)})}
                     >
                       <SelectTrigger className="w-full">
@@ -395,7 +394,7 @@ export const EmployeeAuthorizationList = () => {
                 <TableCell>
                   {editingId === auth.id ? (
                     <Select 
-                      value={editingData.authorization_type_id?.toString()} 
+                      value={editingData.authorization_type_id?.toString() || ""} 
                       onValueChange={(value) => setEditingData({...editingData, authorization_type_id: parseInt(value)})}
                     >
                       <SelectTrigger className="w-full">
@@ -429,20 +428,21 @@ export const EmployeeAuthorizationList = () => {
                 <TableCell>
                   {editingId === auth.id ? (
                     <Select 
-                      value={editingData.authorization_category || ''} 
-                      onValueChange={(value) => setEditingData({...editingData, authorization_category: value})}
+                      value={editingData.authorization_category || "none"} 
+                      onValueChange={(value) => setEditingData({...editingData, authorization_category: value === "none" ? "" : value})}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">No Category</SelectItem>
                         <SelectItem value="A">Category A</SelectItem>
                         <SelectItem value="B">Category B</SelectItem>
                         <SelectItem value="C">Category C</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    auth.authorization_category
+                    auth.authorization_category || "—"
                   )}
                 </TableCell>
                 
@@ -454,7 +454,7 @@ export const EmployeeAuthorizationList = () => {
                       className="w-full"
                     />
                   ) : (
-                    auth.certificate_number
+                    auth.certificate_number || "—"
                   )}
                 </TableCell>
                 
@@ -480,14 +480,14 @@ export const EmployeeAuthorizationList = () => {
                       className="w-full"
                     />
                   ) : (
-                    auth.expiry_date
+                    auth.expiry_date || "—"
                   )}
                 </TableCell>
                 
                 <TableCell>
                   {editingId === auth.id ? (
                     <Select 
-                      value={editingData.is_active?.toString()} 
+                      value={editingData.is_active?.toString() || "true"} 
                       onValueChange={(value) => setEditingData({...editingData, is_active: value === 'true'})}
                     >
                       <SelectTrigger className="w-full">

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -153,6 +153,9 @@ export const ManagementShortcuts = () => {
         <DialogContent className="w-[90vw] h-[90vh] max-w-[90vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{activeShortcut?.label}</DialogTitle>
+            <DialogDescription>
+              Manage and view {activeShortcut?.label.toLowerCase()} data
+            </DialogDescription>
           </DialogHeader>
           {renderShortcutContent()}
         </DialogContent>
