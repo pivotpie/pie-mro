@@ -8,83 +8,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Input } from "@/components/ui/input";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
-import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday, isValid, parseISO } from 'date-fns';
+import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
 import { cn } from "@/lib/utils";
-
-// Status legend for the calendar
-const statusLegend = [
-  { status: 'On Duty', code: 'D', color: 'bg-green-500' },
-  { status: 'Annual Leave', code: 'AL', color: 'bg-red-500' },
-  { status: 'On Leave', code: 'L', color: 'bg-red-400' },
-  { status: 'Training', code: 'TR/T', color: 'bg-purple-500' },
-  { status: 'Day Off', code: 'O', color: 'bg-gray-600' },
-  { status: 'Half Day', code: 'B1', color: 'bg-blue-500' },
-  { status: 'Sick Leave', code: 'SK', color: 'bg-orange-500' },
-  { status: 'Overtime', code: 'DO', color: 'bg-yellow-500' }
-];
-
-// Status colors mapping for calendar cells
-const statusColors: Record<string, string> = {
-  'D': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  'AL': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-  'L': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-  'TR': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-  'T': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-  'O': 'bg-gray-600 text-white dark:bg-gray-700 dark:text-gray-200',
-  'B1': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-  'SK': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
-  'DO': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-};
-
-// Helper function to check if employee has different core/support assignments
-const hasDifferentCoreSupport = (employee: Employee): boolean => {
-  // This is a placeholder - you can implement logic to check if the employee 
-  // has different core/support assignments compared to some baseline
-  // For now, returning false as we don't have the specific business logic
-  return false;
-};
-
-// Safe date parsing function
-const safeParseDate = (dateString: string): Date | null => {
-  if (!dateString || typeof dateString !== 'string') {
-    return null;
-  }
-  
-  try {
-    const parsed = parseISO(dateString);
-    return isValid(parsed) ? parsed : null;
-  } catch (error) {
-    console.error('Error parsing date:', dateString, error);
-    return null;
-  }
-};
-
-// Safe date formatting function
-const safeDateFormat = (date: Date | string | null | undefined, formatString: string = 'yyyy-MM-dd'): string => {
-  if (!date) return '-';
-  
-  try {
-    let dateObj: Date;
-    
-    if (typeof date === 'string') {
-      dateObj = safeParseDate(date);
-      if (!dateObj) return '-';
-    } else if (date instanceof Date) {
-      dateObj = date;
-    } else {
-      return '-';
-    }
-    
-    if (!isValid(dateObj)) {
-      return '-';
-    }
-    
-    return format(dateObj, formatString);
-  } catch (error) {
-    console.error('Error formatting date:', date, error);
-    return '-';
-  }
-};
 
 interface EmployeeRoster {
   id: number;
@@ -360,12 +285,11 @@ interface EmployeeCalendarProps {
   currentDate?: Date;
   onEmployeeSelect?: (employee: any) => void;
   onCellClick?: (employee: any, date: string, status: string) => void;
-  onCoreClick?: (aircraft: any) => void;
   refreshKey?: number;
 }
 
 export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
-  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, onCoreClick, refreshKey = 0 }, ref) => {
+  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -422,8 +346,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Fetched employees:", typedEmployees);
         console.log("Total employee count:", typedEmployees.length);
 
-        // Get today's date for current core/support assignments
-        const todayString = format(new Date(), 'yyyy-MM-dd');
+        const currentDateString = new Date().toISOString().split('T')[0];
         
         const { data: coresData, error: coresError } = await supabase
           .from('employee_cores')
@@ -433,7 +356,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             assignment_date,
             core:core_id(core_code)
           `)
-          .eq('assignment_date', todayString);
+          .eq('assignment_date', currentDateString);
         
         if (coresError) {
           console.error("Error fetching employee cores:", coresError);
@@ -472,7 +395,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             assignment_date,
             support:support_id(support_code)
           `)
-          .eq('assignment_date', todayString);
+          .eq('assignment_date', currentDateString);
         
         if (supportsError) {
           console.error("Error fetching employee supports:", supportsError);
@@ -504,7 +427,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         }
 
         const today = new Date();
-        const todayStringAttendance = format(today, 'yyyy-MM-dd');
+        const todayString = format(today, 'yyyy-MM-dd');
         
         const { data: attendanceData, error: attendanceError } = await supabase
           .from('attendance')
@@ -512,7 +435,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
             employee_id,
             check_in_time
           `)
-          .eq('date', todayStringAttendance);
+          .eq('date', todayString);
           
         if (attendanceError) {
           console.error("Error fetching attendance data:", attendanceError);
@@ -522,10 +445,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           attendanceData.forEach((attendance: any) => {
             const employeeId = String(attendance.employee_id);
             if (employeeId && attendance.check_in_time) {
-              const checkInDate = safeParseDate(attendance.check_in_time);
-              if (checkInDate) {
-                checkInMap[employeeId] = safeDateFormat(checkInDate, 'hh:mm a');
-              }
+              const checkInTime = new Date(attendance.check_in_time);
+              checkInMap[employeeId] = format(checkInTime, 'hh:mm a');
             }
           });
           
@@ -568,15 +489,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           
           rosterData.forEach((roster: any) => {
             const employeeId = String(roster.employee_id);
-            
-            // Safe date parsing for roster date
-            const rosterDate = safeParseDate(roster.date_references.actual_date);
-            if (!rosterDate) {
-              console.warn('Invalid date in roster data:', roster.date_references.actual_date);
-              return;
-            }
-            
-            const dateKey = `${rosterDate.getMonth()+1}-${rosterDate.getDate()}-${rosterDate.getFullYear()}`;
+            const date = new Date(roster.date_references.actual_date);
+            const dateKey = `${date.getMonth()+1}-${date.getDate()}-${date.getFullYear()}`;
             const status = roster.roster_codes.roster_code;
             
             if (!scheduleMap[employeeId]) {
@@ -790,111 +704,35 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     return [...new Set(values)].sort();
   };
 
-  const findAircraftByCore = async (coreCode: string) => {
-    try {
-      // Validate input
-      if (!coreCode || typeof coreCode !== 'string' || coreCode.trim() === '') {
-        throw new Error('Invalid core code provided');
-      }
-
-      const trimmedCoreCode = coreCode.trim();
-
-      // Handle "AV" (Available) core code - no aircraft assigned
-      if (trimmedCoreCode === 'AV') {
-        toast.info('No aircraft assigned (Available status)');
-        return null;
-      }
-
-      // First try to find aircraft by registration matching core code
-      const { data: aircraftData, error: aircraftError } = await supabase
-        .from('aircraft')
-        .select(`
-          id,
-          registration,
-          aircraft_name,
-          aircraft_code,
-          serial_number,
-          aircraft_types:aircraft_type_id(type_name, type_code),
-          maintenance_visits:maintenance_visits(
-            id,
-            visit_number,
-            check_type,
-            status,
-            date_in,
-            date_out,
-            hangars:hangar_id(hangar_name, hangar_code)
-          )
-        `)
-        .eq('registration', trimmedCoreCode)
-        .maybeSingle();
-
-      if (aircraftError) {
-        throw new Error(`Aircraft lookup error: ${aircraftError.message}`);
-      }
-
-      if (aircraftData) {
-        return aircraftData;
-      }
-
-      // If no direct match, try to find by core_codes table
-      const { data: coreData, error: coreError } = await supabase
-        .from('core_codes')
-        .select('id')
-        .eq('core_code', trimmedCoreCode)
-        .maybeSingle();
-
-      if (coreError) {
-        throw new Error(`Core code lookup error: ${coreError.message}`);
-      }
-
-      if (coreData) {
-        // Create a placeholder aircraft object for valid but unmatched core codes
-        return {
-          id: `core-${trimmedCoreCode}`,
-          registration: trimmedCoreCode,
-          aircraft_name: `Core Assignment: ${trimmedCoreCode}`,
-          aircraft_code: trimmedCoreCode,
-          serial_number: null,
-          aircraft_types: null,
-          maintenance_visits: []
-        };
-      }
-
-      // No aircraft or core code found
-      throw new Error(`No aircraft or core found for: ${trimmedCoreCode}`);
-    } catch (error: any) {
-      console.error('Error finding aircraft by core:', error);
-      throw error;
-    }
+  const statusColors: Record<string, string> = {
+    "D": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+    "L": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+    "T": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+    "O": "status-day-off",
+    "B1": "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+    "AL": "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+    "SK": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+    "DO": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+    "TR": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
   };
 
-  const handleCoreClick = async (coreCode: string) => {
-    if (!onCoreClick) {
-      return;
-    }
+  const statusLegend = [
+    { status: "On Duty", code: "D", color: "bg-green-100 border border-green-300 dark:bg-green-900 dark:border-green-700" },
+    { status: "Half Day", code: "B1", color: "bg-blue-100 border border-blue-300 dark:bg-blue-900 dark:border-blue-700" },
+    { status: "Annual Leave", code: "AL", color: "bg-red-100 border border-red-300 dark:bg-red-900 dark:border-red-700" },
+    { status: "Sick Leave", code: "SK", color: "bg-orange-100 border border-orange-300 dark:bg-orange-900 dark:border-orange-700" },
+    { status: "Training", code: "TR", color: "bg-purple-100 border border-purple-300 dark:bg-purple-900 dark:border-purple-700" },
+    { status: "Day Off", code: "O", color: "bg-gray-600 border border-gray-700 text-white dark:bg-gray-700 dark:border-gray-800 dark:text-gray-200" },
+    { status: "Overtime", code: "DO", color: "bg-yellow-100 border border-yellow-300 dark:bg-yellow-900 dark:border-yellow-700" },
+  ];
 
-    try {
-      // Validate input
-      if (!coreCode || typeof coreCode !== 'string') {
-        toast.error('Invalid core code');
-        return;
-      }
-
-      const trimmedCoreCode = coreCode.trim();
-      
-      if (trimmedCoreCode === '' || trimmedCoreCode === '-') {
-        toast.info('No core assigned to this employee');
-        return;
-      }
-
-      const aircraft = await findAircraftByCore(trimmedCoreCode);
-      if (aircraft) {
-        onCoreClick(aircraft);
-      }
-    } catch (error: any) {
-      console.error('Error handling core click:', error);
-      toast.error(error.message || 'Failed to load aircraft details');
-    }
+  const hasDifferentCoreSupport = (employee: Employee) => {
+    if (!employee.cores || !employee.supports) return false;
+    if (employee.cores.length === 0 || employee.supports.length === 0) return false;
+    
+    const hasOverlap = employee.cores.some(core => employee.supports?.includes(core));
+    
+    return !hasOverlap && employee.cores.length > 0 && employee.supports.length > 0;
   };
 
   if (isLoading) {
@@ -1116,7 +954,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                   <td 
                     className={cn(
-                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 hover:bg-blue-50 dark:hover:bg-blue-950",
+                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
                       isDifferent ? 'core-support-different' : ''
                     )}
                     style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
@@ -1155,15 +993,9 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
-                    onClick={() => {
-                      const primaryCore = employee.cores?.[0];
-                      if (primaryCore) {
-                        handleCoreClick(primaryCore);
-                      }
-                    }}
-                    title="Click to view aircraft details"
+                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
-                    {employee.cores?.[0] || '-'}
+                    {employee.cores?.join(', ') || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
@@ -1191,7 +1023,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
-                    {safeDateFormat(employee.fte_date)}
+                    {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
@@ -1226,7 +1058,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                           <TooltipContent side="top" className="z-50 tooltip-fixed" sideOffset={5}>
                             <div className="space-y-1">
                               <p className="font-medium">{employee.name} ({employee.e_number || 'No ID'})</p>
-                              <p>Date: {safeDateFormat(day.date, 'MMM dd, yyyy')}</p>
+                              <p>Date: {format(day.date, 'MMM dd, yyyy')}</p>
                               <div className="flex items-center gap-2">
                                 <span>Status:</span> 
                                 <span className={cn(
@@ -1316,7 +1148,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                       </div>
                       <div>
                         <dt className="text-sm text-gray-500 dark:text-gray-400">FTE Date</dt>
-                        <dd className="font-medium dark:text-gray-200">{safeDateFormat(selectedEmployee.fte_date)}</dd>
+                        <dd className="font-medium dark:text-gray-200">{selectedEmployee.fte_date ? format(new Date(selectedEmployee.fte_date), 'yyyy-MM-dd') : '-'}</dd>
                       </div>
                       <div>
                         <dt className="text-sm text-gray-500 dark:text-gray-400">Mobile</dt>
@@ -1394,7 +1226,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           .tooltip-fixed {
             position: absolute !important; 
             pointer-events: none !important;
-            z-index: 1000 !important;
+            z-index: 100 !important;
             transform-origin: var(--radix-tooltip-content-transform-origin) !important;
           }
           .popover-content {
@@ -1411,5 +1243,3 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     </div>
   );
 });
-
-EmployeeCalendar.displayName = 'EmployeeCalendar';

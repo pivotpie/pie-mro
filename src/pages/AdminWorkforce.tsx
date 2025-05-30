@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -86,11 +87,6 @@ const AdminWorkforce = () => {
     setShowEmployeePanel(false);
   };
 
-  const handleAircraftClick = (aircraft: any) => {
-    setSelectedAircraft(aircraft);
-    setShowAircraftModal(true);
-  };
-
   if (!user) {
     return null;
   }
@@ -114,7 +110,7 @@ const AdminWorkforce = () => {
               <WorkforceMetrics />
               
               {/* Workforce Tabs */}
-              <WorkforceTabs onAircraftClick={handleAircraftClick} />
+              <WorkforceTabs />
 
               {/* Management Shortcuts and Certification Lists */}
               <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
