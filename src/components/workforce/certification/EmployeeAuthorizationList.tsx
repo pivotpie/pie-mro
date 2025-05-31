@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -287,15 +288,62 @@ export const EmployeeAuthorizationList = () => {
         return;
       }
 
+      // Create clean insert data with only database fields
       const insertData = {
-        ...editingData,
+        employee_id: editingData.employee_id,
+        aircraft_model_id: editingData.aircraft_model_id,
+        authorization_type_id: editingData.authorization_type_id,
+        engine_model_id: editingData.engine_model_id,
+        authorization_basis: editingData.authorization_basis,
+        authorization_category: editingData.authorization_category,
+        certificate_number: editingData.certificate_number,
+        issued_on: editingData.issued_on,
+        expiry_date: editingData.expiry_date,
+        reissued_on: editingData.reissued_on,
+        is_active: editingData.is_active ?? true,
+        kept: editingData.kept ?? true,
+        suspended: editingData.suspended ?? false,
+        suspended_on: editingData.suspended_on,
+        suspension_reason: editingData.suspension_reason,
+        limitation: editingData.limitation,
+        remarks: editingData.remarks,
+        pages: editingData.pages,
+        gcaa_issued_flag: editingData.gcaa_issued_flag ?? false,
+        gcaa_issued_on: editingData.gcaa_issued_on,
+        gcaa_certificate_number: editingData.gcaa_certificate_number,
+        gcaa_remarks: editingData.gcaa_remarks,
+        easa_issued_flag: editingData.easa_issued_flag ?? false,
+        easa_issued_on: editingData.easa_issued_on,
+        easa_certificate_number: editingData.easa_certificate_number,
+        easa_remarks: editingData.easa_remarks,
+        faa_issued_flag: editingData.faa_issued_flag ?? false,
+        faa_issued_on: editingData.faa_issued_on,
+        faa_certificate_number: editingData.faa_certificate_number,
+        faa_remarks: editingData.faa_remarks,
+        icao_issued_flag: editingData.icao_issued_flag ?? false,
+        icao_issued_on: editingData.icao_issued_on,
+        icao_certificate_number: editingData.icao_certificate_number,
+        icao_remarks: editingData.icao_remarks,
+        p7_issued_flag: editingData.p7_issued_flag ?? false,
+        p7_issued_on: editingData.p7_issued_on,
+        p7_certificate_number: editingData.p7_certificate_number,
+        p7_remarks: editingData.p7_remarks,
+        manufacturer_issued_flag: editingData.manufacturer_issued_flag ?? false,
+        manufacturer_issued_on: editingData.manufacturer_issued_on,
+        manufacturer_certificate_number: editingData.manufacturer_certificate_number,
+        manufacturer_remarks: editingData.manufacturer_remarks,
+        other_issued_flag: editingData.other_issued_flag ?? false,
+        other_issued_on: editingData.other_issued_on,
+        other_certificate_number: editingData.other_certificate_number,
+        other_authority_name: editingData.other_authority_name,
+        other_remarks: editingData.other_remarks,
         created_at: new Date().toISOString(),
         created_by: 'user' // You can replace this with actual user info
       };
 
       const { error } = await supabase
         .from('employee_authorizations')
-        .insert([insertData]);
+        .insert(insertData);
 
       if (error) throw error;
 
@@ -346,7 +394,7 @@ export const EmployeeAuthorizationList = () => {
         return (
           <Input
             type="date"
-            value={value || ''}
+            value={String(value || '')}
             onChange={(e) => setEditingData({...editingData, [column]: e.target.value})}
             className="w-full"
           />
@@ -355,7 +403,7 @@ export const EmployeeAuthorizationList = () => {
         return (
           <Input
             type="number"
-            value={value || ''}
+            value={String(value || '')}
             onChange={(e) => setEditingData({...editingData, [column]: parseInt(e.target.value) || undefined})}
             className="w-full"
           />
@@ -363,7 +411,7 @@ export const EmployeeAuthorizationList = () => {
       default:
         return (
           <Input
-            value={value || ''}
+            value={String(value || '')}
             onChange={(e) => setEditingData({...editingData, [column]: e.target.value})}
             className="w-full"
           />
