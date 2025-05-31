@@ -534,7 +534,7 @@ export const EmployeeAuthorizationList = () => {
       cell: (auth: EmployeeAuthorization) => (
         editingId === auth.id ? (
           <Select 
-            value={editingData.employee_id?.toString() || ""} 
+            value={editingData.employee_id?.toString() || "0"} 
             onValueChange={(value) => setEditingData({...editingData, employee_id: parseInt(value)})}
           >
             <SelectTrigger className="w-full">
@@ -562,7 +562,7 @@ export const EmployeeAuthorizationList = () => {
       cell: (auth: EmployeeAuthorization) => (
         editingId === auth.id ? (
           <Select 
-            value={editingData.aircraft_model_id?.toString() || ""} 
+            value={editingData.aircraft_model_id?.toString() || "0"} 
             onValueChange={(value) => setEditingData({...editingData, aircraft_model_id: parseInt(value)})}
           >
             <SelectTrigger className="w-full">
@@ -590,7 +590,7 @@ export const EmployeeAuthorizationList = () => {
       cell: (auth: EmployeeAuthorization) => (
         editingId === auth.id ? (
           <Select 
-            value={editingData.authorization_type_id?.toString() || ""} 
+            value={editingData.authorization_type_id?.toString() || "0"} 
             onValueChange={(value) => setEditingData({...editingData, authorization_type_id: parseInt(value)})}
           >
             <SelectTrigger className="w-full">
@@ -618,14 +618,14 @@ export const EmployeeAuthorizationList = () => {
       cell: (auth: EmployeeAuthorization) => (
         editingId === auth.id ? (
           <Select 
-            value={editingData.engine_model_id?.toString() || ""} 
-            onValueChange={(value) => setEditingData({...editingData, engine_model_id: value ? parseInt(value) : undefined})}
+            value={editingData.engine_model_id?.toString() || "none"} 
+            onValueChange={(value) => setEditingData({...editingData, engine_model_id: value === "none" ? undefined : parseInt(value)})}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select engine model" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No Engine Model</SelectItem>
+              <SelectItem value="none">No Engine Model</SelectItem>
               {lookupData.engineModels.map(engine => (
                 <SelectItem key={engine.id} value={engine.id.toString()}>
                   {engine.manufacturer} {engine.model_code}
@@ -657,14 +657,14 @@ export const EmployeeAuthorizationList = () => {
       cell: (auth: EmployeeAuthorization) => (
         editingId === auth.id ? (
           <Select 
-            value={editingData.authorization_category || ""} 
-            onValueChange={(value) => setEditingData({...editingData, authorization_category: value || undefined})}
+            value={editingData.authorization_category || "none"} 
+            onValueChange={(value) => setEditingData({...editingData, authorization_category: value === "none" ? undefined : value})}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No Category</SelectItem>
+              <SelectItem value="none">No Category</SelectItem>
               <SelectItem value="A">Category A</SelectItem>
               <SelectItem value="B">Category B</SelectItem>
               <SelectItem value="C">Category C</SelectItem>
