@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
+import { SortableTable } from '@/components/ui/sortable-table';
 import { toast } from 'sonner';
 import { Edit, Check, X, Plus, Search, Filter } from 'lucide-react';
 
@@ -25,57 +18,103 @@ interface EmployeeAuthorization {
   employee_id: number;
   aircraft_model_id: number;
   authorization_type_id: number;
+  engine_model_id?: number;
   authorization_basis: string;
-  authorization_category: string;
-  certificate_number: string;
-  issued_on: string;
-  expiry_date: string;
+  authorization_category?: string;
+  certificate_number?: string;
+  issued_on?: string;
+  expiry_date?: string;
+  reissued_on?: string;
   is_active: boolean;
+  kept: boolean;
+  suspended: boolean;
+  suspended_on?: string;
+  suspension_reason?: string;
+  limitation?: string;
+  remarks?: string;
+  pages?: number;
+  gcaa_issued_flag: boolean;
+  gcaa_issued_on?: string;
+  gcaa_certificate_number?: string;
+  gcaa_remarks?: string;
+  easa_issued_flag: boolean;
+  easa_issued_on?: string;
+  easa_certificate_number?: string;
+  easa_remarks?: string;
+  faa_issued_flag: boolean;
+  faa_issued_on?: string;
+  faa_certificate_number?: string;
+  faa_remarks?: string;
+  icao_issued_flag: boolean;
+  icao_issued_on?: string;
+  icao_certificate_number?: string;
+  icao_remarks?: string;
+  p7_issued_flag: boolean;
+  p7_issued_on?: string;
+  p7_certificate_number?: string;
+  p7_remarks?: string;
+  manufacturer_issued_flag: boolean;
+  manufacturer_issued_on?: string;
+  manufacturer_certificate_number?: string;
+  manufacturer_remarks?: string;
+  other_issued_flag: boolean;
+  other_issued_on?: string;
+  other_certificate_number?: string;
+  other_authority_name?: string;
+  other_remarks?: string;
+  created_at?: string;
+  created_by?: string;
+  updated_at?: string;
+  updated_by?: string;
   employee_name?: string;
   aircraft_model_name?: string;
   authorization_type_name?: string;
+  engine_model_name?: string;
 }
 
 interface LookupData {
   employees: Array<{ id: number; name: string; e_number: number }>;
   aircraftModels: Array<{ id: number; model_name: string; model_code: string }>;
   authorizationTypes: Array<{ id: number; name: string }>;
+  engineModels: Array<{ id: number; model_code: string; manufacturer: string }>;
 }
 
 export const EmployeeAuthorizationList = () => {
   const [authorizations, setAuthorizations] = useState<EmployeeAuthorization[]>([]);
+  const [filteredData, setFilteredData] = useState<EmployeeAuthorization[]>([]);
   const [lookupData, setLookupData] = useState<LookupData>({
     employees: [],
     aircraftModels: [],
-    authorizationTypes: []
+    authorizationTypes: [],
+    engineModels: []
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingData, setEditingData] = useState<Partial<EmployeeAuthorization>>({});
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState({
-    employee: '',
-    aircraftModel: '',
-    authorizationType: '',
-    isActive: ''
-  });
+  const [flexibleSearchTerm, setFlexibleSearchTerm] = useState('');
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    applyFilters();
+  }, [authorizations, flexibleSearchTerm, columnFilters]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Fetch authorizations with joined data
+      // Fetch authorizations with all joined data
       const { data: authData, error: authError } = await supabase
         .from('employee_authorizations')
         .select(`
           *,
           employees!inner(id, name, e_number),
           aircraft_models!inner(id, model_name, model_code),
-          authorization_types!inner(id, name)
+          authorization_types!inner(id, name),
+          engine_models(id, model_code, manufacturer)
         `)
         .order('id', { ascending: false });
 
@@ -83,34 +122,28 @@ export const EmployeeAuthorizationList = () => {
 
       // Transform data to include lookup values
       const transformedData = authData?.map(auth => ({
-        id: auth.id,
-        employee_id: auth.employee_id,
-        aircraft_model_id: auth.aircraft_model_id,
-        authorization_type_id: auth.authorization_type_id,
-        authorization_basis: auth.authorization_basis,
-        authorization_category: auth.authorization_category,
-        certificate_number: auth.certificate_number,
-        issued_on: auth.issued_on,
-        expiry_date: auth.expiry_date,
-        is_active: auth.is_active,
+        ...auth,
         employee_name: auth.employees?.name,
         aircraft_model_name: `${auth.aircraft_models?.model_code} - ${auth.aircraft_models?.model_name}`,
-        authorization_type_name: auth.authorization_types?.name
+        authorization_type_name: auth.authorization_types?.name,
+        engine_model_name: auth.engine_models ? `${auth.engine_models.manufacturer} ${auth.engine_models.model_code}` : undefined
       })) || [];
 
       setAuthorizations(transformedData);
 
       // Fetch lookup data for dropdowns
-      const [employeesRes, aircraftModelsRes, authTypesRes] = await Promise.all([
+      const [employeesRes, aircraftModelsRes, authTypesRes, engineModelsRes] = await Promise.all([
         supabase.from('employees').select('id, name, e_number').eq('is_active', true).order('name'),
         supabase.from('aircraft_models').select('id, model_name, model_code').order('model_name'),
-        supabase.from('authorization_types').select('id, name').order('name')
+        supabase.from('authorization_types').select('id, name').order('name'),
+        supabase.from('engine_models').select('id, model_code, manufacturer').order('manufacturer, model_code')
       ]);
 
       setLookupData({
         employees: employeesRes.data || [],
         aircraftModels: aircraftModelsRes.data || [],
-        authorizationTypes: authTypesRes.data || []
+        authorizationTypes: authTypesRes.data || [],
+        engineModels: engineModelsRes.data || []
       });
 
     } catch (error) {
@@ -121,19 +154,75 @@ export const EmployeeAuthorizationList = () => {
     }
   };
 
+  const applyFilters = () => {
+    let filtered = [...authorizations];
+
+    // Apply flexible search
+    if (flexibleSearchTerm.trim()) {
+      const searchTerms = flexibleSearchTerm.split(',').map(term => term.trim().toLowerCase()).filter(term => term);
+      
+      filtered = filtered.filter(auth => {
+        return searchTerms.every(term => {
+          return (
+            auth.employee_name?.toLowerCase().includes(term) ||
+            auth.aircraft_model_name?.toLowerCase().includes(term) ||
+            auth.authorization_type_name?.toLowerCase().includes(term) ||
+            auth.engine_model_name?.toLowerCase().includes(term) ||
+            auth.authorization_basis?.toLowerCase().includes(term) ||
+            auth.authorization_category?.toLowerCase().includes(term) ||
+            auth.certificate_number?.toLowerCase().includes(term) ||
+            auth.gcaa_certificate_number?.toLowerCase().includes(term) ||
+            auth.easa_certificate_number?.toLowerCase().includes(term) ||
+            auth.faa_certificate_number?.toLowerCase().includes(term) ||
+            auth.limitation?.toLowerCase().includes(term) ||
+            auth.remarks?.toLowerCase().includes(term)
+          );
+        });
+      });
+    }
+
+    // Apply column filters
+    Object.entries(columnFilters).forEach(([column, filterValue]) => {
+      if (filterValue) {
+        filtered = filtered.filter(auth => {
+          const value = auth[column as keyof EmployeeAuthorization];
+          if (typeof value === 'string') {
+            return value.toLowerCase().includes(filterValue.toLowerCase());
+          }
+          if (typeof value === 'boolean') {
+            return filterValue === 'true' ? value : !value;
+          }
+          return String(value).toLowerCase().includes(filterValue.toLowerCase());
+        });
+      }
+    });
+
+    setFilteredData(filtered);
+  };
+
+  const handleColumnFilter = (column: string, value: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [column]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setColumnFilters({});
+    setFlexibleSearchTerm('');
+  };
+
+  const getUniqueColumnValues = (column: keyof EmployeeAuthorization) => {
+    const values = authorizations
+      .map(auth => auth[column])
+      .filter((value, index, self) => value !== null && value !== undefined && self.indexOf(value) === index)
+      .sort();
+    return values.map(String);
+  };
+
   const handleEdit = (authorization: EmployeeAuthorization) => {
     setEditingId(authorization.id);
-    setEditingData({
-      employee_id: authorization.employee_id,
-      aircraft_model_id: authorization.aircraft_model_id,
-      authorization_type_id: authorization.authorization_type_id,
-      authorization_basis: authorization.authorization_basis,
-      authorization_category: authorization.authorization_category,
-      certificate_number: authorization.certificate_number,
-      issued_on: authorization.issued_on,
-      expiry_date: authorization.expiry_date,
-      is_active: authorization.is_active
-    });
+    setEditingData({ ...authorization });
   };
 
   const handleSave = async () => {
@@ -142,7 +231,11 @@ export const EmployeeAuthorizationList = () => {
     try {
       const { error } = await supabase
         .from('employee_authorizations')
-        .update(editingData)
+        .update({
+          ...editingData,
+          updated_at: new Date().toISOString(),
+          updated_by: 'user' // You can replace this with actual user info
+        })
         .eq('id', editingId);
 
       if (error) throw error;
@@ -169,50 +262,35 @@ export const EmployeeAuthorizationList = () => {
       aircraft_model_id: 0,
       authorization_type_id: 0,
       authorization_basis: '',
-      authorization_category: '',
-      certificate_number: '',
       issued_on: new Date().toISOString().split('T')[0],
-      expiry_date: '',
       is_active: true,
-      employee_name: '',
-      aircraft_model_name: '',
-      authorization_type_name: ''
+      kept: true,
+      suspended: false,
+      gcaa_issued_flag: false,
+      easa_issued_flag: false,
+      faa_issued_flag: false,
+      icao_issued_flag: false,
+      p7_issued_flag: false,
+      manufacturer_issued_flag: false,
+      other_issued_flag: false
     };
     
-    setAuthorizations([newAuth, ...authorizations]);
+    setAuthorizations([newAuth as EmployeeAuthorization, ...authorizations]);
     setEditingId(0);
-    setEditingData({
-      employee_id: 0,
-      aircraft_model_id: 0,
-      authorization_type_id: 0,
-      authorization_basis: '',
-      authorization_category: '',
-      certificate_number: '',
-      issued_on: new Date().toISOString().split('T')[0],
-      expiry_date: '',
-      is_active: true
-    });
+    setEditingData(newAuth);
   };
 
   const handleCreate = async () => {
     try {
-      // Validate required fields
       if (!editingData.employee_id || !editingData.aircraft_model_id || !editingData.authorization_type_id || !editingData.authorization_basis) {
         toast.error('Please fill in all required fields');
         return;
       }
 
-      // Create the insert data with all required fields
       const insertData = {
-        employee_id: editingData.employee_id,
-        aircraft_model_id: editingData.aircraft_model_id,
-        authorization_type_id: editingData.authorization_type_id,
-        authorization_basis: editingData.authorization_basis,
-        authorization_category: editingData.authorization_category || '',
-        certificate_number: editingData.certificate_number || '',
-        issued_on: editingData.issued_on || new Date().toISOString().split('T')[0],
-        expiry_date: editingData.expiry_date || '',
-        is_active: editingData.is_active ?? true
+        ...editingData,
+        created_at: new Date().toISOString(),
+        created_by: 'user' // You can replace this with actual user info
       };
 
       const { error } = await supabase
@@ -231,67 +309,110 @@ export const EmployeeAuthorizationList = () => {
     }
   };
 
-  // Filter data based on search term and filters
-  const filteredData = authorizations.filter(auth => {
-    const matchesSearch = !searchTerm || 
-      auth.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      auth.aircraft_model_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      auth.authorization_type_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      auth.certificate_number?.toLowerCase().includes(searchTerm.toLowerCase());
+  const renderEditableCell = (auth: EmployeeAuthorization, column: keyof EmployeeAuthorization, type: 'text' | 'date' | 'select' | 'boolean' | 'number' = 'text') => {
+    if (editingId !== auth.id) {
+      const value = auth[column];
+      if (type === 'boolean') {
+        return (
+          <span className={`px-2 py-1 rounded-full text-xs ${
+            value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {value ? 'Yes' : 'No'}
+          </span>
+        );
+      }
+      return value || '—';
+    }
 
-    const matchesEmployeeFilter = !filters.employee || auth.employee_id.toString() === filters.employee;
-    const matchesAircraftFilter = !filters.aircraftModel || auth.aircraft_model_id.toString() === filters.aircraftModel;
-    const matchesAuthTypeFilter = !filters.authorizationType || auth.authorization_type_id.toString() === filters.authorizationType;
-    const matchesActiveFilter = filters.isActive === '' || auth.is_active.toString() === filters.isActive;
+    const value = editingData[column];
 
-    return matchesSearch && matchesEmployeeFilter && matchesAircraftFilter && matchesAuthTypeFilter && matchesActiveFilter;
-  });
-
-  if (loading) {
-    return <div className="p-6">Loading authorization data...</div>;
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Search and Filters */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              placeholder="Search authorizations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-          <Button onClick={handleAddNew} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add New
-          </Button>
-        </div>
-        
-        <div className="grid grid-cols-4 gap-2">
-          <Select value={filters.employee} onValueChange={(value) => setFilters({...filters, employee: value})}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by employee" />
+    switch (type) {
+      case 'boolean':
+        return (
+          <Select 
+            value={String(value || false)} 
+            onValueChange={(val) => setEditingData({...editingData, [column]: val === 'true'})}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
+              <SelectItem value="true">Yes</SelectItem>
+              <SelectItem value="false">No</SelectItem>
+            </SelectContent>
+          </Select>
+        );
+      case 'date':
+        return (
+          <Input
+            type="date"
+            value={value || ''}
+            onChange={(e) => setEditingData({...editingData, [column]: e.target.value})}
+            className="w-full"
+          />
+        );
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={value || ''}
+            onChange={(e) => setEditingData({...editingData, [column]: parseInt(e.target.value) || undefined})}
+            className="w-full"
+          />
+        );
+      default:
+        return (
+          <Input
+            value={value || ''}
+            onChange={(e) => setEditingData({...editingData, [column]: e.target.value})}
+            className="w-full"
+          />
+        );
+    }
+  };
+
+  const columns = [
+    {
+      id: 'employee_name',
+      header: 'Employee',
+      cell: (auth: EmployeeAuthorization) => (
+        editingId === auth.id ? (
+          <Select 
+            value={editingData.employee_id?.toString() || ""} 
+            onValueChange={(value) => setEditingData({...editingData, employee_id: parseInt(value)})}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select employee" />
+            </SelectTrigger>
+            <SelectContent>
               {lookupData.employees.map(emp => (
                 <SelectItem key={emp.id} value={emp.id.toString()}>
-                  {emp.name}
+                  {emp.name} (#{emp.e_number})
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-
-          <Select value={filters.aircraftModel} onValueChange={(value) => setFilters({...filters, aircraftModel: value})}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by aircraft" />
+        ) : auth.employee_name
+      ),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('employee_name'),
+      activeFilters: columnFilters.employee_name ? [columnFilters.employee_name] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('employee_name', value)
+    },
+    {
+      id: 'aircraft_model_name',
+      header: 'Aircraft Model',
+      cell: (auth: EmployeeAuthorization) => (
+        editingId === auth.id ? (
+          <Select 
+            value={editingData.aircraft_model_id?.toString() || ""} 
+            onValueChange={(value) => setEditingData({...editingData, aircraft_model_id: parseInt(value)})}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select aircraft model" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Aircraft</SelectItem>
               {lookupData.aircraftModels.map(model => (
                 <SelectItem key={model.id} value={model.id.toString()}>
                   {model.model_code} - {model.model_name}
@@ -299,13 +420,27 @@ export const EmployeeAuthorizationList = () => {
               ))}
             </SelectContent>
           </Select>
-
-          <Select value={filters.authorizationType} onValueChange={(value) => setFilters({...filters, authorizationType: value})}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by type" />
+        ) : auth.aircraft_model_name
+      ),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('aircraft_model_name'),
+      activeFilters: columnFilters.aircraft_model_name ? [columnFilters.aircraft_model_name] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('aircraft_model_name', value)
+    },
+    {
+      id: 'authorization_type_name',
+      header: 'Authorization Type',
+      cell: (auth: EmployeeAuthorization) => (
+        editingId === auth.id ? (
+          <Select 
+            value={editingData.authorization_type_id?.toString() || ""} 
+            onValueChange={(value) => setEditingData({...editingData, authorization_type_id: parseInt(value)})}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
               {lookupData.authorizationTypes.map(type => (
                 <SelectItem key={type.id} value={type.id.toString()}>
                   {type.name}
@@ -313,240 +448,623 @@ export const EmployeeAuthorizationList = () => {
               ))}
             </SelectContent>
           </Select>
-
-          <Select value={filters.isActive} onValueChange={(value) => setFilters({...filters, isActive: value})}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by status" />
+        ) : auth.authorization_type_name
+      ),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('authorization_type_name'),
+      activeFilters: columnFilters.authorization_type_name ? [columnFilters.authorization_type_name] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('authorization_type_name', value)
+    },
+    {
+      id: 'engine_model_name',
+      header: 'Engine Model',
+      cell: (auth: EmployeeAuthorization) => (
+        editingId === auth.id ? (
+          <Select 
+            value={editingData.engine_model_id?.toString() || ""} 
+            onValueChange={(value) => setEditingData({...editingData, engine_model_id: value ? parseInt(value) : undefined})}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select engine model" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="true">Active</SelectItem>
-              <SelectItem value="false">Inactive</SelectItem>
+              <SelectItem value="">No Engine Model</SelectItem>
+              {lookupData.engineModels.map(engine => (
+                <SelectItem key={engine.id} value={engine.id.toString()}>
+                  {engine.manufacturer} {engine.model_code}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
+        ) : auth.engine_model_name || '—'
+      ),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('engine_model_name'),
+      activeFilters: columnFilters.engine_model_name ? [columnFilters.engine_model_name] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('engine_model_name', value)
+    },
+    {
+      id: 'authorization_basis',
+      header: 'Authorization Basis',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'authorization_basis'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('authorization_basis'),
+      activeFilters: columnFilters.authorization_basis ? [columnFilters.authorization_basis] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('authorization_basis', value)
+    },
+    {
+      id: 'authorization_category',
+      header: 'Category',
+      cell: (auth: EmployeeAuthorization) => (
+        editingId === auth.id ? (
+          <Select 
+            value={editingData.authorization_category || ""} 
+            onValueChange={(value) => setEditingData({...editingData, authorization_category: value || undefined})}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No Category</SelectItem>
+              <SelectItem value="A">Category A</SelectItem>
+              <SelectItem value="B">Category B</SelectItem>
+              <SelectItem value="C">Category C</SelectItem>
+            </SelectContent>
+          </Select>
+        ) : auth.authorization_category || '—'
+      ),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('authorization_category'),
+      activeFilters: columnFilters.authorization_category ? [columnFilters.authorization_category] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('authorization_category', value)
+    },
+    {
+      id: 'certificate_number',
+      header: 'Certificate #',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'certificate_number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('certificate_number'),
+      activeFilters: columnFilters.certificate_number ? [columnFilters.certificate_number] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('certificate_number', value)
+    },
+    {
+      id: 'issued_on',
+      header: 'Issued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'issued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('issued_on'),
+      activeFilters: columnFilters.issued_on ? [columnFilters.issued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('issued_on', value)
+    },
+    {
+      id: 'expiry_date',
+      header: 'Expiry Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'expiry_date', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('expiry_date'),
+      activeFilters: columnFilters.expiry_date ? [columnFilters.expiry_date] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('expiry_date', value)
+    },
+    {
+      id: 'reissued_on',
+      header: 'Reissued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'reissued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('reissued_on'),
+      activeFilters: columnFilters.reissued_on ? [columnFilters.reissued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('reissued_on', value)
+    },
+    {
+      id: 'is_active',
+      header: 'Active',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'is_active', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.is_active ? [columnFilters.is_active] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('is_active', value)
+    },
+    {
+      id: 'kept',
+      header: 'Kept',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'kept', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.kept ? [columnFilters.kept] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('kept', value)
+    },
+    {
+      id: 'suspended',
+      header: 'Suspended',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'suspended', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.suspended ? [columnFilters.suspended] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('suspended', value)
+    },
+    {
+      id: 'suspended_on',
+      header: 'Suspended Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'suspended_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('suspended_on'),
+      activeFilters: columnFilters.suspended_on ? [columnFilters.suspended_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('suspended_on', value)
+    },
+    {
+      id: 'suspension_reason',
+      header: 'Suspension Reason',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'suspension_reason'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('suspension_reason'),
+      activeFilters: columnFilters.suspension_reason ? [columnFilters.suspension_reason] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('suspension_reason', value)
+    },
+    {
+      id: 'limitation',
+      header: 'Limitation',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'limitation'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('limitation'),
+      activeFilters: columnFilters.limitation ? [columnFilters.limitation] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('limitation', value)
+    },
+    {
+      id: 'remarks',
+      header: 'Remarks',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'remarks'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('remarks'),
+      activeFilters: columnFilters.remarks ? [columnFilters.remarks] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('remarks', value)
+    },
+    {
+      id: 'pages',
+      header: 'Pages',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'pages', 'number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('pages'),
+      activeFilters: columnFilters.pages ? [columnFilters.pages] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('pages', value)
+    },
+    // GCAA columns
+    {
+      id: 'gcaa_issued_flag',
+      header: 'GCAA Issued',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'gcaa_issued_flag', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.gcaa_issued_flag ? [columnFilters.gcaa_issued_flag] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('gcaa_issued_flag', value)
+    },
+    {
+      id: 'gcaa_issued_on',
+      header: 'GCAA Issued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'gcaa_issued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('gcaa_issued_on'),
+      activeFilters: columnFilters.gcaa_issued_on ? [columnFilters.gcaa_issued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('gcaa_issued_on', value)
+    },
+    {
+      id: 'gcaa_certificate_number',
+      header: 'GCAA Certificate #',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'gcaa_certificate_number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('gcaa_certificate_number'),
+      activeFilters: columnFilters.gcaa_certificate_number ? [columnFilters.gcaa_certificate_number] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('gcaa_certificate_number', value)
+    },
+    {
+      id: 'gcaa_remarks',
+      header: 'GCAA Remarks',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'gcaa_remarks'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('gcaa_remarks'),
+      activeFilters: columnFilters.gcaa_remarks ? [columnFilters.gcaa_remarks] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('gcaa_remarks', value)
+    },
+    // EASA columns
+    {
+      id: 'easa_issued_flag',
+      header: 'EASA Issued',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'easa_issued_flag', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.easa_issued_flag ? [columnFilters.easa_issued_flag] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('easa_issued_flag', value)
+    },
+    {
+      id: 'easa_issued_on',
+      header: 'EASA Issued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'easa_issued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('easa_issued_on'),
+      activeFilters: columnFilters.easa_issued_on ? [columnFilters.easa_issued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('easa_issued_on', value)
+    },
+    {
+      id: 'easa_certificate_number',
+      header: 'EASA Certificate #',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'easa_certificate_number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('easa_certificate_number'),
+      activeFilters: columnFilters.easa_certificate_number ? [columnFilters.easa_certificate_number] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('easa_certificate_number', value)
+    },
+    {
+      id: 'easa_remarks',
+      header: 'EASA Remarks',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'easa_remarks'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('easa_remarks'),
+      activeFilters: columnFilters.easa_remarks ? [columnFilters.easa_remarks] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('easa_remarks', value)
+    },
+    // FAA columns
+    {
+      id: 'faa_issued_flag',
+      header: 'FAA Issued',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'faa_issued_flag', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.faa_issued_flag ? [columnFilters.faa_issued_flag] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('faa_issued_flag', value)
+    },
+    {
+      id: 'faa_issued_on',
+      header: 'FAA Issued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'faa_issued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('faa_issued_on'),
+      activeFilters: columnFilters.faa_issued_on ? [columnFilters.faa_issued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('faa_issued_on', value)
+    },
+    {
+      id: 'faa_certificate_number',
+      header: 'FAA Certificate #',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'faa_certificate_number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('faa_certificate_number'),
+      activeFilters: columnFilters.faa_certificate_number ? [columnFilters.faa_certificate_number] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('faa_certificate_number', value)
+    },
+    {
+      id: 'faa_remarks',
+      header: 'FAA Remarks',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'faa_remarks'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('faa_remarks'),
+      activeFilters: columnFilters.faa_remarks ? [columnFilters.faa_remarks] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('faa_remarks', value)
+    },
+    // ICAO columns
+    {
+      id: 'icao_issued_flag',
+      header: 'ICAO Issued',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'icao_issued_flag', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.icao_issued_flag ? [columnFilters.icao_issued_flag] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('icao_issued_flag', value)
+    },
+    {
+      id: 'icao_issued_on',
+      header: 'ICAO Issued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'icao_issued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('icao_issued_on'),
+      activeFilters: columnFilters.icao_issued_on ? [columnFilters.icao_issued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('icao_issued_on', value)
+    },
+    {
+      id: 'icao_certificate_number',
+      header: 'ICAO Certificate #',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'icao_certificate_number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('icao_certificate_number'),
+      activeFilters: columnFilters.icao_certificate_number ? [columnFilters.icao_certificate_number] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('icao_certificate_number', value)
+    },
+    {
+      id: 'icao_remarks',
+      header: 'ICAO Remarks',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'icao_remarks'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('icao_remarks'),
+      activeFilters: columnFilters.icao_remarks ? [columnFilters.icao_remarks] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('icao_remarks', value)
+    },
+    // P7 columns
+    {
+      id: 'p7_issued_flag',
+      header: 'P7 Issued',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'p7_issued_flag', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.p7_issued_flag ? [columnFilters.p7_issued_flag] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('p7_issued_flag', value)
+    },
+    {
+      id: 'p7_issued_on',
+      header: 'P7 Issued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'p7_issued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('p7_issued_on'),
+      activeFilters: columnFilters.p7_issued_on ? [columnFilters.p7_issued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('p7_issued_on', value)
+    },
+    {
+      id: 'p7_certificate_number',
+      header: 'P7 Certificate #',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'p7_certificate_number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('p7_certificate_number'),
+      activeFilters: columnFilters.p7_certificate_number ? [columnFilters.p7_certificate_number] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('p7_certificate_number', value)
+    },
+    {
+      id: 'p7_remarks',
+      header: 'P7 Remarks',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'p7_remarks'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('p7_remarks'),
+      activeFilters: columnFilters.p7_remarks ? [columnFilters.p7_remarks] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('p7_remarks', value)
+    },
+    // Manufacturer columns
+    {
+      id: 'manufacturer_issued_flag',
+      header: 'Manufacturer Issued',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'manufacturer_issued_flag', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.manufacturer_issued_flag ? [columnFilters.manufacturer_issued_flag] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('manufacturer_issued_flag', value)
+    },
+    {
+      id: 'manufacturer_issued_on',
+      header: 'Manufacturer Issued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'manufacturer_issued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('manufacturer_issued_on'),
+      activeFilters: columnFilters.manufacturer_issued_on ? [columnFilters.manufacturer_issued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('manufacturer_issued_on', value)
+    },
+    {
+      id: 'manufacturer_certificate_number',
+      header: 'Manufacturer Certificate #',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'manufacturer_certificate_number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('manufacturer_certificate_number'),
+      activeFilters: columnFilters.manufacturer_certificate_number ? [columnFilters.manufacturer_certificate_number] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('manufacturer_certificate_number', value)
+    },
+    {
+      id: 'manufacturer_remarks',
+      header: 'Manufacturer Remarks',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'manufacturer_remarks'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('manufacturer_remarks'),
+      activeFilters: columnFilters.manufacturer_remarks ? [columnFilters.manufacturer_remarks] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('manufacturer_remarks', value)
+    },
+    // Other columns
+    {
+      id: 'other_issued_flag',
+      header: 'Other Issued',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'other_issued_flag', 'boolean'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: ['true', 'false'],
+      activeFilters: columnFilters.other_issued_flag ? [columnFilters.other_issued_flag] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('other_issued_flag', value)
+    },
+    {
+      id: 'other_issued_on',
+      header: 'Other Issued Date',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'other_issued_on', 'date'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('other_issued_on'),
+      activeFilters: columnFilters.other_issued_on ? [columnFilters.other_issued_on] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('other_issued_on', value)
+    },
+    {
+      id: 'other_certificate_number',
+      header: 'Other Certificate #',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'other_certificate_number'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('other_certificate_number'),
+      activeFilters: columnFilters.other_certificate_number ? [columnFilters.other_certificate_number] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('other_certificate_number', value)
+    },
+    {
+      id: 'other_authority_name',
+      header: 'Other Authority',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'other_authority_name'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('other_authority_name'),
+      activeFilters: columnFilters.other_authority_name ? [columnFilters.other_authority_name] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('other_authority_name', value)
+    },
+    {
+      id: 'other_remarks',
+      header: 'Other Remarks',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'other_remarks'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('other_remarks'),
+      activeFilters: columnFilters.other_remarks ? [columnFilters.other_remarks] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('other_remarks', value)
+    },
+    // Audit columns
+    {
+      id: 'created_at',
+      header: 'Created At',
+      cell: (auth: EmployeeAuthorization) => auth.created_at ? new Date(auth.created_at).toLocaleDateString() : '—',
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('created_at'),
+      activeFilters: columnFilters.created_at ? [columnFilters.created_at] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('created_at', value)
+    },
+    {
+      id: 'created_by',
+      header: 'Created By',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'created_by'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('created_by'),
+      activeFilters: columnFilters.created_by ? [columnFilters.created_by] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('created_by', value)
+    },
+    {
+      id: 'updated_at',
+      header: 'Updated At',
+      cell: (auth: EmployeeAuthorization) => auth.updated_at ? new Date(auth.updated_at).toLocaleDateString() : '—',
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('updated_at'),
+      activeFilters: columnFilters.updated_at ? [columnFilters.updated_at] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('updated_at', value)
+    },
+    {
+      id: 'updated_by',
+      header: 'Updated By',
+      cell: (auth: EmployeeAuthorization) => renderEditableCell(auth, 'updated_by'),
+      sortable: true,
+      hasFilter: true,
+      filterValues: getUniqueColumnValues('updated_by'),
+      activeFilters: columnFilters.updated_by ? [columnFilters.updated_by] : [],
+      onFilterValueSelect: (value: string) => handleColumnFilter('updated_by', value)
+    },
+    // Actions column
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: (auth: EmployeeAuthorization) => (
+        editingId === auth.id ? (
+          <div className="flex gap-1">
+            <Button 
+              size="sm" 
+              onClick={auth.id === 0 ? handleCreate : handleSave}
+              className="h-8 w-8 p-0"
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleCancel}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => handleEdit(auth)}
+            className="h-8 w-8 p-0"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        )
+      ),
+      sortable: false
+    }
+  ];
+
+  if (loading) {
+    return <div className="p-6">Loading authorization data...</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Flexible Search Bar */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+          <Input
+            placeholder="Flexible search (e.g., 'B1, A350, Trent 1000' or 'John Doe, EASA, Category A')..."
+            value={flexibleSearchTerm}
+            onChange={(e) => setFlexibleSearchTerm(e.target.value)}
+            className="pl-8"
+          />
         </div>
+        <Button onClick={handleAddNew} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Add New
+        </Button>
+        <Button onClick={clearFilters} variant="outline" className="flex items-center gap-2">
+          <Filter className="h-4 w-4" />
+          Clear Filters
+        </Button>
       </div>
 
-      {/* Table */}
-      <div className="border rounded-md overflow-auto max-h-[60vh]">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Aircraft Model</TableHead>
-              <TableHead>Authorization Type</TableHead>
-              <TableHead>Basis</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Certificate #</TableHead>
-              <TableHead>Issued Date</TableHead>
-              <TableHead>Expiry Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredData.map((auth) => (
-              <TableRow key={auth.id}>
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Select 
-                      value={editingData.employee_id?.toString() || ""} 
-                      onValueChange={(value) => setEditingData({...editingData, employee_id: parseInt(value)})}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select employee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {lookupData.employees.map(emp => (
-                          <SelectItem key={emp.id} value={emp.id.toString()}>
-                            {emp.name} (#{emp.e_number})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    auth.employee_name
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Select 
-                      value={editingData.aircraft_model_id?.toString() || ""} 
-                      onValueChange={(value) => setEditingData({...editingData, aircraft_model_id: parseInt(value)})}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select aircraft model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {lookupData.aircraftModels.map(model => (
-                          <SelectItem key={model.id} value={model.id.toString()}>
-                            {model.model_code} - {model.model_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    auth.aircraft_model_name
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Select 
-                      value={editingData.authorization_type_id?.toString() || ""} 
-                      onValueChange={(value) => setEditingData({...editingData, authorization_type_id: parseInt(value)})}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {lookupData.authorizationTypes.map(type => (
-                          <SelectItem key={type.id} value={type.id.toString()}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    auth.authorization_type_name
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Input
-                      value={editingData.authorization_basis || ''}
-                      onChange={(e) => setEditingData({...editingData, authorization_basis: e.target.value})}
-                      className="w-full"
-                    />
-                  ) : (
-                    auth.authorization_basis
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Select 
-                      value={editingData.authorization_category || "none"} 
-                      onValueChange={(value) => setEditingData({...editingData, authorization_category: value === "none" ? "" : value})}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Category</SelectItem>
-                        <SelectItem value="A">Category A</SelectItem>
-                        <SelectItem value="B">Category B</SelectItem>
-                        <SelectItem value="C">Category C</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    auth.authorization_category || "—"
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Input
-                      value={editingData.certificate_number || ''}
-                      onChange={(e) => setEditingData({...editingData, certificate_number: e.target.value})}
-                      className="w-full"
-                    />
-                  ) : (
-                    auth.certificate_number || "—"
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Input
-                      type="date"
-                      value={editingData.issued_on || ''}
-                      onChange={(e) => setEditingData({...editingData, issued_on: e.target.value})}
-                      className="w-full"
-                    />
-                  ) : (
-                    auth.issued_on
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Input
-                      type="date"
-                      value={editingData.expiry_date || ''}
-                      onChange={(e) => setEditingData({...editingData, expiry_date: e.target.value})}
-                      className="w-full"
-                    />
-                  ) : (
-                    auth.expiry_date || "—"
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <Select 
-                      value={editingData.is_active?.toString() || "true"} 
-                      onValueChange={(value) => setEditingData({...editingData, is_active: value === 'true'})}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="true">Active</SelectItem>
-                        <SelectItem value="false">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      auth.is_active 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                    }`}>
-                      {auth.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  )}
-                </TableCell>
-                
-                <TableCell>
-                  {editingId === auth.id ? (
-                    <div className="flex gap-1">
-                      <Button 
-                        size="sm" 
-                        onClick={auth.id === 0 ? handleCreate : handleSave}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={handleCancel}
-                        className="h-8 w-8 p-0"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => handleEdit(auth)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
+      {/* Results Summary */}
       <div className="text-sm text-gray-500 dark:text-gray-400">
         Showing {filteredData.length} of {authorizations.length} authorizations
+        {Object.keys(columnFilters).length > 0 && (
+          <span className="ml-2">
+            (Filtered by: {Object.entries(columnFilters).filter(([_, value]) => value).map(([key, _]) => key).join(', ')})
+          </span>
+        )}
+      </div>
+
+      {/* Table with all 51 columns */}
+      <div className="border rounded-md overflow-auto max-h-[70vh]">
+        <SortableTable
+          data={filteredData}
+          columns={columns}
+          defaultSortColumn="employee_name"
+          className="min-w-[200%]" // Enables horizontal scrolling
+          isLoading={loading}
+          emptyMessage="No authorizations found matching your criteria"
+        />
       </div>
     </div>
   );
