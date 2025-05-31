@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,11 @@ export const ManagementShortcuts = () => {
 
     // Render the EmployeeAuthorizationList for Certification Portal
     if (activeShortcut.id === "certification-portal") {
-      return <EmployeeAuthorizationList />;
+      return (
+        <div className="h-full">
+          <EmployeeAuthorizationList />
+        </div>
+      );
     }
 
     // Default content for other shortcuts
@@ -148,16 +151,18 @@ export const ManagementShortcuts = () => {
         </div>
       </CardContent>
 
-      {/* Management Modal - 90vh width and height */}
+      {/* Management Modal - Fixed sizing to prevent double scroll */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[90vw] h-[90vh] max-w-[90vw] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] h-[90vh] max-w-none p-0 flex flex-col">
+          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
             <DialogTitle>{activeShortcut?.label}</DialogTitle>
             <DialogDescription>
               Manage and view {activeShortcut?.label.toLowerCase()} data
             </DialogDescription>
           </DialogHeader>
-          {renderShortcutContent()}
+          <div className="flex-1 px-6 py-4 overflow-hidden">
+            {renderShortcutContent()}
+          </div>
         </DialogContent>
       </Dialog>
     </Card>

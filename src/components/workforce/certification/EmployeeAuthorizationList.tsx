@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -158,31 +157,128 @@ export const EmployeeAuthorizationList = () => {
   const applyFilters = () => {
     let filtered = [...authorizations];
 
-    // Apply flexible search
+    // Apply flexible search with enhanced column-specific and boolean support
     if (flexibleSearchTerm.trim()) {
-      const searchTerms = flexibleSearchTerm.split(',').map(term => term.trim().toLowerCase()).filter(term => term);
+      const searchTerms = flexibleSearchTerm.split(',').map(term => term.trim()).filter(term => term);
       
       filtered = filtered.filter(auth => {
         return searchTerms.every(term => {
+          // Check for column-specific search (column=value format)
+          const columnSearchMatch = term.match(/^(.+?)=(.+)$/);
+          if (columnSearchMatch) {
+            const [, columnName, searchValue] = columnSearchMatch;
+            const normalizedColumnName = columnName.trim().toLowerCase();
+            const normalizedSearchValue = searchValue.trim().toLowerCase();
+            
+            // Map common column names to actual field names
+            const columnMappings: Record<string, keyof EmployeeAuthorization> = {
+              'employee': 'employee_name',
+              'employee name': 'employee_name',
+              'aircraft': 'aircraft_model_name',
+              'aircraft model': 'aircraft_model_name',
+              'authorization type': 'authorization_type_name',
+              'type': 'authorization_type_name',
+              'engine': 'engine_model_name',
+              'engine model': 'engine_model_name',
+              'basis': 'authorization_basis',
+              'authorization basis': 'authorization_basis',
+              'category': 'authorization_category',
+              'certificate': 'certificate_number',
+              'certificate number': 'certificate_number',
+              'issued': 'issued_on',
+              'issued date': 'issued_on',
+              'expiry': 'expiry_date',
+              'expiry date': 'expiry_date',
+              'reissued': 'reissued_on',
+              'active': 'is_active',
+              'kept': 'kept',
+              'suspended': 'suspended',
+              'limitation': 'limitation',
+              'remarks': 'remarks',
+              'pages': 'pages',
+              'gcaa issued': 'gcaa_issued_flag',
+              'gcaa': 'gcaa_issued_flag',
+              'easa issued': 'easa_issued_flag',
+              'easa': 'easa_issued_flag',
+              'faa issued': 'faa_issued_flag',
+              'faa': 'faa_issued_flag',
+              'icao issued': 'icao_issued_flag',
+              'icao': 'icao_issued_flag',
+              'p7 issued': 'p7_issued_flag',
+              'p7': 'p7_issued_flag',
+              'manufacturer issued': 'manufacturer_issued_flag',
+              'manufacturer': 'manufacturer_issued_flag',
+              'other issued': 'other_issued_flag',
+              'other': 'other_issued_flag'
+            };
+            
+            const actualColumnName = columnMappings[normalizedColumnName] || normalizedColumnName;
+            const value = auth[actualColumnName as keyof EmployeeAuthorization];
+            
+            if (typeof value === 'boolean') {
+              // Handle boolean values - support yes/no, true/false, 1/0
+              const booleanValue = normalizedSearchValue === 'yes' || 
+                                 normalizedSearchValue === 'true' || 
+                                 normalizedSearchValue === '1';
+              return value === booleanValue;
+            } else if (typeof value === 'string') {
+              return value.toLowerCase().includes(normalizedSearchValue);
+            } else if (typeof value === 'number') {
+              return String(value).includes(normalizedSearchValue);
+            } else if (value === null || value === undefined) {
+              return normalizedSearchValue === 'null' || normalizedSearchValue === 'empty' || normalizedSearchValue === '';
+            }
+            
+            return String(value).toLowerCase().includes(normalizedSearchValue);
+          }
+          
+          // Fall back to general search across all fields
+          const termLower = term.toLowerCase();
           return (
-            auth.employee_name?.toLowerCase().includes(term) ||
-            auth.aircraft_model_name?.toLowerCase().includes(term) ||
-            auth.authorization_type_name?.toLowerCase().includes(term) ||
-            auth.engine_model_name?.toLowerCase().includes(term) ||
-            auth.authorization_basis?.toLowerCase().includes(term) ||
-            auth.authorization_category?.toLowerCase().includes(term) ||
-            auth.certificate_number?.toLowerCase().includes(term) ||
-            auth.gcaa_certificate_number?.toLowerCase().includes(term) ||
-            auth.easa_certificate_number?.toLowerCase().includes(term) ||
-            auth.faa_certificate_number?.toLowerCase().includes(term) ||
-            auth.limitation?.toLowerCase().includes(term) ||
-            auth.remarks?.toLowerCase().includes(term)
+            auth.employee_name?.toLowerCase().includes(termLower) ||
+            auth.aircraft_model_name?.toLowerCase().includes(termLower) ||
+            auth.authorization_type_name?.toLowerCase().includes(termLower) ||
+            auth.engine_model_name?.toLowerCase().includes(termLower) ||
+            auth.authorization_basis?.toLowerCase().includes(termLower) ||
+            auth.authorization_category?.toLowerCase().includes(termLower) ||
+            auth.certificate_number?.toLowerCase().includes(termLower) ||
+            auth.gcaa_certificate_number?.toLowerCase().includes(termLower) ||
+            auth.easa_certificate_number?.toLowerCase().includes(termLower) ||
+            auth.faa_certificate_number?.toLowerCase().includes(termLower) ||
+            auth.icao_certificate_number?.toLowerCase().includes(termLower) ||
+            auth.p7_certificate_number?.toLowerCase().includes(termLower) ||
+            auth.manufacturer_certificate_number?.toLowerCase().includes(termLower) ||
+            auth.other_certificate_number?.toLowerCase().includes(termLower) ||
+            auth.limitation?.toLowerCase().includes(termLower) ||
+            auth.remarks?.toLowerCase().includes(termLower) ||
+            auth.gcaa_remarks?.toLowerCase().includes(termLower) ||
+            auth.easa_remarks?.toLowerCase().includes(termLower) ||
+            auth.faa_remarks?.toLowerCase().includes(termLower) ||
+            auth.icao_remarks?.toLowerCase().includes(termLower) ||
+            auth.p7_remarks?.toLowerCase().includes(termLower) ||
+            auth.manufacturer_remarks?.toLowerCase().includes(termLower) ||
+            auth.other_remarks?.toLowerCase().includes(termLower) ||
+            auth.suspension_reason?.toLowerCase().includes(termLower) ||
+            auth.other_authority_name?.toLowerCase().includes(termLower) ||
+            String(auth.pages || '').includes(termLower) ||
+            // Boolean fields searchable as text
+            (auth.is_active && (termLower.includes('active') || termLower.includes('yes'))) ||
+            (!auth.is_active && (termLower.includes('inactive') || termLower.includes('no'))) ||
+            (auth.suspended && termLower.includes('suspended')) ||
+            (auth.kept && termLower.includes('kept')) ||
+            (auth.gcaa_issued_flag && termLower.includes('gcaa')) ||
+            (auth.easa_issued_flag && termLower.includes('easa')) ||
+            (auth.faa_issued_flag && termLower.includes('faa')) ||
+            (auth.icao_issued_flag && termLower.includes('icao')) ||
+            (auth.p7_issued_flag && termLower.includes('p7')) ||
+            (auth.manufacturer_issued_flag && termLower.includes('manufacturer')) ||
+            (auth.other_issued_flag && termLower.includes('other'))
           );
         });
       });
     }
 
-    // Apply column filters
+    // Apply column filters - ensure all columns are supported
     Object.entries(columnFilters).forEach(([column, filterValue]) => {
       if (filterValue) {
         filtered = filtered.filter(auth => {
@@ -191,7 +287,19 @@ export const EmployeeAuthorizationList = () => {
             return value.toLowerCase().includes(filterValue.toLowerCase());
           }
           if (typeof value === 'boolean') {
-            return filterValue === 'true' ? value : !value;
+            const boolFilterValue = filterValue.toLowerCase();
+            if (boolFilterValue === 'true' || boolFilterValue === 'yes') {
+              return value === true;
+            } else if (boolFilterValue === 'false' || boolFilterValue === 'no') {
+              return value === false;
+            }
+            return false;
+          }
+          if (typeof value === 'number') {
+            return String(value).toLowerCase().includes(filterValue.toLowerCase());
+          }
+          if (value === null || value === undefined) {
+            return filterValue.toLowerCase() === 'null' || filterValue.toLowerCase() === 'empty';
           }
           return String(value).toLowerCase().includes(filterValue.toLowerCase());
         });
@@ -1071,30 +1179,30 @@ export const EmployeeAuthorizationList = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 h-full flex flex-col">
       {/* Flexible Search Bar */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           <Input
-            placeholder="Flexible search (e.g., 'B1, A350, Trent 1000' or 'John Doe, EASA, Category A')..."
+            placeholder="Search: 'B1, A350' or 'employee=John Doe' or 'active=yes' or 'gcaa issued=yes'"
             value={flexibleSearchTerm}
             onChange={(e) => setFlexibleSearchTerm(e.target.value)}
             className="pl-8"
           />
         </div>
-        <Button onClick={handleAddNew} className="flex items-center gap-2">
+        <Button onClick={handleAddNew} className="flex items-center gap-2 flex-shrink-0">
           <Plus className="h-4 w-4" />
           Add New
         </Button>
-        <Button onClick={clearFilters} variant="outline" className="flex items-center gap-2">
+        <Button onClick={clearFilters} variant="outline" className="flex items-center gap-2 flex-shrink-0">
           <Filter className="h-4 w-4" />
           Clear Filters
         </Button>
       </div>
 
       {/* Results Summary */}
-      <div className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
         Showing {filteredData.length} of {authorizations.length} authorizations
         {Object.keys(columnFilters).length > 0 && (
           <span className="ml-2">
@@ -1103,16 +1211,18 @@ export const EmployeeAuthorizationList = () => {
         )}
       </div>
 
-      {/* Table with all 51 columns */}
-      <div className="border rounded-md overflow-auto max-h-[70vh]">
-        <SortableTable
-          data={filteredData}
-          columns={columns}
-          defaultSortColumn="employee_name"
-          className="min-w-[200%]" // Enables horizontal scrolling
-          isLoading={loading}
-          emptyMessage="No authorizations found matching your criteria"
-        />
+      {/* Table with controlled width and single scroll */}
+      <div className="flex-1 border rounded-md overflow-hidden">
+        <div className="h-full overflow-auto">
+          <SortableTable
+            data={filteredData}
+            columns={columns}
+            defaultSortColumn="employee_name"
+            className="w-full"
+            isLoading={loading}
+            emptyMessage="No authorizations found matching your criteria"
+          />
+        </div>
       </div>
     </div>
   );
