@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDate } from '@/contexts/DateContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ interface AircraftAssignment {
 
 const ManagerDashboard = () => {
   const { user, logout } = useAuth();
+  const { currentDate, formatDate } = useDate();
   const navigate = useNavigate();
   const [supportDistribution, setSupportDistribution] = useState<any[]>([]);
   const [roleDistribution, setRoleDistribution] = useState<any[]>([]);
@@ -63,7 +65,7 @@ const ManagerDashboard = () => {
     }
 
     fetchAllData();
-  }, [user, navigate]);
+  }, [user, navigate, currentDate]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -352,7 +354,9 @@ const ManagerDashboard = () => {
 
   const fetchSupportData = async () => {
     try {
-      // Fetch support distribution data
+      const currentDateString = formatDate(currentDate);
+      
+      // Fetch support distribution data filtered by current date
       const { data: supportData, error: supportError } = await supabase
         .from('employee_supports')
         .select(`
@@ -360,7 +364,8 @@ const ManagerDashboard = () => {
           support_codes (
             support_code
           )
-        `);
+        `)
+        .eq('assignment_date', currentDateString);
 
       if (supportError) throw supportError;
 
@@ -383,7 +388,7 @@ const ManagerDashboard = () => {
         .sort((a: any, b: any) => b.count - a.count)
         .slice(0, 20);
 
-      // Fetch job title distribution
+      // Fetch job title distribution (still using all active employees)
       const { data: roleData, error: roleError } = await supabase
         .from('employees')
         .select(`
