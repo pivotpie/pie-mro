@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -242,12 +241,10 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         .select(`
           employee_id,
           support_id,
-          start_date,
-          end_date,
+          assignment_date,
           support_codes:support_id (support_code)
         `)
-        .lte('start_date', currentDateString)
-        .or(`end_date.is.null,end_date.gte.${currentDateString}`);
+        .eq('assignment_date', currentDateString);
 
       if (supportError) throw supportError;
 
@@ -257,12 +254,10 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         .select(`
           employee_id,
           core_id,
-          start_date,
-          end_date,
+          assignment_date,
           core_codes:core_id (core_code)
         `)
-        .lte('start_date', currentDateString)
-        .or(`end_date.is.null,end_date.gte.${currentDateString}`);
+        .eq('assignment_date', currentDateString);
 
       if (coreError) throw coreError;
 
