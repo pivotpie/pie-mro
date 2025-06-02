@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -235,23 +236,33 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
 
       if (certError) throw certError;
 
-      // Fetch employee supports
+      // Fetch employee supports - filtered by current date
       const { data: supportData, error: supportError } = await supabase
         .from('employee_supports')
         .select(`
           employee_id,
+          support_id,
+          start_date,
+          end_date,
           support_codes:support_id (support_code)
-        `);
+        `)
+        .lte('start_date', currentDateString)
+        .or(`end_date.is.null,end_date.gte.${currentDateString}`);
 
       if (supportError) throw supportError;
 
-      // Fetch employee cores
+      // Fetch employee cores - filtered by current date
       const { data: coreData, error: coreError } = await supabase
         .from('employee_cores')
         .select(`
           employee_id,
+          core_id,
+          start_date,
+          end_date,
           core_codes:core_id (core_code)
-        `);
+        `)
+        .lte('start_date', currentDateString)
+        .or(`end_date.is.null,end_date.gte.${currentDateString}`);
 
       if (coreError) throw coreError;
 
