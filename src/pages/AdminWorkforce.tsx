@@ -11,6 +11,7 @@ import { FloatingActionMenu } from "@/components/workforce/FloatingActionMenu";
 import { ManagementShortcuts } from "@/components/workforce/ManagementShortcuts";
 import { CertificationList } from "@/components/workforce/CertificationList";
 import { EmployeeDetailPanel } from "@/components/workforce/employee/EmployeeDetailPanel";
+import { AircraftScheduleSection } from "@/components/workforce/AircraftScheduleSection";
 import { supabase } from "@/integrations/supabase/client";
 import { AircraftDetailsModal } from "@/components/workforce/schedule/AircraftDetailsModal";
 
@@ -109,8 +110,11 @@ const AdminWorkforce = () => {
             <div className="p-4 md:p-6">
               <WorkforceMetrics />
               
-              {/* Workforce Tabs - This now includes all tabs including Aircraft */}
+              {/* Simplified Workforce Tabs - Only Employee and Assignment Calendars */}
               <WorkforceTabs />
+
+              {/* Aircraft Schedule Section - Standalone */}
+              <AircraftScheduleSection />
 
               {/* Management Shortcuts and Certification Lists */}
               <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
