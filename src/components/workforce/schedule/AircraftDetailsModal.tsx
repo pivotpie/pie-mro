@@ -7,6 +7,7 @@ import { format, differenceInDays } from "date-fns";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useDate } from "@/contexts/DateContext";
 
 interface AircraftSchedule {
   id: string;
@@ -71,6 +72,8 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
   const [tradeRequirements, setTradeRequirements] = useState<TradeRequirement[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<number>>(new Set());
   const [hasActiveFilter, setHasActiveFilter] = useState(false);
+  
+  const { currentDate, formatDate } = useDate();
 
   useEffect(() => {
     if (open && aircraft) {
@@ -137,7 +140,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
     setLoading(true);
 
     try {
-      const currentDate = new Date().toISOString().split('T')[0];
+      const currentDateString = formatDate(currentDate, 'yyyy-MM-dd');
       
       // Fetch employees with their current roster assignments
       const { data: employeesData, error: employeesError } = await supabase
@@ -155,7 +158,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           )
         `)
         .eq('is_active', true)
-        .eq('roster_assignments.date_references.actual_date', currentDate);
+        .eq('roster_assignments.date_references.actual_date', currentDateString);
 
       if (employeesError) throw employeesError;
 
@@ -228,7 +231,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           certification_codes (certification_code, certification_description),
           aircraft (registration, aircraft_type_id, aircraft_types (type_name, type_code))
         `)
-        .gte('expiry_date', currentDate);
+        .gte('expiry_date', currentDateString);
 
       if (certError) throw certError;
 
