@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Plus, Calendar, Users, FileText, Settings, Clock } from 'lucide-react';
+import { Plus, Calendar, Users, FileText, Settings, Clock, Upload } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { SetDateModal } from "./SetDateModal";
 
@@ -18,6 +18,11 @@ export const FloatingActionMenu = () => {
       icon: Users,
       label: 'Add Employee',
       action: () => console.log('Add Employee clicked')
+    },
+    {
+      icon: Upload,
+      label: 'Import Attendance',
+      action: () => console.log('Import Attendance clicked')
     },
     {
       icon: FileText,
