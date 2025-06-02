@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { FileDownIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useDate } from "@/contexts/DateContext";
 
 export const AircraftCalendar = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 4, 1)); // May 2025
+  const { currentDate, setCurrentDate } = useDate();
 
   // Handler to receive scroll position updates from the calendar
   const handleCalendarScroll = (position: number) => {
@@ -23,15 +24,15 @@ export const AircraftCalendar = () => {
   };
 
   const handlePrevious = () => {
-    setCurrentDate(prevDate => subMonths(prevDate, 1));
+    setCurrentDate(subMonths(currentDate, 1));
   };
 
   const handleNext = () => {
-    setCurrentDate(prevDate => addMonths(prevDate, 1));
+    setCurrentDate(addMonths(currentDate, 1));
   };
 
   const handleToday = () => {
-    setCurrentDate(new Date(2025, 4, 1)); // Reset to May 2025
+    setCurrentDate(new Date(2025, 4, 1)); // Reset to demo date
   };
 
   // Format the current month and year for display

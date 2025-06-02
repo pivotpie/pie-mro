@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   Menu, UserPlus, Settings, Search, 
-  CalendarClock, FileText, Users, X, Upload
+  CalendarClock, FileText, Users, X, Upload, Calendar
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useDate } from "@/contexts/DateContext";
+import { SetDateModal } from "./SetDateModal";
 
 interface ActionItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -28,12 +29,19 @@ export const FloatingActionMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeAction, setActiveAction] = useState<ActionItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [setDateModalOpen, setSetDateModalOpen] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [previewData, setPreviewData] = useState<AttendanceRecord[]>([]);
+  const { currentDate, formatDate } = useDate();
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
+  };
+
+  const handleSetDate = () => {
+    setSetDateModalOpen(true);
+    setIsOpen(false);
   };
 
   const handleImportAttendance = () => {
@@ -47,6 +55,11 @@ export const FloatingActionMenu = () => {
   };
 
   const actionItems: ActionItem[] = [
+    { 
+      icon: Calendar, 
+      label: "Set Date", 
+      action: handleSetDate
+    },
     { 
       icon: UserPlus, 
       label: "Add Employee", 
@@ -205,7 +218,7 @@ export const FloatingActionMenu = () => {
 
     try {
       const parsedData = await parseCsvFile(csvFile);
-      const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+      const currentDateStr = formatDate(currentDate); // Use centralized date
       
       // First, get employee IDs from employee numbers
       const employeeNumbers = parsedData.map(record => record.employee_number);
@@ -234,8 +247,8 @@ export const FloatingActionMenu = () => {
       // Prepare attendance records for insertion
       const attendanceRecords = parsedData.map(record => ({
         employee_id: employeeMap.get(record.employee_number),
-        date: currentDate,
-        check_in_time: `${currentDate} ${record.check_in_time}`,
+        date: currentDateStr,
+        check_in_time: `${currentDateStr} ${record.check_in_time}`,
         status: record.status,
         comments: record.comments || null
       }));
@@ -251,7 +264,7 @@ export const FloatingActionMenu = () => {
         return;
       }
 
-      toast.success(`Successfully imported ${parsedData.length} attendance records for ${currentDate}!`);
+      toast.success(`Successfully imported ${parsedData.length} attendance records for ${formatDate(currentDate, 'MMMM d, yyyy')}!`);
       
       // Reset form
       setCsvFile(null);
@@ -284,7 +297,7 @@ export const FloatingActionMenu = () => {
           <li><strong>Comments</strong> - Additional notes or remarks (optional)</li>
         </ul>
         <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-          <strong>Note:</strong> Date will be automatically set to today's date ({new Date().toLocaleDateString()})
+          <strong>Note:</strong> Date will be automatically set to the current application date ({formatDate(currentDate, 'MMMM d, yyyy')})
         </p>
       </div>
 
@@ -375,6 +388,12 @@ export const FloatingActionMenu = () => {
           <Menu className="h-6 w-6" />
         </Button>
       </div>
+
+      {/* Set Date Modal */}
+      <SetDateModal 
+        isOpen={setDateModalOpen} 
+        onClose={() => setSetDateModalOpen(false)} 
+      />
 
       {/* Action Modal */}
       {activeAction && (
