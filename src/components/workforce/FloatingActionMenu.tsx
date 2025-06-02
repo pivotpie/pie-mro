@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { Plus, Calendar, Users, FileText, Settings, Clock, Upload } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { SetDateModal } from "./SetDateModal";
+import { AttendanceImportModal } from "./AttendanceImportModal";
 
 export const FloatingActionMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
   const menuItems = [
     {
@@ -22,7 +24,7 @@ export const FloatingActionMenu = () => {
     {
       icon: Upload,
       label: 'Import Attendance',
-      action: () => console.log('Import Attendance clicked')
+      action: () => setShowAttendanceModal(true)
     },
     {
       icon: FileText,
@@ -80,6 +82,12 @@ export const FloatingActionMenu = () => {
       <SetDateModal
         isOpen={showDateModal}
         onClose={() => setShowDateModal(false)}
+      />
+
+      {/* Attendance Import Modal */}
+      <AttendanceImportModal
+        isOpen={showAttendanceModal}
+        onClose={() => setShowAttendanceModal(false)}
       />
     </>
   );
