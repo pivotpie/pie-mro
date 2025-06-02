@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import { EmployeeCalendar } from '../schedule/AssignmentsCalendar';
 import { format } from 'date-fns';
@@ -20,10 +21,11 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
+import { useDate } from "@/contexts/DateContext";
 
 export const AlternativeScheduleView = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const { currentDate, setCurrentDate } = useDate(); // Use centralized date
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export const AlternativeScheduleView = () => {
     setCurrentDate(prevMonth);
   };
 
-  // Navigate to today
+  // Navigate to today - use the centralized date context
   const goToToday = () => {
     setCurrentDate(new Date());
   };

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { X } from 'lucide-react';
 import { WorkforceGlobalHeader } from "@/components/workforce/WorkforceGlobalHeader";
 import WorkforceMetrics from "@/components/workforce/WorkforceMetrics";
-import { WorkforceTabs } from "@/components/workforce/WorkforceTabs";
+import { WorkforceTabs } from "@/components/workforce/tabs/WorkforceTabs";
 import { FloatingActionMenu } from "@/components/workforce/FloatingActionMenu";
 import { ManagementShortcuts } from "@/components/workforce/ManagementShortcuts";
 import { CertificationList } from "@/components/workforce/CertificationList";
@@ -109,7 +109,7 @@ const AdminWorkforce = () => {
             <div className="p-4 md:p-6">
               <WorkforceMetrics />
               
-              {/* Workforce Tabs */}
+              {/* Workforce Tabs - This now includes all tabs including Aircraft */}
               <WorkforceTabs />
 
               {/* Management Shortcuts and Certification Lists */}
@@ -187,7 +187,7 @@ const AdminWorkforce = () => {
         aircraft={selectedAircraft}
       />
       
-      {/* Floating Action Menu for Quick Actions */}
+      {/* Floating Action Menu for Quick Actions - Now includes Set Date */}
       <FloatingActionMenu />
 
       {/* Add global styles for Dialog/Modal components */}

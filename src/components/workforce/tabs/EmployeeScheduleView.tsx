@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
@@ -19,17 +20,18 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
+import { useDate } from "@/contexts/DateContext";
 
 export const EmployeeScheduleView = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const { currentDate, setCurrentDate } = useDate(); // Use centralized date
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [isUpdateLoading, setIsUpdateLoading] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key state
-  const calendarRef = useRef<any>(null); // Add ref for the calendar component
+  const [refreshKey, setRefreshKey] = useState(0);
+  const calendarRef = useRef<any>(null);
   const isMobile = useIsMobile();
 
   // Handler to receive scroll position updates from the employee calendar
@@ -44,7 +46,7 @@ export const EmployeeScheduleView = () => {
     setCurrentDate(prevMonth);
   };
 
-  // Navigate to today
+  // Navigate to today - use the centralized date context
   const goToToday = () => {
     setCurrentDate(new Date());
   };
@@ -198,7 +200,7 @@ export const EmployeeScheduleView = () => {
             currentDate={currentDate}
             onEmployeeSelect={handleEmployeeSelect}
             onCellClick={handleScheduleCellClick}
-            refreshKey={refreshKey} // Pass refresh key to force re-rendering
+            refreshKey={refreshKey}
           />
         </div>
       </div>

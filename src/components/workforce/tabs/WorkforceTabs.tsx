@@ -7,6 +7,7 @@ import { EmployeeScheduleView } from "./EmployeeScheduleView";
 import { AircraftScheduleView } from "./AircraftScheduleView";
 import { TeamView } from "./TeamView";
 import { CertificationView } from "./CertificationView";
+import { AlternativeScheduleView } from "./AlternativeScheduleView";
 
 export const WorkforceTabs = () => {
   const [currentView, setCurrentView] = useState("employee");
@@ -23,13 +24,17 @@ export const WorkforceTabs = () => {
             <User2 className="h-4 w-4" />
             Employee View
           </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center gap-1">
+          <TabsTrigger value="assignments" className="flex items-center gap-1">
             <UsersRound className="h-4 w-4" />
-            Team View
+            Assignments
           </TabsTrigger>
           <TabsTrigger value="aircraft" className="flex items-center gap-1">
             <Briefcase className="h-4 w-4" />
             Aircraft View
+          </TabsTrigger>
+          <TabsTrigger value="team" className="flex items-center gap-1">
+            <UsersRound className="h-4 w-4" />
+            Team View
           </TabsTrigger>
           <TabsTrigger value="certification" className="flex items-center gap-1">
             <FileText className="h-4 w-4" />
@@ -44,6 +49,10 @@ export const WorkforceTabs = () => {
 
       <TabsContent value="employee" className="mt-2 space-y-4 w-full">
         <EmployeeScheduleView />
+      </TabsContent>
+
+      <TabsContent value="assignments" className="mt-2 space-y-4 w-full">
+        <AlternativeScheduleView />
       </TabsContent>
 
       <TabsContent value="aircraft" className="mt-2 space-y-4 w-full">
