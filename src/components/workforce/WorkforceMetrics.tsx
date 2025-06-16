@@ -3,6 +3,7 @@ import { User, CalendarDays, Award, PlaneLanding, UsersRound, Timer } from 'luci
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useDate } from '@/contexts/DateContext';
+import { useRefresh } from '@/contexts/RefreshContext';
 
 type MetricType = {
   title: string;
@@ -16,6 +17,7 @@ type MetricType = {
 
 export default function WorkforceMetrics() {
   const { currentDate } = useDate();
+  const { refreshTrigger } = useRefresh();
   const [metrics, setMetrics] = useState<MetricType[]>([
     { 
       title: "Available Employees", 
@@ -273,7 +275,7 @@ export default function WorkforceMetrics() {
     };
 
     fetchMetrics();
-  }, [currentDate]);
+  }, [currentDate, refreshTrigger]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">

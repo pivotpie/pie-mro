@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
 import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useRefresh } from '@/contexts/RefreshContext';
 import { 
   Sheet, 
   SheetContent, 
@@ -26,6 +27,7 @@ import { useDate } from "@/contexts/DateContext";
 export const AlternativeScheduleView = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const { currentDate, setCurrentDate } = useDate(); // Use centralized date
+  const { triggerRefresh } = useRefresh();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -94,7 +96,7 @@ export const AlternativeScheduleView = () => {
 
       // Parse the date from the format M-D-YYYY to ISO format
       const [month, day, year] = selectedDate.split('-').map(Number);
-      const formattedDate = new Date(year, month - 1, day).toISOString().split('T')[0];
+      const formattedDate = format(new Date(year, month - 1, day), 'yyyy-MM-dd');
 
       // Find the date_id from date_references table
       const { data: dateRef, error: dateError } = await supabase
@@ -167,6 +169,7 @@ export const AlternativeScheduleView = () => {
       
       // Immediately refresh the calendar data after update
       refreshCalendarData();
+      triggerRefresh(); // Add this line to trigger global refresh
       
     } catch (error: any) {
       console.error('Update schedule error:', error);
