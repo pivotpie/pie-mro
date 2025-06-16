@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
+import { useRefresh } from "@/contexts/RefreshContext";
 import { ArrowUpRight } from "lucide-react";
 import { EmployeeCalendar } from "../schedule/EmployeeCalendar";
 import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
@@ -26,6 +27,7 @@ import { useDate } from "@/contexts/DateContext";
 export const EmployeeScheduleView = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const { currentDate, setCurrentDate } = useDate(); // Use centralized date
+  const { triggerRefresh } = useRefresh();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export const EmployeeScheduleView = () => {
   // Function to force refresh the calendar data
   const refreshCalendarData = () => {
     setRefreshKey(prev => prev + 1);
+    triggerRefresh(); // Add this line to trigger global refresh
     console.log("Calendar data refresh requested");
   };
 
