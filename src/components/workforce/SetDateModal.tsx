@@ -37,16 +37,6 @@ export const SetDateModal = ({ isOpen, onClose }: SetDateModalProps) => {
     onClose();
   };
 
-  const handleResetToDemo = () => {
-    const demoDate = new Date(2025, 4, 20); // May 20, 2025
-    setSelectedDate(demoDate);
-    setCurrentDate(demoDate);
-    toast.success("Date reset to demo date", {
-      description: "All components will now use May 20, 2025 as the reference date."
-    });
-    onClose();
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-auto max-w-md">
@@ -109,24 +99,14 @@ export const SetDateModal = ({ isOpen, onClose }: SetDateModalProps) => {
           </div>
 
           <div className="flex justify-between space-x-2">
-            <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={handleResetToDemo}
-                className="flex items-center gap-2"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Demo Date
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleResetToToday}
-                className="flex items-center gap-2"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Today
-              </Button>
-            </div>
+            <Button 
+              variant="outline" 
+              onClick={handleResetToToday}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset to Today
+            </Button>
             <div className="flex space-x-2">
               <Button variant="outline" onClick={onClose}>
                 Cancel

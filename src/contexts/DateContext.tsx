@@ -17,7 +17,7 @@ interface DateProviderProps {
 }
 
 export const DateProvider: React.FC<DateProviderProps> = ({ children }) => {
-  const [currentDate, setCurrentDateState] = useState<Date>(new Date(2025, 4, 20)); // May 20, 2025
+  const [currentDate, setCurrentDateState] = useState<Date>(new Date(2025, 4, 1)); // May 1, 2025
   const [isManuallySet, setIsManuallySet] = useState(true); // Initially set to demo date
 
   const setCurrentDate = (date: Date) => {
