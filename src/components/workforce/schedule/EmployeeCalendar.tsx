@@ -346,7 +346,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Fetched employees:", typedEmployees);
         console.log("Total employee count:", typedEmployees.length);
 
-        const currentDateString = new Date().toISOString().split('T')[0];
+        const currentDateString = format(currentDate, 'yyyy-MM-dd');
         
         const { data: coresData, error: coresError } = await supabase
           .from('employee_cores')
@@ -426,8 +426,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           });
         }
 
-        const today = new Date();
-        const todayString = format(today, 'yyyy-MM-dd');
+        const todayString = format(currentDate, 'yyyy-MM-dd');
         
         const { data: attendanceData, error: attendanceError } = await supabase
           .from('attendance')

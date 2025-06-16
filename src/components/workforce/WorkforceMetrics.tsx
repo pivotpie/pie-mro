@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { User, CalendarDays, Award, PlaneLanding, UsersRound, Timer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { useDate } from '@/contexts/DateContext';
+
+
+const { currentDate } = useDate();
 
 type MetricType = {
   title: string;
@@ -74,7 +78,7 @@ export default function WorkforceMetrics() {
     const fetchMetrics = async () => {
       try {
         // Get today's date for queries
-        const today = new Date();
+        const today = currentDate;
         const todayString = format(today, 'yyyy-MM-dd');
 
         // Create a copy of metrics to update
