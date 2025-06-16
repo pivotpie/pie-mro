@@ -158,7 +158,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           )
         `)
         .eq('is_active', true)
-        .eq('roster_assignments.date_references.actual_date', currentDateString);
+        .eq('roster_assignments.date_references.actual_date', aircraftStartDateString);
 
       if (employeesError) throw employeesError;
 
