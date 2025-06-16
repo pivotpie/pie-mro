@@ -199,38 +199,34 @@ export const EmployeeScheduleView = () => {
                 {/* Status Legend */}
         <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border">
           <h3 className="text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">Status Legend</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          <div className="grid items-left grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-500 rounded"></div>
+              <div className="w-4 h-4 bg-green-100 rounded"></div>
               <span className="text-xs text-gray-600 dark:text-gray-400">On Duty (D)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-500 rounded"></div>
+              <div className="w-4 h-4 bg-blue-100 rounded"></div>
               <span className="text-xs text-gray-600 dark:text-gray-400">Half Day (B1)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-gray-600 rounded"></div>
-              <span className="text-xs text-gray-600 dark:text-gray-400">Off Duty (O)</span>
+              <span className="text-xs text-gray-600 dark:text-gray-400">Day Off (O)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-500 rounded"></div>
+              <div className="w-4 h-4 bg-red-100 rounded"></div>
               <span className="text-xs text-gray-600 dark:text-gray-400">Annual Leave (AL)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-orange-500 rounded"></div>
+              <div className="w-4 h-4 bg-orange-100 rounded"></div>
               <span className="text-xs text-gray-600 dark:text-gray-400">Sick Leave (SK)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-purple-500 rounded"></div>
+              <div className="w-4 h-4 bg-purple-100 rounded"></div>
               <span className="text-xs text-gray-600 dark:text-gray-400">Training (TR)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+              <div className="w-4 h-4 bg-yellow-100 rounded"></div>
               <span className="text-xs text-gray-600 dark:text-gray-400">Overtime (DO)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gray-200 border border-gray-300 rounded"></div>
-              <span className="text-xs text-gray-600 dark:text-gray-400">Not Assigned</span>
             </div>
           </div>
         </div>

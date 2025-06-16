@@ -750,14 +750,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-2 px-2 flex-wrap">
-        {statusLegend.map((item) => (
-          <div key={item.status} className="flex items-center">
-            <span className={`inline-block w-3 h-3 rounded-full mr-1 ${item.color}`}></span>
-            <span className="text-xs text-gray-600 dark:text-gray-400">{item.status} ({item.code})</span>
-          </div>
-        ))}
-      </div>
       
       <div style={{ width: `${totalWidth}px`, minWidth: '100%' }}>
         <table className="w-full border-collapse">
