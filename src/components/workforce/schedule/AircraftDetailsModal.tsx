@@ -186,7 +186,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
                        emp.roster_assignments?.[0]?.roster_codes?.roster_code === 'AL' ? 'On Annual Leave' :
                        emp.roster_assignments?.[0]?.roster_codes?.roster_code === 'SK' ? 'Sick Leave' :
                        emp.roster_assignments?.[0]?.roster_codes?.roster_code === 'TR' ? 'In Training' :
-                       'Assigned to Work'
+                       ''
         })),
         ...(unassignedEmployees || []).map((emp: any) => ({
           ...emp,
