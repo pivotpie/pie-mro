@@ -990,7 +990,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                 <tr key={employee.id} className="border-b hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
                   <td 
                     className={cn(
-                      "p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
+                      "p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900",
                       isDifferent ? 'core-support-different' : ''
                     )}
                     style={{ width: `${columnWidths.id}px`, left: `${columnLeftPositions.id}px` }}
@@ -999,70 +999,70 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     {employee.e_number || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.name || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.key_name || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.mobile_number || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.team?.team_name || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.core}px`, left: `${columnLeftPositions.core}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.cores?.join(', ') || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.support}px`, left: `${columnLeftPositions.support}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.supports?.join(', ') || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.title}px`, left: `${columnLeftPositions.title}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.job_title?.job_description || '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.night_shift}px`, left: `${columnLeftPositions.night_shift}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.night_shift_ok ? 'Yes' : 'No'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.fte}px`, left: `${columnLeftPositions.fte}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.fte_date ? format(new Date(employee.fte_date), 'yyyy-MM-dd') : '-'}
                   </td>
                   <td 
-                    className="p-2 border-r sticky z-10 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
+                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
                     style={{ width: `${columnWidths.ttl}px`, left: `${columnLeftPositions.ttl}px` }}
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
