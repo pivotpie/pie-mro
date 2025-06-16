@@ -94,7 +94,7 @@ export const EmployeeScheduleView = () => {
 
       // Parse the date from the format M-D-YYYY to ISO format
       const [month, day, year] = selectedDate.split('-').map(Number);
-      const formattedDate = new Date(year, month - 1, day).toISOString().split('T')[0];
+      const formattedDate = format(new Date(year, month - 1, day), 'yyyy-MM-dd');
 
       // Find the date_id from date_references table
       const { data: dateRef, error: dateError } = await supabase
