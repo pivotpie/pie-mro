@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, isToday } from 'date-fns';
 import { cn } from "@/lib/utils";
+import { useDate } from "@/contexts/DateContext";
+
 
 interface EmployeeRoster {
   id: number;
@@ -92,7 +94,7 @@ const getLeftPositionStyle = (index: number) => {
   return `${position}px`;
 };
 
-const generateTwoMonthDays = (currentDate: Date) => {
+const generateTwoMonthDays = (currentDate: Date, selectedDate: Date) => {
   const currentMonth = startOfMonth(currentDate);
   const nextMonth = addMonths(currentMonth, 1);
   const endOfNextMonth = endOfMonth(nextMonth);
@@ -108,7 +110,7 @@ const generateTwoMonthDays = (currentDate: Date) => {
     month: date.getMonth(),
     year: date.getFullYear(),
     isWeekend: isWeekend(date),
-    isToday: isToday(date),
+    isToday: format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'),
     monthName: format(date, 'MMM')
   }));
 };
@@ -290,14 +292,15 @@ interface EmployeeCalendarProps {
 }
 
 export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
-  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
+  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClic, refreshKey = 0 }, ref) => {
+  const { currentDate: selectedDate } = useDate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const days = useMemo(() => generateTwoMonthDays(currentDate), [currentDate]);
+  const days = useMemo(() => generateTwoMonthDays(currentDate, selectedDate), [currentDate, selectedDate]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
@@ -348,7 +351,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Fetched employees:", typedEmployees);
         console.log("Total employee count:", typedEmployees.length);
 
-        const currentDateString = format(currentDate, 'yyyy-MM-dd');
+        const currentDateString = new Date().toISOString().split('T')[0];
         
         const { data: coresData, error: coresError } = await supabase
           .from('employee_cores')
@@ -428,7 +431,8 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
           });
         }
 
-        const todayString = format(currentDate, 'yyyy-MM-dd');
+        const today = new Date();
+        const todayString = format(today, 'yyyy-MM-dd');
         
         const { data: attendanceData, error: attendanceError } = await supabase
           .from('attendance')
