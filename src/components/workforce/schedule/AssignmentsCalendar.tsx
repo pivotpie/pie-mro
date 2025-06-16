@@ -351,7 +351,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
         console.log("Fetched employees:", typedEmployees);
         console.log("Total employee count:", typedEmployees.length);
 
-        const currentDateString = new Date().toISOString().split('T')[0];
+        const currentDateString = format(contextDate, 'yyyy-MM-dd');
         
         const { data: coresData, error: coresError } = await supabase
           .from('employee_cores')
@@ -588,7 +588,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
     };
 
     fetchEmployees();
-  }, [currentDate, refreshKey]);
+  }, [currentDate, refreshKey, contextDate]);
 
   useEffect(() => {
     let result = [...employees];
