@@ -245,11 +245,8 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           support_codes:support_id (support_code)
         `)
         .eq('assignment_date', aircraftStartDateString);
-
-
-      if (supportError) throw supportError;
-
-      // Fetch employee cores - filtered by current date
+      
+      // Fetch employee cores - filtered by current date  
       const { data: coreData, error: coreError } = await supabase
         .from('employee_cores')
         .select(`
@@ -259,6 +256,26 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           core_codes:core_id (core_code)
         `)
         .eq('assignment_date', aircraftStartDateString);
+      
+      // Check for employees assigned to this specific aircraft
+      const { data: aircraftAssignedCores, error: aircraftCoreError } = await supabase
+        .from('employee_cores')
+        .select(`
+          employee_id,
+          core_codes:core_id (core_code)
+        `)
+        .eq('assignment_date', aircraftStartDateString)
+        .eq('core_codes.core_code', aircraft.registration);
+      
+      const { data: aircraftAssignedSupports, error: aircraftSupportError } = await supabase
+        .from('employee_supports')
+        .select(`
+          employee_id,
+          support_codes:support_id (support_code)
+        `)
+        .eq('assignment_date', aircraftStartDateString)
+        .eq('support_codes.support_code', aircraft.registration);
+
 
 
       if (coreError) throw coreError;
@@ -310,19 +327,31 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         return (b.match_score || 0) - (a.match_score || 0);
       });
       
-      // Generate assigned teams for completed and in-progress visits
+      // Check for employees already assigned to this aircraft from the database
+      const aircraftAssignedEmployeeIds = new Set([
+        ...(aircraftAssignedCores?.map(ac => ac.employee_id) || []),
+        ...(aircraftAssignedSupports?.map(as => as.employee_id) || [])
+      ]);
+      
+      // Generate assigned teams for completed and in-progress visits OR get from database
       let assigned: Employee[] = [];
       if (aircraft.status === 'Completed' || aircraft.status === 'In Progress') {
         assigned = generateAssignedTeam(availableEmps, aircraft);
-      } else if (aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA'))) {
-        // For G-FVWF scheduled visits, show high-matching employees as potentially assigned
-        assigned = availableEmps
-          .filter(emp => emp.match_score && emp.match_score > 70)
-          .slice(0, 8); // Take top 8 matches
+      } else if (aircraft.status === 'Scheduled') {
+        // For scheduled visits, check database for actual assignments
+        if (aircraftAssignedEmployeeIds.size > 0) {
+          assigned = availableEmps.filter(emp => aircraftAssignedEmployeeIds.has(emp.id));
+        } else if (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA')) {
+          // For G-FVWF scheduled visits with no assignments, show high-matching employees as potentially assigned
+          assigned = availableEmps
+            .filter(emp => emp.match_score && emp.match_score > 70)
+            .slice(0, 8); // Take top 8 matches
+        }
       }
-
+      
       setAssignedEmployees(assigned);
       setAvailableEmployees(availableEmps.filter(emp => !assigned.find(a => a.id === emp.id)));
+
     } catch (error) {
       console.error("Error fetching employee data:", error);
       toast.error("Failed to load employee data");
@@ -641,29 +670,164 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
     toast.success(`${employee.name} assigned to ${aircraft?.registration}`);
   };
 
-  const handleBulkAssignEmployees = () => {
+  // ADD THESE TWO NEW FUNCTIONS HERE (before handleAssignEmployee)
+  const assignEmployeesToAircraft = async (employees: Employee[], aircraftRegistration: string) => {
+    if (!aircraft) return;
+    
+    const aircraftStartDateString = format(aircraft.start, 'yyyy-MM-dd');
+    
+    try {
+      // For each employee, create core and support assignments
+      for (const employee of employees) {
+        // Find or create core code for this aircraft
+        let { data: coreCode, error: coreError } = await supabase
+          .from('core_codes')
+          .select('id')
+          .eq('core_code', aircraftRegistration)
+          .single();
+        
+        if (coreError && coreError.code === 'PGRST116') {
+          // Core code doesn't exist, create it
+          const { data: newCore, error: createCoreError } = await supabase
+            .from('core_codes')
+            .insert({ core_code: aircraftRegistration })
+            .select('id')
+            .single();
+          
+          if (createCoreError) throw createCoreError;
+          coreCode = newCore;
+        } else if (coreError) {
+          throw coreError;
+        }
+        
+        // Find or create support code for this aircraft
+        let { data: supportCode, error: supportError } = await supabase
+          .from('support_codes')
+          .select('id')
+          .eq('support_code', aircraftRegistration)
+          .single();
+        
+        if (supportError && supportError.code === 'PGRST116') {
+          // Support code doesn't exist, create it
+          const { data: newSupport, error: createSupportError } = await supabase
+            .from('support_codes')
+            .insert({ support_code: aircraftRegistration })
+            .select('id')
+            .single();
+          
+          if (createSupportError) throw createSupportError;
+          supportCode = newSupport;
+        } else if (supportError) {
+          throw supportError;
+        }
+        
+        // Insert or update employee core assignment
+        const { error: coreAssignError } = await supabase
+          .from('employee_cores')
+          .upsert({
+            employee_id: employee.id,
+            core_id: coreCode.id,
+            assignment_date: aircraftStartDateString
+          }, {
+            onConflict: 'employee_id,assignment_date'
+          });
+        
+        if (coreAssignError) throw coreAssignError;
+        
+        // Insert or update employee support assignment
+        const { error: supportAssignError } = await supabase
+          .from('employee_supports')
+          .upsert({
+            employee_id: employee.id,
+            support_id: supportCode.id,
+            assignment_date: aircraftStartDateString
+          }, {
+            onConflict: 'employee_id,assignment_date'
+          });
+        
+        if (supportAssignError) throw supportAssignError;
+      }
+    } catch (error) {
+      console.error('Error assigning employees to aircraft:', error);
+      throw error;
+    }
+  };
+  
+  const removeEmployeeFromAircraft = async (employee: Employee, aircraftRegistration: string) => {
+    if (!aircraft) return;
+    
+    const aircraftStartDateString = format(aircraft.start, 'yyyy-MM-dd');
+    
+    try {
+      // Remove employee core assignment for this aircraft and date
+      const { error: coreRemoveError } = await supabase
+        .from('employee_cores')
+        .delete()
+        .eq('employee_id', employee.id)
+        .eq('assignment_date', aircraftStartDateString);
+      
+      if (coreRemoveError) throw coreRemoveError;
+      
+      // Remove employee support assignment for this aircraft and date
+      const { error: supportRemoveError } = await supabase
+        .from('employee_supports')
+        .delete()
+        .eq('employee_id', employee.id)
+        .eq('assignment_date', aircraftStartDateString);
+      
+      if (supportRemoveError) throw supportRemoveError;
+    } catch (error) {
+      console.error('Error removing employee from aircraft:', error);
+      throw error;
+    }
+  };
+
+
+  const handleBulkAssignEmployees = async () => {
     if (selectedEmployees.size === 0) {
       toast.error("Please select employees to assign");
       return;
     }
-
+  
     const employeesToAssign = filteredEmployees.filter(emp => selectedEmployees.has(emp.id));
-    const newAssigned = [...assignedEmployees, ...employeesToAssign];
-    const newAvailable = availableEmployees.filter(emp => !selectedEmployees.has(emp.id));
     
-    setAssignedEmployees(newAssigned);
-    setAvailableEmployees(newAvailable);
-    setFilteredEmployees(newAvailable);
-    setSelectedEmployees(new Set());
-    
-    toast.success(`${employeesToAssign.length} employees assigned to ${aircraft?.registration}`);
+    try {
+      // Save assignments to database
+      await assignEmployeesToAircraft(employeesToAssign, aircraft?.registration || '');
+      
+      // Update local state
+      const newAssigned = [...assignedEmployees, ...employeesToAssign];
+      const newAvailable = availableEmployees.filter(emp => !selectedEmployees.has(emp.id));
+      
+      setAssignedEmployees(newAssigned);
+      setAvailableEmployees(newAvailable);
+      setFilteredEmployees(newAvailable);
+      setSelectedEmployees(new Set());
+      
+      toast.success(`${employeesToAssign.length} employees assigned to ${aircraft?.registration}`);
+    } catch (error) {
+      toast.error("Failed to assign employees. Please try again.");
+      console.error("Assignment error:", error);
+    }
   };
 
-  const handleRemoveAssignedEmployee = (employee: Employee) => {
-    setAssignedEmployees(prev => prev.filter(emp => emp.id !== employee.id));
-    setAvailableEmployees(prev => [...prev, {...employee, match_score: calculateEmployeeMatchScore(employee)}]);
-    toast.info(`${employee.name} removed from ${aircraft?.registration}`);
+
+  const handleRemoveAssignedEmployee = async (employee: Employee) => {
+    try {
+      // Remove assignment from database
+      await removeEmployeeFromAircraft(employee, aircraft?.registration || '');
+      
+      // Update local state
+      setAssignedEmployees(prev => prev.filter(emp => emp.id !== employee.id));
+      setAvailableEmployees(prev => [...prev, {...employee, match_score: calculateEmployeeMatchScore(employee)}]);
+      
+      toast.info(`${employee.name} removed from ${aircraft?.registration}`);
+    } catch (error) {
+      toast.error("Failed to remove employee assignment. Please try again.");
+      console.error("Remove assignment error:", error);
+    }
   };
+
 
   const calculateEmployeeMatchScore = (employee: Employee): number => {
     return employee.match_score || Math.floor(Math.random() * 100);
