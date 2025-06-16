@@ -32,7 +32,7 @@ export const AircraftCalendar = () => {
   };
 
   const handleToday = () => {
-    setCurrentDate(new Date(2025, 4, 1)); // Reset to demo date
+    setCurrentDate(new Date(2025, 5, 1)); // Reset to demo date
   };
 
   // Format the current month and year for display
