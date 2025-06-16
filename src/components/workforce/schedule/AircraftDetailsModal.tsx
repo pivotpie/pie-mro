@@ -140,7 +140,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
     setLoading(true);
 
     try {
-      const currentDateString = formatDate(currentDate, 'yyyy-MM-dd');
+      const aircraftStartDateString = format(aircraft.start, 'yyyy-MM-dd');
       
       // Fetch employees with their current roster assignments
       const { data: employeesData, error: employeesError } = await supabase
@@ -231,7 +231,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           certification_codes (certification_code, certification_description),
           aircraft (registration, aircraft_type_id, aircraft_types (type_name, type_code))
         `)
-        .gte('expiry_date', currentDateString);
+        .gte('expiry_date', aircraftStartDateString);
 
       if (certError) throw certError;
 
@@ -244,7 +244,8 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           assignment_date,
           support_codes:support_id (support_code)
         `)
-        .eq('assignment_date', currentDateString);
+        .eq('assignment_date', aircraftStartDateString);
+
 
       if (supportError) throw supportError;
 
@@ -257,7 +258,8 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           assignment_date,
           core_codes:core_id (core_code)
         `)
-        .eq('assignment_date', currentDateString);
+        .eq('assignment_date', aircraftStartDateString);
+
 
       if (coreError) throw coreError;
 
