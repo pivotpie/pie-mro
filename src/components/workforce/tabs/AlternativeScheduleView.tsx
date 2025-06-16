@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { EmployeeCalendar } from '../schedule/AssignmentsCalendar';
 import { format } from 'date-fns';
@@ -87,14 +86,14 @@ export const AlternativeScheduleView = () => {
     console.log("Calendar data refresh requested");
   };
 
-  // Handle schedule update
+  // Handle schedule update with fixed date parsing
   const handleUpdateSchedule = async () => {
     if (!selectedEmployee?.id || !selectedDate) return;
 
     try {
       setIsUpdateLoading(true);
 
-      // Parse the date from the format M-D-YYYY to ISO format
+      // Fix the date parsing to avoid timezone offset issues
       const [month, day, year] = selectedDate.split('-').map(Number);
       const formattedDate = format(new Date(year, month - 1, day), 'yyyy-MM-dd');
 
@@ -169,7 +168,7 @@ export const AlternativeScheduleView = () => {
       
       // Immediately refresh the calendar data after update
       refreshCalendarData();
-      triggerRefresh(); // Add this line to trigger global refresh
+      triggerRefresh(); // Trigger global refresh for WorkforceMetrics
       
     } catch (error: any) {
       console.error('Update schedule error:', error);
