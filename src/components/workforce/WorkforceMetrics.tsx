@@ -83,7 +83,62 @@ export default function WorkforceMetrics() {
         const todayString = format(today, 'yyyy-MM-dd');
 
         // Create a copy of metrics to update
-        const updatedMetrics = [...metrics];
+                const updatedMetrics = [
+                  { 
+                    title: "Available Employees", 
+                    value: 0, 
+                    icon: <User className="h-6 w-6" />, 
+                    colorClass: "text-blue-600", 
+                    borderColor: "border-l-blue-600",
+                    change: 5, 
+                    changeType: 'increase' 
+                  },
+                  { 
+                    title: "On Leave", 
+                    value: 0, 
+                    icon: <CalendarDays className="h-6 w-6" />, 
+                    colorClass: "text-pink-600", 
+                    borderColor: "border-l-pink-600",
+                    change: 2, 
+                    changeType: 'decrease' 
+                  },
+                  { 
+                    title: "In Training", 
+                    value: 0, 
+                    icon: <Award className="h-6 w-6" />, 
+                    colorClass: "text-cyan-600", 
+                    borderColor: "border-l-cyan-600",
+                    change: 3, 
+                    changeType: 'increase' 
+                  },
+                  { 
+                    title: "Grounded Aircraft", 
+                    value: 0, 
+                    icon: <PlaneLanding className="h-6 w-6" />, 
+                    colorClass: "text-amber-500", 
+                    borderColor: "border-l-amber-500",
+                    changeType: 'nochange' 
+                  },
+                  { 
+                    title: "Aircraft w/ Teams", 
+                    value: 0, 
+                    icon: <UsersRound className="h-6 w-6" />, 
+                    colorClass: "text-emerald-500", 
+                    borderColor: "border-l-emerald-500",
+                    change: 33, 
+                    changeType: 'increase' 
+                  },
+                  { 
+                    title: "Pending Assignment", 
+                    value: 0, 
+                    icon: <Timer className="h-6 w-6" />, 
+                    colorClass: "text-indigo-600", 
+                    borderColor: "border-l-indigo-600",
+                    change: 33, 
+                    changeType: 'decrease' 
+                  },
+                ];
+
 
         // Find the date ID for today FIRST (declare dateData here)
         const { data: dateData } = await supabase
@@ -222,7 +277,7 @@ export default function WorkforceMetrics() {
     };
 
     fetchMetrics();
-  }, []);
+  }, [currentDate]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
