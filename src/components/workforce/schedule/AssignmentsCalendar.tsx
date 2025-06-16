@@ -292,7 +292,7 @@ interface EmployeeCalendarProps {
 }
 
 export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
-  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClic, refreshKey = 0 }, ref) => {
+  ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
   const { currentDate: selectedDate } = useDate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
