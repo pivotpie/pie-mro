@@ -1,6 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
+import { format } from 'date-fns';
 import { ArrowUpRight } from "lucide-react";
 import { EmployeeCalendar } from "../schedule/EmployeeCalendar";
 import { EmployeeDetailPanel } from "../employee/EmployeeDetailPanel";
