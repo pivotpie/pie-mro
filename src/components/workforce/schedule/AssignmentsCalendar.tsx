@@ -293,14 +293,14 @@ interface EmployeeCalendarProps {
 
 export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalendarProps>(
   ({ onScroll, currentDate = new Date(), onEmployeeSelect, onCellClick, refreshKey = 0 }, ref) => {
-  const { currentDate: selectedDate } = useDate();
+  const { currentDate: contextDate } = useDate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const days = useMemo(() => generateTwoMonthDays(currentDate, selectedDate), [currentDate, selectedDate]);
+  const days = useMemo(() => generateTwoMonthDays(currentDate, contextDate), [currentDate, contextDate]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const [coreFilterValues, setCoreFilterValues] = useState<string[]>([]);
