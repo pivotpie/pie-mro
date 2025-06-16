@@ -1,6 +1,7 @@
 
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Search, Menu, Bell, Settings, Home } from "lucide-react";
+import { Search, Menu, Bell, Settings, Home, Calendar } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -11,6 +12,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "react-router-dom";
+import { SetDateModal } from "./SetDateModal";
+import { useDate } from "@/contexts/DateContext";
+import { format } from "date-fns";
 
 interface WorkforceHeaderProps {
   user: {
@@ -23,6 +27,9 @@ interface WorkforceHeaderProps {
 }
 
 export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHeaderProps) => {
+  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
+  const { currentDate, isManuallySet } = useDate();
+  
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -56,6 +63,29 @@ export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHe
               Aircraft Maintenance Management System
             </span>
           </div>
+        </div>
+
+        {/* Date Picker Section */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsDateModalOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:inline">
+              {format(currentDate, 'MMM d, yyyy')}
+            </span>
+            <span className="sm:hidden">
+              {format(currentDate, 'M/d')}
+            </span>
+            {isManuallySet && (
+              <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-1 rounded">
+                Set
+              </span>
+            )}
+          </Button>
         </div>
 
         <div className="flex items-center gap-4">
@@ -119,6 +149,12 @@ export const WorkforceHeader = ({ user, onToggleSidebar, onLogout }: WorkforceHe
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Date Modal */}
+      <SetDateModal 
+        isOpen={isDateModalOpen} 
+        onClose={() => setIsDateModalOpen(false)} 
+      />
     </header>
   );
 };
