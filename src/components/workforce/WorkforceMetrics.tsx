@@ -4,8 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useDate } from '@/contexts/DateContext';
 
-
-
 type MetricType = {
   title: string;
   value: number;
@@ -17,7 +15,6 @@ type MetricType = {
 };
 
 export default function WorkforceMetrics() {
-  
   const { currentDate } = useDate();
   const [metrics, setMetrics] = useState<MetricType[]>([
     { 
@@ -27,7 +24,7 @@ export default function WorkforceMetrics() {
       colorClass: "text-blue-600", 
       borderColor: "border-l-blue-600",
       change: 5, 
-      changeType: 'increase' 
+      changeType: 'increase' as const
     },
     { 
       title: "On Leave", 
@@ -36,7 +33,7 @@ export default function WorkforceMetrics() {
       colorClass: "text-pink-600", 
       borderColor: "border-l-pink-600",
       change: 2, 
-      changeType: 'decrease' 
+      changeType: 'decrease' as const
     },
     { 
       title: "In Training", 
@@ -45,7 +42,7 @@ export default function WorkforceMetrics() {
       colorClass: "text-cyan-600", 
       borderColor: "border-l-cyan-600",
       change: 3, 
-      changeType: 'increase' 
+      changeType: 'increase' as const
     },
     { 
       title: "Grounded Aircraft", 
@@ -53,7 +50,7 @@ export default function WorkforceMetrics() {
       icon: <PlaneLanding className="h-6 w-6" />, 
       colorClass: "text-amber-500", 
       borderColor: "border-l-amber-500",
-      changeType: 'nochange' 
+      changeType: 'nochange' as const
     },
     { 
       title: "Aircraft w/ Teams", 
@@ -62,7 +59,7 @@ export default function WorkforceMetrics() {
       colorClass: "text-emerald-500", 
       borderColor: "border-l-emerald-500",
       change: 33, 
-      changeType: 'increase' 
+      changeType: 'increase' as const
     },
     { 
       title: "Pending Assignment", 
@@ -71,7 +68,7 @@ export default function WorkforceMetrics() {
       colorClass: "text-indigo-600", 
       borderColor: "border-l-indigo-600",
       change: 33, 
-      changeType: 'decrease' 
+      changeType: 'decrease' as const
     },
   ]);
 
@@ -83,62 +80,61 @@ export default function WorkforceMetrics() {
         const todayString = format(today, 'yyyy-MM-dd');
 
         // Create a copy of metrics to update
-                const updatedMetrics = [
-                  { 
-                    title: "Available Employees", 
-                    value: 0, 
-                    icon: <User className="h-6 w-6" />, 
-                    colorClass: "text-blue-600", 
-                    borderColor: "border-l-blue-600",
-                    change: 5, 
-                    changeType: 'increase' 
-                  },
-                  { 
-                    title: "On Leave", 
-                    value: 0, 
-                    icon: <CalendarDays className="h-6 w-6" />, 
-                    colorClass: "text-pink-600", 
-                    borderColor: "border-l-pink-600",
-                    change: 2, 
-                    changeType: 'decrease' 
-                  },
-                  { 
-                    title: "In Training", 
-                    value: 0, 
-                    icon: <Award className="h-6 w-6" />, 
-                    colorClass: "text-cyan-600", 
-                    borderColor: "border-l-cyan-600",
-                    change: 3, 
-                    changeType: 'increase' 
-                  },
-                  { 
-                    title: "Grounded Aircraft", 
-                    value: 0, 
-                    icon: <PlaneLanding className="h-6 w-6" />, 
-                    colorClass: "text-amber-500", 
-                    borderColor: "border-l-amber-500",
-                    changeType: 'nochange' 
-                  },
-                  { 
-                    title: "Aircraft w/ Teams", 
-                    value: 0, 
-                    icon: <UsersRound className="h-6 w-6" />, 
-                    colorClass: "text-emerald-500", 
-                    borderColor: "border-l-emerald-500",
-                    change: 33, 
-                    changeType: 'increase' 
-                  },
-                  { 
-                    title: "Pending Assignment", 
-                    value: 0, 
-                    icon: <Timer className="h-6 w-6" />, 
-                    colorClass: "text-indigo-600", 
-                    borderColor: "border-l-indigo-600",
-                    change: 33, 
-                    changeType: 'decrease' 
-                  },
-                ];
-
+        const updatedMetrics: MetricType[] = [
+          { 
+            title: "Available Employees", 
+            value: 0, 
+            icon: <User className="h-6 w-6" />, 
+            colorClass: "text-blue-600", 
+            borderColor: "border-l-blue-600",
+            change: 5, 
+            changeType: 'increase' as const
+          },
+          { 
+            title: "On Leave", 
+            value: 0, 
+            icon: <CalendarDays className="h-6 w-6" />, 
+            colorClass: "text-pink-600", 
+            borderColor: "border-l-pink-600",
+            change: 2, 
+            changeType: 'decrease' as const
+          },
+          { 
+            title: "In Training", 
+            value: 0, 
+            icon: <Award className="h-6 w-6" />, 
+            colorClass: "text-cyan-600", 
+            borderColor: "border-l-cyan-600",
+            change: 3, 
+            changeType: 'increase' as const
+          },
+          { 
+            title: "Grounded Aircraft", 
+            value: 0, 
+            icon: <PlaneLanding className="h-6 w-6" />, 
+            colorClass: "text-amber-500", 
+            borderColor: "border-l-amber-500",
+            changeType: 'nochange' as const
+          },
+          { 
+            title: "Aircraft w/ Teams", 
+            value: 0, 
+            icon: <UsersRound className="h-6 w-6" />, 
+            colorClass: "text-emerald-500", 
+            borderColor: "border-l-emerald-500",
+            change: 33, 
+            changeType: 'increase' as const
+          },
+          { 
+            title: "Pending Assignment", 
+            value: 0, 
+            icon: <Timer className="h-6 w-6" />, 
+            colorClass: "text-indigo-600", 
+            borderColor: "border-l-indigo-600",
+            change: 33, 
+            changeType: 'decrease' as const
+          },
+        ];
 
         // Find the date ID for today FIRST (declare dateData here)
         const { data: dateData } = await supabase
