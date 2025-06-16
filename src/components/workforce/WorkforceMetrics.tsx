@@ -5,7 +5,6 @@ import { format } from 'date-fns';
 import { useDate } from '@/contexts/DateContext';
 
 
-const { currentDate } = useDate();
 
 type MetricType = {
   title: string;
@@ -18,6 +17,8 @@ type MetricType = {
 };
 
 export default function WorkforceMetrics() {
+  
+  const { currentDate } = useDate();
   const [metrics, setMetrics] = useState<MetricType[]>([
     { 
       title: "Available Employees", 
