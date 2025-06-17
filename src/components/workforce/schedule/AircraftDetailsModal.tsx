@@ -669,7 +669,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       
       // Update aircraft status to "In Progress" if it's currently "Scheduled"
       if (aircraft && aircraft.status === 'Scheduled') {
-        await updateAircraftStatus(aircraft.maintenance_visit_id, 'In Progress');
+        await updateAircraftStatus(parseInt(aircraft.id), 'In Progress');
         aircraft.status = 'In Progress';
       }
       
@@ -851,7 +851,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       
       // Update aircraft status to "In Progress" if it's currently "Scheduled"
       if (aircraft && aircraft.status === 'Scheduled') {
-        await updateAircraftStatus(aircraft.maintenance_visit_id, 'In Progress');
+        await updateAircraftStatus(parseInt(aircraft.id), 'In Progress');
         
         // Update local aircraft object
         aircraft.status = 'In Progress';
