@@ -313,19 +313,29 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         };
       });
 
-      // Sort by availability first (available employees first), then by match score
+      // Sort by availability priority (not on off day first), then by match score
       availableEmps.sort((a, b) => {
-        // Prioritize available employees
-        const aAvailable = a.availability?.includes('Available') ? 1 : 0;
-        const bAvailable = b.availability?.includes('Available') ? 1 : 0;
+        // Define availability priorities (higher number = higher priority)
+        const getAvailabilityPriority = (availability: string | undefined) => {
+          if (!availability) return 0; // No availability info
+          if (availability === 'Available') return 3; // Available (not on off day) - highest priority
+          if (availability === 'Available (Off Day)') return 2; // Available but on off day - medium priority
+          if (availability.includes('Available')) return 1; // Other available statuses - low priority
+          return 0; // Not available (leave, sick, training, etc.) - lowest priority
+        };
         
-        if (aAvailable !== bAvailable) {
-          return bAvailable - aAvailable;
+        const aPriority = getAvailabilityPriority(a.availability);
+        const bPriority = getAvailabilityPriority(b.availability);
+        
+        // First sort by availability priority
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority; // Higher priority first
         }
         
-        // Then sort by match score
+        // Within same availability priority, sort by match score
         return (b.match_score || 0) - (a.match_score || 0);
       });
+
       
       // Generate assigned teams for completed and in-progress visits
       let assigned: Employee[] = [];
