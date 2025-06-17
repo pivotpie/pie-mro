@@ -78,15 +78,6 @@ const AdminWorkforce = () => {
         setSelectedAircraft(item);
         setShowAircraftModal(true);
         break;
-
-        const handleAircraftModalClose = (open: boolean) => {
-          setShowAircraftModal(open);
-          if (!open) {
-            // Trigger refresh when modal closes
-            triggerRefresh();
-          }
-        };
-
         
       case 'certification':
         setSelectedCertification(item);
@@ -100,6 +91,14 @@ const AdminWorkforce = () => {
     setSelectedCertification(certification);
     setShowCertificationPanel(true);
     setShowEmployeePanel(false);
+  };
+
+  const handleAircraftModalClose = (open: boolean) => {
+    setShowAircraftModal(open);
+    if (!open) {
+      // Trigger refresh when modal closes
+      triggerRefresh();
+    }
   };
 
   if (!user) {

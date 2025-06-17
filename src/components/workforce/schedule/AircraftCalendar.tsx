@@ -127,7 +127,6 @@ export const AircraftCalendar = () => {
               scrollLeft={scrollPosition} 
               startDate={viewStartDate} 
               endDate={viewEndDate}
-              refreshTrigger={refreshTrigger}
             />
           </div>
         </ScrollArea>

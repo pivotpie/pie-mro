@@ -47,10 +47,9 @@ interface AircraftGanttChartProps {
   scrollLeft: number;
   startDate: Date;
   endDate: Date;
-  refreshTrigger: number;
 }
 
-export const AircraftGanttChart = ({ scrollLeft, startDate, endDate, refreshTrigger }: AircraftGanttChartProps) => {
+export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftGanttChartProps) => {
   const [hangars, setHangars] = useState<HangarData[]>([]);
   const [aircraftSchedules, setAircraftSchedules] = useState<{ hangarId: number, schedules: AircraftSchedule[] }[]>([]);
   const [loading, setLoading] = useState(true);
