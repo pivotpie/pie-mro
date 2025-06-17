@@ -14,6 +14,8 @@ import { EmployeeDetailPanel } from "@/components/workforce/employee/EmployeeDet
 import { AircraftScheduleSection } from "@/components/workforce/AircraftScheduleSection";
 import { supabase } from "@/integrations/supabase/client";
 import { AircraftDetailsModal } from "@/components/workforce/schedule/AircraftDetailsModal";
+import { useRefresh } from '@/contexts/RefreshContext';
+
 
 interface CertificationData {
   id: number;
@@ -25,6 +27,8 @@ interface CertificationData {
 const AdminWorkforce = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { triggerRefresh } = useRefresh();
+
   
   const [showEmployeePanel, setShowEmployeePanel] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
@@ -34,6 +38,7 @@ const AdminWorkforce = () => {
   
   const [showAircraftModal, setShowAircraftModal] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState<any>(null);
+  
 
   useEffect(() => {
     if (!user) {
@@ -73,6 +78,15 @@ const AdminWorkforce = () => {
         setSelectedAircraft(item);
         setShowAircraftModal(true);
         break;
+
+        const handleAircraftModalClose = (open: boolean) => {
+          setShowAircraftModal(open);
+          if (!open) {
+            // Trigger refresh when modal closes
+            triggerRefresh();
+          }
+        };
+
         
       case 'certification':
         setSelectedCertification(item);
@@ -187,7 +201,7 @@ const AdminWorkforce = () => {
       {/* Aircraft Details Modal */}
       <AircraftDetailsModal
         open={showAircraftModal}
-        onOpenChange={setShowAircraftModal}
+        onOpenChange={handleAircraftModalClose}  // Changed from setShowAircraftModal
         aircraft={selectedAircraft}
       />
       

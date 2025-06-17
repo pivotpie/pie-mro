@@ -7,10 +7,14 @@ import { FileDownIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDate } from "@/contexts/DateContext";
+import { useRefresh } from '@/contexts/RefreshContext';
+
 
 export const AircraftCalendar = () => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const { currentDate, setCurrentDate } = useDate();
+  const { refreshTrigger } = useRefresh();
+
 
   // Handler to receive scroll position updates from the calendar
   const handleCalendarScroll = (position: number) => {
@@ -123,6 +127,7 @@ export const AircraftCalendar = () => {
               scrollLeft={scrollPosition} 
               startDate={viewStartDate} 
               endDate={viewEndDate}
+              refreshTrigger={refreshTrigger}
             />
           </div>
         </ScrollArea>

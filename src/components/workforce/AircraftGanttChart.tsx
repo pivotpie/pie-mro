@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addDays, eachDayOfInterval, isWeekend, isSameDay, startOfDay, differenceInDays } from "date-fns";
 import { AircraftDetailsModal } from "./schedule/AircraftDetailsModal";
+import { useRefresh } from '@/contexts/RefreshContext';
+
 
 // Helper function to generate days between two dates
 const generateDaysBetween = (startDate: Date, endDate: Date) => {
@@ -45,9 +47,10 @@ interface AircraftGanttChartProps {
   scrollLeft: number;
   startDate: Date;
   endDate: Date;
+  refreshTrigger: number;
 }
 
-export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftGanttChartProps) => {
+export const AircraftGanttChart = ({ scrollLeft, startDate, endDate, refreshTrigger }: AircraftGanttChartProps) => {
   const [hangars, setHangars] = useState<HangarData[]>([]);
   const [aircraftSchedules, setAircraftSchedules] = useState<{ hangarId: number, schedules: AircraftSchedule[] }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +59,8 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [selectedAircraft, setSelectedAircraft] = useState<AircraftSchedule | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const { refreshTrigger } = useRefresh();
+
 
   // Fetch hangars and maintenance visits from Supabase
   useEffect(() => {
@@ -217,7 +222,7 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
     };
     
     fetchData();
-  }, [startDate, endDate]); // Dependency on date range
+  }, [startDate, endDate, refreshTrigger]); // Dependency on date range
 
   // Generate enhanced mock data based on the reference image with status-based colors and aircraft model-based borders
   const generateEnhancedMockData = (hangars: HangarData[]) => {
