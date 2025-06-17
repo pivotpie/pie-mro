@@ -652,11 +652,28 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
     });
   };
 
-  const handleAssignEmployee = (employee: Employee) => {
-    setAssignedEmployees(prev => [...prev, employee]);
-    setAvailableEmployees(prev => prev.filter(emp => emp.id !== employee.id));
-    toast.success(`${employee.name} assigned to ${aircraft?.registration}`);
+  const handleAssignEmployee = async (employee: Employee) => {
+    try {
+      // Save assignment to database
+      await assignEmployeesToAircraft([employee], aircraft?.registration || '');
+      
+      // Update aircraft status to "In Progress" if it's currently "Scheduled"
+      if (aircraft && aircraft.status === 'Scheduled') {
+        await updateAircraftStatus(aircraft.aircraft_id, 'In Progress');
+        aircraft.status = 'In Progress';
+      }
+      
+      // Update local state
+      setAssignedEmployees(prev => [...prev, employee]);
+      setAvailableEmployees(prev => prev.filter(emp => emp.id !== employee.id));
+      
+      toast.success(`${employee.name} assigned to ${aircraft?.registration}. Status updated to In Progress.`);
+    } catch (error) {
+      toast.error("Failed to assign employee. Please try again.");
+      console.error("Assignment error:", error);
+    }
   };
+
 
   // ADD THESE TWO NEW FUNCTIONS HERE (before handleAssignEmployee)
   const assignEmployeesToAircraft = async (employees: Employee[], aircraftRegistration: string) => {
@@ -717,7 +734,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
             core_id: coreCode.id,
             assignment_date: aircraftStartDateString
           }, {
-            onConflict: 'employee_id,core_id,assignment_date'
+            onConflict: 'employee_id,assignment_date'
           });
         
         if (coreAssignError) throw coreAssignError;
@@ -730,7 +747,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
             support_id: supportCode.id,
             assignment_date: aircraftStartDateString
           }, {
-            onConflict: 'employee_id,support_id,assignment_date'
+            onConflict: 'employee_id,assignment_date'
           });
         
         if (supportAssignError) throw supportAssignError;
@@ -740,6 +757,23 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       throw error;
     }
   };
+
+  const updateAircraftStatus = async (aircraftId: number, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('maintenance_visits')
+        .update({ status: newStatus })
+        .eq('aircraft_id', aircraftId);
+      
+      if (error) throw error;
+      
+      console.log(`Aircraft status updated to: ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating aircraft status:', error);
+      throw error;
+    }
+  };
+
   
   const removeEmployeeFromAircraft = async (employee: Employee, aircraftRegistration: string) => {
     if (!aircraft) return;
@@ -783,6 +817,14 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       // Save assignments to database
       await assignEmployeesToAircraft(employeesToAssign, aircraft?.registration || '');
       
+      // Update aircraft status to "In Progress" if it's currently "Scheduled"
+      if (aircraft && aircraft.status === 'Scheduled') {
+        await updateAircraftStatus(aircraft.aircraft_id, 'In Progress');
+        
+        // Update local aircraft object
+        aircraft.status = 'In Progress';
+      }
+      
       // Update local state
       const newAssigned = [...assignedEmployees, ...employeesToAssign];
       const newAvailable = availableEmployees.filter(emp => !selectedEmployees.has(emp.id));
@@ -792,12 +834,13 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       setFilteredEmployees(newAvailable);
       setSelectedEmployees(new Set());
       
-      toast.success(`${employeesToAssign.length} employees assigned to ${aircraft?.registration}`);
+      toast.success(`${employeesToAssign.length} employees assigned to ${aircraft?.registration}. Status updated to In Progress.`);
     } catch (error) {
       toast.error("Failed to assign employees. Please try again.");
       console.error("Assignment error:", error);
     }
   };
+
 
 
   const handleRemoveAssignedEmployee = async (employee: Employee) => {
