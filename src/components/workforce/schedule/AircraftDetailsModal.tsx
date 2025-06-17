@@ -717,7 +717,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
             core_id: coreCode.id,
             assignment_date: aircraftStartDateString
           }, {
-            onConflict: 'employee_id,assignment_date'
+            onConflict: 'employee_id,core_id,assignment_date'
           });
         
         if (coreAssignError) throw coreAssignError;
@@ -730,7 +730,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
             support_id: supportCode.id,
             assignment_date: aircraftStartDateString
           }, {
-            onConflict: 'employee_id,assignment_date'
+            onConflict: 'employee_id,support_id,assignment_date'
           });
         
         if (supportAssignError) throw supportAssignError;
