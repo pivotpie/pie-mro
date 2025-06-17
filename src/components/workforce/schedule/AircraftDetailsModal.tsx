@@ -333,19 +333,13 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         ...(aircraftAssignedCores?.map(ac => ac.employee_id) || []),
         ...(aircraftAssignedSupports?.map(as => as.employee_id) || [])
       ]);
-      
-      // Generate assigned teams for completed and in-progress visits OR get from database
+
+      // Only show employees actually assigned in database for ALL aircraft statuses
       let assigned: Employee[] = [];
-      if (aircraft.status === 'Completed' || aircraft.status === 'In Progress') {
-        assigned = generateAssignedTeam(availableEmps, aircraft);
-      } else if (aircraft.status === 'Scheduled') {
-        // For scheduled visits, only show employees actually assigned in database
-        if (aircraftAssignedEmployeeIds.size > 0) {
-          assigned = availableEmps.filter(emp => aircraftAssignedEmployeeIds.has(emp.id));
-        }
-        // No automatic assignment for any aircraft - rely purely on database
+      if (aircraftAssignedEmployeeIds.size > 0) {
+        assigned = availableEmps.filter(emp => aircraftAssignedEmployeeIds.has(emp.id));
       }
-      
+
       setAssignedEmployees(assigned);
       setAvailableEmployees(availableEmps.filter(emp => !assigned.find(a => a.id === emp.id)));
     } catch (error) {
