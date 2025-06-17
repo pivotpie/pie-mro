@@ -63,7 +63,7 @@ export const CertificationSummary = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
             ) : (
               <>
-                <div className="relative w-40 h-40">
+                <div className="relative w-40 h-50">
                   <svg viewBox="0 0 100 100" className="w-full h-full">
                     <circle
                       cx="50"
