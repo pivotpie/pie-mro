@@ -8,8 +8,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useDate } from "@/contexts/DateContext";
-import { useRefresh } from '@/contexts/RefreshContext';
-
 
 interface AircraftSchedule {
   id: string;
@@ -74,7 +72,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
   const [tradeRequirements, setTradeRequirements] = useState<TradeRequirement[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<number>>(new Set());
   const [hasActiveFilter, setHasActiveFilter] = useState(false);
-  const { triggerRefresh } = useRefresh();
+  
   const { currentDate, formatDate } = useDate();
 
   useEffect(() => {
@@ -308,8 +306,8 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           availability: emp.availability,
           match_score: matchScore,
           current_roster: emp.current_roster,
-          support: empSupports.map((s: any) => s.support_codes?.support_code).filter(Boolean).join(', ') || 'None',
-          core: empCores.map((c: any) => c.core_codes?.core_code).filter(Boolean).join(', ') || 'None',
+          support: empSupports.map((s: any) => s.support_codes?.support_code).filter(Boolean).join(', ') || 'AV',
+          core: empCores.map((c: any) => c.core_codes?.core_code).filter(Boolean).join(', ') || 'AV',
           trade: determineTrade(empAuths, emp.job_titles?.job_description, tradesData),
           engine_type: extractEngineTypes(empAuths)
         };
@@ -670,7 +668,6 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       setAvailableEmployees(prev => prev.filter(emp => emp.id !== employee.id));
       
       toast.success(`${employee.name} assigned to ${aircraft?.registration}. Status updated to In Progress.`);
-      triggerRefresh(); // Add this line
     } catch (error) {
       toast.error("Failed to assign employee. Please try again.");
       console.error("Assignment error:", error);
@@ -682,17 +679,10 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
   const assignEmployeesToAircraft = async (employees: Employee[], aircraftRegistration: string) => {
     if (!aircraft) return;
     
+    const aircraftStartDateString = format(aircraft.start, 'yyyy-MM-dd');
+    
     try {
-      // Calculate all dates between start and end (inclusive)
-      const startDate = new Date(aircraft.start);
-      const endDate = new Date(aircraft.end);
-      const dates = [];
-      
-      for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-        dates.push(format(new Date(date), 'yyyy-MM-dd'));
-      }
-      
-      // For each employee, create core and support assignments for ALL dates
+      // For each employee, create core and support assignments
       for (const employee of employees) {
         // Find or create core code for this aircraft
         let { data: coreCode, error: coreError } = await supabase
@@ -736,41 +726,37 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           throw supportError;
         }
         
-        // Create assignments for each date in the range
-        for (const dateString of dates) {
-          // Insert or update employee core assignment for this date
-          const { error: coreAssignError } = await supabase
-            .from('employee_cores')
-            .upsert({
-              employee_id: employee.id,
-              core_id: coreCode.id,
-              assignment_date: dateString
-            }, {
-              onConflict: 'employee_id,assignment_date'
-            });
-          
-          if (coreAssignError) throw coreAssignError;
-          
-          // Insert or update employee support assignment for this date
-          const { error: supportAssignError } = await supabase
-            .from('employee_supports')
-            .upsert({
-              employee_id: employee.id,
-              support_id: supportCode.id,
-              assignment_date: dateString
-            }, {
-              onConflict: 'employee_id,assignment_date'
-            });
-          
-          if (supportAssignError) throw supportAssignError;
-        }
+        // Insert or update employee core assignment
+        const { error: coreAssignError } = await supabase
+          .from('employee_cores')
+          .upsert({
+            employee_id: employee.id,
+            core_id: coreCode.id,
+            assignment_date: aircraftStartDateString
+          }, {
+            onConflict: 'employee_id,assignment_date'
+          });
+        
+        if (coreAssignError) throw coreAssignError;
+        
+        // Insert or update employee support assignment
+        const { error: supportAssignError } = await supabase
+          .from('employee_supports')
+          .upsert({
+            employee_id: employee.id,
+            support_id: supportCode.id,
+            assignment_date: aircraftStartDateString
+          }, {
+            onConflict: 'employee_id,assignment_date'
+          });
+        
+        if (supportAssignError) throw supportAssignError;
       }
     } catch (error) {
       console.error('Error assigning employees to aircraft:', error);
       throw error;
     }
   };
-
 
   const updateAircraftStatus = async (aircraftId: number, newStatus: string) => {
     try {
@@ -792,42 +778,31 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
   const removeEmployeeFromAircraft = async (employee: Employee, aircraftRegistration: string) => {
     if (!aircraft) return;
     
+    const aircraftStartDateString = format(aircraft.start, 'yyyy-MM-dd');
+    
     try {
-      // Calculate all dates between start and end (inclusive)
-      const startDate = new Date(aircraft.start);
-      const endDate = new Date(aircraft.end);
-      const dates = [];
+      // Remove employee core assignment for this aircraft and date
+      const { error: coreRemoveError } = await supabase
+        .from('employee_cores')
+        .delete()
+        .eq('employee_id', employee.id)
+        .eq('assignment_date', aircraftStartDateString);
       
-      for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-        dates.push(format(new Date(date), 'yyyy-MM-dd'));
-      }
+      if (coreRemoveError) throw coreRemoveError;
       
-      // Remove assignments for each date in the range
-      for (const dateString of dates) {
-        // Remove employee core assignment for this date
-        const { error: coreRemoveError } = await supabase
-          .from('employee_cores')
-          .delete()
-          .eq('employee_id', employee.id)
-          .eq('assignment_date', dateString);
-        
-        if (coreRemoveError) throw coreRemoveError;
-        
-        // Remove employee support assignment for this date
-        const { error: supportRemoveError } = await supabase
-          .from('employee_supports')
-          .delete()
-          .eq('employee_id', employee.id)
-          .eq('assignment_date', dateString);
-        
-        if (supportRemoveError) throw supportRemoveError;
-      }
+      // Remove employee support assignment for this aircraft and date
+      const { error: supportRemoveError } = await supabase
+        .from('employee_supports')
+        .delete()
+        .eq('employee_id', employee.id)
+        .eq('assignment_date', aircraftStartDateString);
+      
+      if (supportRemoveError) throw supportRemoveError;
     } catch (error) {
       console.error('Error removing employee from aircraft:', error);
       throw error;
     }
   };
-
 
 
   const handleBulkAssignEmployees = async () => {
@@ -860,7 +835,6 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       setSelectedEmployees(new Set());
       
       toast.success(`${employeesToAssign.length} employees assigned to ${aircraft?.registration}. Status updated to In Progress.`);
-      triggerRefresh(); // Add this line
     } catch (error) {
       toast.error("Failed to assign employees. Please try again.");
       console.error("Assignment error:", error);
@@ -879,7 +853,6 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       setAvailableEmployees(prev => [...prev, {...employee, match_score: calculateEmployeeMatchScore(employee)}]);
       
       toast.info(`${employee.name} removed from ${aircraft?.registration}`);
-      triggerRefresh(); // Add this line
     } catch (error) {
       toast.error("Failed to remove employee assignment. Please try again.");
       console.error("Remove assignment error:", error);
