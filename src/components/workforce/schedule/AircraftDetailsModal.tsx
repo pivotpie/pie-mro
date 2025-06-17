@@ -669,7 +669,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       
       // Update aircraft status to "In Progress" if it's currently "Scheduled"
       if (aircraft && aircraft.status === 'Scheduled') {
-        await updateAircraftStatus(Number(aircraft.id), 'In Progress');
+        await updateAircraftStatus(aircraft.maintenance_visit_id, 'In Progress');
         aircraft.status = 'In Progress';
       }
       
@@ -689,7 +689,9 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
   const assignEmployeesToAircraft = async (employees: Employee[], aircraftRegistration: string) => {
     if (!aircraft) return;
     
-    const aircraftStartDateString = format(aircraft.start, 'yyyy-MM-dd');
+    const startDate = new Date(aircraft.start);
+    const endDate = new Date(aircraft.end);
+
     
     try {
       // For each employee, create core and support assignments
@@ -736,31 +738,40 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           throw supportError;
         }
         
-        // Insert or update employee core assignment
-        const { error: coreAssignError } = await supabase
-          .from('employee_cores')
-          .upsert({
-            employee_id: employee.id,
-            core_id: coreCode.id,
-            assignment_date: aircraftStartDateString
-          }, {
-            onConflict: 'employee_id,assignment_date'
-          });
-        
-        if (coreAssignError) throw coreAssignError;
-        
-        // Insert or update employee support assignment
-        const { error: supportAssignError } = await supabase
-          .from('employee_supports')
-          .upsert({
-            employee_id: employee.id,
-            support_id: supportCode.id,
-            assignment_date: aircraftStartDateString
-          }, {
-            onConflict: 'employee_id,assignment_date'
-          });
-        
-        if (supportAssignError) throw supportAssignError;
+        // Loop through each date from start to end
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+          const dateString = format(currentDate, 'yyyy-MM-dd');
+          
+          // Insert or update employee core assignment for this date
+          const { error: coreAssignError } = await supabase
+            .from('employee_cores')
+            .upsert({
+              employee_id: employee.id,
+              core_id: coreCode.id,
+              assignment_date: dateString
+            }, {
+              onConflict: 'employee_id,assignment_date'
+            });
+          
+          if (coreAssignError) throw coreAssignError;
+          
+          // Insert or update employee support assignment for this date
+          const { error: supportAssignError } = await supabase
+            .from('employee_supports')
+            .upsert({
+              employee_id: employee.id,
+              support_id: supportCode.id,
+              assignment_date: dateString
+            }, {
+              onConflict: 'employee_id,assignment_date'
+            });
+          
+          if (supportAssignError) throw supportAssignError;
+          
+          // Move to next day
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
       }
     } catch (error) {
       console.error('Error assigning employees to aircraft:', error);
@@ -768,46 +779,57 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
     }
   };
 
-  const updateAircraftStatus = async (aircraftId: number, newStatus: string) => {
+  const updateAircraftStatus = async (maintenanceVisitId: number, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('maintenance_visits')
         .update({ status: newStatus })
-        .eq('aircraft_id', aircraftId);
+        .eq('id', maintenanceVisitId);
       
       if (error) throw error;
       
-      console.log(`Aircraft status updated to: ${newStatus}`);
+      console.log(`Maintenance visit status updated to: ${newStatus}`);
     } catch (error) {
-      console.error('Error updating aircraft status:', error);
+      console.error('Error updating maintenance visit status:', error);
       throw error;
     }
   };
+
 
   
   const removeEmployeeFromAircraft = async (employee: Employee, aircraftRegistration: string) => {
     if (!aircraft) return;
     
-    const aircraftStartDateString = format(aircraft.start, 'yyyy-MM-dd');
+    const startDate = new Date(aircraft.start);
+    const endDate = new Date(aircraft.end);
     
     try {
-      // Remove employee core assignment for this aircraft and date
-      const { error: coreRemoveError } = await supabase
-        .from('employee_cores')
-        .delete()
-        .eq('employee_id', employee.id)
-        .eq('assignment_date', aircraftStartDateString);
-      
-      if (coreRemoveError) throw coreRemoveError;
-      
-      // Remove employee support assignment for this aircraft and date
-      const { error: supportRemoveError } = await supabase
-        .from('employee_supports')
-        .delete()
-        .eq('employee_id', employee.id)
-        .eq('assignment_date', aircraftStartDateString);
-      
-      if (supportRemoveError) throw supportRemoveError;
+      // Loop through each date from start to end and remove assignments
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        const dateString = format(currentDate, 'yyyy-MM-dd');
+        
+        // Remove employee core assignment for this date
+        const { error: coreRemoveError } = await supabase
+          .from('employee_cores')
+          .delete()
+          .eq('employee_id', employee.id)
+          .eq('assignment_date', dateString);
+        
+        if (coreRemoveError) throw coreRemoveError;
+        
+        // Remove employee support assignment for this date
+        const { error: supportRemoveError } = await supabase
+          .from('employee_supports')
+          .delete()
+          .eq('employee_id', employee.id)
+          .eq('assignment_date', dateString);
+        
+        if (supportRemoveError) throw supportRemoveError;
+        
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
     } catch (error) {
       console.error('Error removing employee from aircraft:', error);
       throw error;
@@ -829,7 +851,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       
       // Update aircraft status to "In Progress" if it's currently "Scheduled"
       if (aircraft && aircraft.status === 'Scheduled') {
-        await updateAircraftStatus(Number(aircraft.id), 'In Progress');
+        await updateAircraftStatus(aircraft.maintenance_visit_id, 'In Progress');
         
         // Update local aircraft object
         aircraft.status = 'In Progress';
