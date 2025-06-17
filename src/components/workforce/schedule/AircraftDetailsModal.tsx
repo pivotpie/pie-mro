@@ -348,10 +348,6 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       
       setAssignedEmployees(assigned);
       setAvailableEmployees(availableEmps.filter(emp => !assigned.find(a => a.id === emp.id)));
-
-
-      setAssignedEmployees(assigned);
-      setAvailableEmployees(availableEmps.filter(emp => !assigned.find(a => a.id === emp.id)));
     } catch (error) {
       console.error("Error fetching employee data:", error);
       toast.error("Failed to load employee data");
