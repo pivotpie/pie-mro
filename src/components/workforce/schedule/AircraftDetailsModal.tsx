@@ -327,29 +327,19 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         return (b.match_score || 0) - (a.match_score || 0);
       });
       
-      // Check for employees already assigned to this aircraft from the database
-      const aircraftAssignedEmployeeIds = new Set([
-        ...(aircraftAssignedCores?.map(ac => ac.employee_id) || []),
-        ...(aircraftAssignedSupports?.map(as => as.employee_id) || [])
-      ]);
-      
-      // Generate assigned teams for completed and in-progress visits OR get from database
-      // Generate assigned teams based on aircraft status and database assignments only
+      // Generate assigned teams for completed and in-progress visits
       let assigned: Employee[] = [];
       if (aircraft.status === 'Completed' || aircraft.status === 'In Progress') {
         assigned = generateAssignedTeam(availableEmps, aircraft);
-      } else if (aircraft.status === 'Scheduled') {
-        // For scheduled visits, only show employees actually assigned in the database
-        if (aircraftAssignedEmployeeIds.size > 0) {
-          assigned = availableEmps.filter(emp => aircraftAssignedEmployeeIds.has(emp.id));
-        }
-        // No automatic assignment for any aircraft registration - rely solely on database
+      } else if (aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA'))) {
+        // For G-FVWF scheduled visits, show high-matching employees as potentially assigned
+        assigned = availableEmps
+          .filter(emp => emp.match_score && emp.match_score > 70)
+          .slice(0, 8); // Take top 8 matches
       }
 
-      
       setAssignedEmployees(assigned);
       setAvailableEmployees(availableEmps.filter(emp => !assigned.find(a => a.id === emp.id)));
-
     } catch (error) {
       console.error("Error fetching employee data:", error);
       toast.error("Failed to load employee data");
