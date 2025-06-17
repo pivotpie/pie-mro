@@ -669,7 +669,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       
       // Update aircraft status to "In Progress" if it's currently "Scheduled"
       if (aircraft && aircraft.status === 'Scheduled') {
-        await updateAircraftStatus(aircraft.id, 'In Progress');
+        await updateAircraftStatus(Number(aircraft.id), 'In Progress');
         aircraft.status = 'In Progress';
       }
       
@@ -686,22 +686,13 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
 
 
   // ADD THESE TWO NEW FUNCTIONS HERE (before handleAssignEmployee)
-    const assignEmployeesToAircraft = async (employees: Employee[], aircraftRegistration: string) => {
+  const assignEmployeesToAircraft = async (employees: Employee[], aircraftRegistration: string) => {
     if (!aircraft) return;
     
-    // Generate all dates from start to end
-    const startDate = aircraft.start;
-    const endDate = aircraft.end;
-    const dates = [];
-    
-    let currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      dates.push(format(currentDate, 'yyyy-MM-dd'));
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+    const aircraftStartDateString = format(aircraft.start, 'yyyy-MM-dd');
     
     try {
-      // For each employee, create core and support assignments for ALL dates
+      // For each employee, create core and support assignments
       for (const employee of employees) {
         // Find or create core code for this aircraft
         let { data: coreCode, error: coreError } = await supabase
@@ -745,34 +736,31 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           throw supportError;
         }
         
-        // Insert assignments for each date in the range
-        for (const dateString of dates) {
-          // Insert or update employee core assignment
-          const { error: coreAssignError } = await supabase
-            .from('employee_cores')
-            .upsert({
-              employee_id: employee.id,
-              core_id: coreCode.id,
-              assignment_date: dateString
-            }, {
-              onConflict: 'employee_id,assignment_date'
-            });
-          
-          if (coreAssignError) throw coreAssignError;
-          
-          // Insert or update employee support assignment
-          const { error: supportAssignError } = await supabase
-            .from('employee_supports')
-            .upsert({
-              employee_id: employee.id,
-              support_id: supportCode.id,
-              assignment_date: dateString
-            }, {
-              onConflict: 'employee_id,assignment_date'
-            });
-          
-          if (supportAssignError) throw supportAssignError;
-        }
+        // Insert or update employee core assignment
+        const { error: coreAssignError } = await supabase
+          .from('employee_cores')
+          .upsert({
+            employee_id: employee.id,
+            core_id: coreCode.id,
+            assignment_date: aircraftStartDateString
+          }, {
+            onConflict: 'employee_id,assignment_date'
+          });
+        
+        if (coreAssignError) throw coreAssignError;
+        
+        // Insert or update employee support assignment
+        const { error: supportAssignError } = await supabase
+          .from('employee_supports')
+          .upsert({
+            employee_id: employee.id,
+            support_id: supportCode.id,
+            assignment_date: aircraftStartDateString
+          }, {
+            onConflict: 'employee_id,assignment_date'
+          });
+        
+        if (supportAssignError) throw supportAssignError;
       }
     } catch (error) {
       console.error('Error assigning employees to aircraft:', error);
@@ -780,23 +768,21 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
     }
   };
 
-
-  const updateAircraftStatus = async (maintenanceVisitId: number, newStatus: string) => {
+  const updateAircraftStatus = async (aircraftId: number, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('maintenance_visits')
         .update({ status: newStatus })
-        .eq('id', maintenanceVisitId);
+        .eq('aircraft_id', aircraftId);
       
       if (error) throw error;
       
-      console.log(`Maintenance visit status updated to: ${newStatus}`);
+      console.log(`Aircraft status updated to: ${newStatus}`);
     } catch (error) {
-      console.error('Error updating maintenance visit status:', error);
+      console.error('Error updating aircraft status:', error);
       throw error;
     }
   };
-
 
   
   const removeEmployeeFromAircraft = async (employee: Employee, aircraftRegistration: string) => {
@@ -843,7 +829,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       
       // Update aircraft status to "In Progress" if it's currently "Scheduled"
       if (aircraft && aircraft.status === 'Scheduled') {
-        await updateAircraftStatus(aircraft.id, 'In Progress');
+        await updateAircraftStatus(Number(aircraft.id), 'In Progress');
         
         // Update local aircraft object
         aircraft.status = 'In Progress';
