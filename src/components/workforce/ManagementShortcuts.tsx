@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import {
   Briefcase, FileSpreadsheet, Download, Upload
 } from "lucide-react";
 import { EmployeeAuthorizationList } from "./certification/EmployeeAuthorizationList";
-import { TrainingManagement } from "./training/TrainingManagement";
 
 interface ShortcutItem {
   id: string;
@@ -24,12 +22,12 @@ export const ManagementShortcuts = () => {
 
   const shortcuts: ShortcutItem[] = [
     { id: "certification-portal", label: "Certification Portal", icon: FileText, color: "bg-emerald-100 text-emerald-600" },
-    { id: "training-management", label: "Training Management", icon: FileSpreadsheet, color: "bg-purple-100 text-purple-600" },
     { id: "employee-shifts", label: "Employee Shifts", icon: CalendarClock, color: "bg-blue-100 text-blue-600" },
     { id: "employee-management", label: "Employee Management", icon: UserCog, color: "bg-green-100 text-green-600" },
     { id: "team-management", label: "Team Management", icon: UsersRound, color: "bg-indigo-100 text-indigo-600" },
     { id: "leave-management", label: "Leave Management", icon: AlertCircle, color: "bg-red-100 text-red-600" },
     { id: "weekly-off", label: "Weekly Offs", icon: Calendar, color: "bg-yellow-100 text-yellow-600" },
+    { id: "training-management", label: "Training Management", icon: FileSpreadsheet, color: "bg-purple-100 text-purple-600" },
     { id: "aircraft-management", label: "Aircraft Management", icon: Briefcase, color: "bg-cyan-100 text-cyan-600" },
   ];
 
@@ -46,15 +44,6 @@ export const ManagementShortcuts = () => {
       return (
         <div className="h-full">
           <EmployeeAuthorizationList />
-        </div>
-      );
-    }
-
-    // Render the Enhanced TrainingManagement for Training Management
-    if (activeShortcut.id === "training-management") {
-      return (
-        <div className="h-full">
-          <TrainingManagement />
         </div>
       );
     }
@@ -162,11 +151,9 @@ export const ManagementShortcuts = () => {
         </div>
       </CardContent>
 
-      {/* Management Modal - Enhanced sizing for Training Management */}
+      {/* Management Modal - Fixed sizing to prevent double scroll */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className={`w-[95vw] h-[90vh] max-w-none p-0 flex flex-col ${
-          activeShortcut?.id === "training-management" ? "w-[98vw] h-[95vh]" : ""
-        }`}>
+        <DialogContent className="w-[95vw] h-[90vh] max-w-none p-0 flex flex-col">
           <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
             <DialogTitle>{activeShortcut?.label}</DialogTitle>
             <DialogDescription>
