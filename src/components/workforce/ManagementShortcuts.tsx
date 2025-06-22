@@ -50,7 +50,7 @@ export const ManagementShortcuts = () => {
       );
     }
 
-    // Render the TrainingManagement for Training Management
+    // Render the Enhanced TrainingManagement for Training Management
     if (activeShortcut.id === "training-management") {
       return (
         <div className="h-full">
@@ -162,9 +162,11 @@ export const ManagementShortcuts = () => {
         </div>
       </CardContent>
 
-      {/* Management Modal - Fixed sizing to prevent double scroll */}
+      {/* Management Modal - Enhanced sizing for Training Management */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[95vw] h-[90vh] max-w-none p-0 flex flex-col">
+        <DialogContent className={`w-[95vw] h-[90vh] max-w-none p-0 flex flex-col ${
+          activeShortcut?.id === "training-management" ? "w-[98vw] h-[95vh]" : ""
+        }`}>
           <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
             <DialogTitle>{activeShortcut?.label}</DialogTitle>
             <DialogDescription>
