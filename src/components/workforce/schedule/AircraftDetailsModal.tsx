@@ -1208,7 +1208,6 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
                             />
                           </TableHead>
                           <TableHead>Name</TableHead>
-                          <TableHead className="text-center">Match %</TableHead>
                           <TableHead>Job Title</TableHead>
                           <TableHead>Support</TableHead>
                           <TableHead>Core</TableHead>
@@ -1255,17 +1254,6 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
                                   </p>
                                 </div>
                               </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {employee.match_score && (
-                                <span className={`font-medium ${
-                                  employee.match_score > 70 ? 'text-emerald-600 dark:text-emerald-400' : 
-                                  employee.match_score > 30 ? 'text-amber-600 dark:text-amber-400' :
-                                  'text-gray-500 dark:text-gray-400'
-                                }`}>
-                                  {employee.match_score}%
-                                </span>
-                              )}
                             </TableCell>
                             <TableCell className="text-sm">{employee.role}</TableCell>
                             <TableCell className="text-sm">{employee.support}</TableCell>
