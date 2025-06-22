@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import {
   Briefcase, FileSpreadsheet, Download, Upload
 } from "lucide-react";
 import { EmployeeAuthorizationList } from "./certification/EmployeeAuthorizationList";
+import { TrainingManagement } from "./training/TrainingManagement";
 
 interface ShortcutItem {
   id: string;
@@ -44,6 +46,15 @@ export const ManagementShortcuts = () => {
       return (
         <div className="h-full">
           <EmployeeAuthorizationList />
+        </div>
+      );
+    }
+
+    // Render the TrainingManagement for Training Management
+    if (activeShortcut.id === "training-management") {
+      return (
+        <div className="h-full">
+          <TrainingManagement />
         </div>
       );
     }
