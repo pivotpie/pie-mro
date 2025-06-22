@@ -120,7 +120,7 @@ export const TrainingGanttChart = ({ sessions, onSessionClick, loading }: Traini
         
         {/* Timeline header */}
         <div className="flex-1 overflow-x-auto">
-          <ScrollArea orientation="horizontal" className="w-full">
+          <ScrollArea className="w-full">
             <div className="flex" style={{ minWidth: `${timelineData.length * 80}px` }}>
               {timelineData.map((day, index) => (
                 <div 
