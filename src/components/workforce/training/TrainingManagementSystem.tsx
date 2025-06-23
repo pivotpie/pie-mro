@@ -140,9 +140,7 @@ const TrainingManagementSystem = () => {
   const [selectedReplacementEmployee, setSelectedReplacementEmployee] = useState<number | null>(null);
   const [substitutionStep, setSubstitutionStep] = useState<'select-original' | 'select-replacement'>('select-original');
   const [showAllEmployees, setShowAllEmployees] = useState<boolean>(false);
-  const [employeeToReplace, setEmployeeToReplace] = useState<string>("");
-
-
+  const [employeeToReplace, setEmployeeToReplace] = useState<number | null>(null);
 
   // Analytics calculations
   const analytics = useMemo(() => {
@@ -1325,7 +1323,10 @@ const TrainingManagementSystem = () => {
                           ? 'border-blue-500 bg-blue-50' 
                           : 'hover:bg-gray-50 border-gray-200'
                       }`}
-                      onClick={() => setSelectedEmployeeForSwap(empId)}
+                      onClick={() => {
+                        setSelectedEmployeeForSwap(empId);
+                        setEmployeeToReplace(empId); // Add this line
+                      }}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -1354,9 +1355,26 @@ const TrainingManagementSystem = () => {
                     </p>
                   </div>
                   <div className="space-y-3">
+                    <div className="mb-4 flex items-center justify-between">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={showAllEmployees}
+                          onChange={(e) => setShowAllEmployees(e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          Choose others (show all employees)
+                        </span>
+                      </label>
+                      <span className="text-xs text-gray-500">
+                        {showAllEmployees ? 'Showing all employees' : 'Showing top 5 qualified candidates'}
+                      </span>
+                    </div>
+
                     {(showAllEmployees 
                       ? mockEmployees.filter(emp => 
-                          emp.id !== employeeToReplace?.id && 
+                          emp.id !== employeeToReplace &&  
                           !selectedSession?.assignedEmployees?.some(assigned => assigned.id === emp.id)
                         )
                       : mockEmployees
