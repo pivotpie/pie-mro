@@ -1,68 +1,104 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Calendar, Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Plus, Filter, Search, ChevronLeft, ChevronRight, Download, Upload, Settings, Bell, BarChart3, TrendingUp, Shield, Award, AlertCircle, FileText, Target, Zap, Globe, BookOpen, Activity } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
-// Mock data structure to maintain existing functionality while transitioning to database
-const createMockTrainingSessions = (dbSessions: any[]) => {
-  return dbSessions.map(session => ({
-    id: session.id,
-    code: session.session_code,
-    name: session.session_name,
-    authority: session.training_authorities?.authority_name || 'Unknown',
-    location: session.location || 'TBD',
-    start_date: session.start_date,
-    end_date: session.end_date,
-    max_participants: session.max_participants,
-    assigned: 0, // Will be calculated separately
-    status: session.status,
-    instructor: session.instructor_name || 'TBD',
-    category: session.training_types?.name || 'General',
-    prerequisites: session.prerequisites?.split(',') || [],
-    recurrent: session.is_mandatory,
-    simulator_hours: session.duration_hours || 0,
-    theory_hours: session.duration_hours || 0,
-    practical_hours: session.duration_hours || 0,
-    equipment: session.materials_required || 'Standard',
-    rating: 4.5, // Default rating
-    priority: session.priority_level === 1 ? 'Critical' : 
-             session.priority_level === 2 ? 'High' : 
-             session.priority_level === 3 ? 'Medium' : 'Low'
-  }));
-};
+// Comprehensive training sessions data
+const mockTrainingSessions = [
+  // EASA Training Center - June 2025
+  { id: 1, code: 'B1.1-787-001', name: 'Boeing 787 Type Rating Initial', authority: 'EASA', location: 'EASA Training Center Frankfurt', start_date: '2025-06-02', end_date: '2025-06-13', max_participants: 12, assigned: 10, status: 'Confirmed', instructor: 'Capt. Hans Mueller', category: 'Type Rating', prerequisites: ['B1.1 Basic'], recurrent: false, simulator_hours: 40, theory_hours: 80, practical_hours: 60, equipment: 'B787 Simulator', rating: 4.8, priority: 'High' },
+  { id: 2, code: 'A1-320-015', name: 'A320 Line Maintenance Recurrent', authority: 'EASA', location: 'EASA Training Center Toulouse', start_date: '2025-06-09', end_date: '2025-06-11', max_participants: 18, assigned: 15, status: 'Confirmed', instructor: 'Eng. Pierre Dubois', category: 'Line Maintenance', prerequisites: ['A1 Initial'], recurrent: true, simulator_hours: 8, theory_hours: 16, practical_hours: 24, equipment: 'A320 Training Aircraft', rating: 4.6, priority: 'Medium' },
+  { id: 3, code: 'B2-777-008', name: 'B777 Avionics Systems Advanced', authority: 'EASA', location: 'EASA Training Center Munich', start_date: '2025-06-16', end_date: '2025-06-20', max_participants: 14, assigned: 12, status: 'Confirmed', instructor: 'Tech. Klaus Weber', category: 'Avionics', prerequisites: ['B2 Basic', 'Electronics Fundamentals'], recurrent: false, simulator_hours: 20, theory_hours: 30, practical_hours: 50, equipment: 'B777 Avionics Trainer', rating: 4.9, priority: 'High' },
+  { id: 4, code: 'C-350-003', name: 'A350 Base Maintenance Comprehensive', authority: 'EASA', location: 'EASA Training Center Hamburg', start_date: '2025-06-23', end_date: '2025-07-04', max_participants: 10, assigned: 8, status: 'Open', instructor: 'Sr. Eng. Wolfgang Fischer', category: 'Base Maintenance', prerequisites: ['C License', '5 Years Experience'], recurrent: false, simulator_hours: 0, theory_hours: 60, practical_hours: 140, equipment: 'A350 Training Bay', rating: 4.7, priority: 'Critical' },
 
-const createMockEmployees = (dbEmployees: any[]) => {
-  return dbEmployees.map(emp => ({
-    id: emp.id,
-    e_number: emp.e_number,
-    name: emp.name,
-    job_title: emp.job_titles?.job_description || 'Unknown',
-    team: emp.teams?.team_name || 'No Team',
-    department: emp.profit_center || 'Unknown',
-    shift: 'Day', // Default value
-    nationality: emp.nationality,
-    hire_date: emp.date_of_joining,
-    supervisor: 'TBD', // Will need separate query
-    location: 'Unknown', // Will need separate query
-    phone: emp.mobile_number,
-    email: `${emp.name?.toLowerCase().replace(' ', '.')}@company.com`,
-    priority_score: Math.floor(Math.random() * 100), // Mock calculation
-    performance_rating: (Math.random() * 2 + 3).toFixed(1), // 3-5 range
-    training_completed: Math.floor(Math.random() * 20),
-    next_training_due: '2025-07-01', // Mock date
-    certifications: [
-      {
-        code: 'B1.1',
-        authority: 'EASA',
-        aircraft: 'A320',
-        status: Math.random() > 0.7 ? 'Expired' : Math.random() > 0.5 ? 'Expiring Soon' : 'Valid',
-        issued_date: '2023-01-15',
-        expiry: '2025-01-15',
-        days_to_expire: Math.floor(Math.random() * 365) - 30
-      }
-    ]
-  }));
-};
+  // GCAA Training Center - June/July 2025
+  { id: 5, code: 'B1.1-MAX-012', name: 'B737 MAX Systems Initial', authority: 'GCAA', location: 'GCAA Training Center Dubai', start_date: '2025-06-05', end_date: '2025-06-16', max_participants: 16, assigned: 14, status: 'Confirmed', instructor: 'Capt. Ahmed Al Mansouri', category: 'Type Rating', prerequisites: ['B1.1 Basic', 'B737 NG'], recurrent: false, simulator_hours: 35, theory_hours: 70, practical_hours: 55, equipment: 'B737 MAX Simulator', rating: 4.5, priority: 'High' },
+  { id: 6, code: 'A2-PA28-007', name: 'PA-28 Piston Aircraft Maintenance', authority: 'GCAA', location: 'GCAA Training Center Al Ain', start_date: '2025-06-12', end_date: '2025-06-14', max_participants: 12, assigned: 9, status: 'Scheduled', instructor: 'Eng. Fatima Al Qassimi', category: 'General Aviation', prerequisites: ['A2 Basic'], recurrent: true, simulator_hours: 0, theory_hours: 12, practical_hours: 36, equipment: 'PA-28 Aircraft', rating: 4.3, priority: 'Low' },
+  { id: 7, code: 'B1.4-R44-005', name: 'Robinson R44 Helicopter Systems', authority: 'GCAA', location: 'GCAA Training Center Sharjah', start_date: '2025-06-19', end_date: '2025-06-21', max_participants: 8, assigned: 6, status: 'Open', instructor: 'Pilot Khalid Al Nuaimi', category: 'Helicopter', prerequisites: ['B1.4 Basic'], recurrent: false, simulator_hours: 15, theory_hours: 18, practical_hours: 27, equipment: 'R44 Simulator', rating: 4.4, priority: 'Medium' },
+  { id: 8, code: 'C-777-013', name: 'B777 Base Maintenance Inspector', authority: 'GCAA', location: 'GCAA Training Center Abu Dhabi', start_date: '2025-06-26', end_date: '2025-07-07', max_participants: 12, assigned: 10, status: 'Confirmed', instructor: 'Sr. Eng. Mariam Al Shamsi', category: 'Base Maintenance', prerequisites: ['C License', 'Inspector Authorization'], recurrent: false, simulator_hours: 0, theory_hours: 48, practical_hours: 112, equipment: 'B777 Hangar Training', rating: 4.6, priority: 'High' },
+
+  // FAA Training Center - June/July 2025
+  { id: 9, code: 'B1.1-787-FAA-004', name: 'B787 GEnx Engine Specialist', authority: 'FAA', location: 'FAA Training Center Seattle', start_date: '2025-06-03', end_date: '2025-06-07', max_participants: 10, assigned: 8, status: 'Confirmed', instructor: 'Eng. Michael Roberts', category: 'Engine Systems', prerequisites: ['B1.1 License', 'Turbine Experience'], recurrent: false, simulator_hours: 16, theory_hours: 24, practical_hours: 40, equipment: 'GEnx Engine Trainer', rating: 4.7, priority: 'High' },
+  { id: 10, code: 'B2-MAX-FAA-009', name: 'B737 MAX Electrical Systems', authority: 'FAA', location: 'FAA Training Center Miami', start_date: '2025-06-10', end_date: '2025-06-13', max_participants: 14, assigned: 5, status: 'Open', instructor: 'Tech. Sarah Anderson', category: 'Electrical Systems', prerequisites: ['B2 License'], recurrent: false, simulator_hours: 12, theory_hours: 20, practical_hours: 28, equipment: 'MAX Electrical Trainer', rating: 4.4, priority: 'Medium' },
+  { id: 11, code: 'A1-320-FAA-018', name: 'A320 NEO Line Maintenance', authority: 'FAA', location: 'FAA Training Center Dallas', start_date: '2025-06-17', end_date: '2025-06-19', max_participants: 16, assigned: 12, status: 'Scheduled', instructor: 'Eng. David Thompson', category: 'Line Maintenance', prerequisites: ['A1 License', 'A320 Experience'], recurrent: true, simulator_hours: 6, theory_hours: 12, practical_hours: 30, equipment: 'A320neo Training', rating: 4.5, priority: 'Medium' },
+
+  // UK CAA Training Center - July 2025
+  { id: 12, code: 'C-777-UKCAA-002', name: 'B777 Base Maintenance Advanced', authority: 'UK CAA', location: 'UK CAA Training Center Gatwick', start_date: '2025-07-01', end_date: '2025-07-12', max_participants: 9, assigned: 7, status: 'Scheduled', instructor: 'Sr. Eng. James Wilson', category: 'Base Maintenance', prerequisites: ['C License', 'B777 Experience'], recurrent: false, simulator_hours: 0, theory_hours: 54, practical_hours: 126, equipment: 'B777 Maintenance Bay', rating: 4.8, priority: 'High' },
+  { id: 13, code: 'A1-NEO-UKCAA-006', name: 'A320neo PW1100G Engine', authority: 'UK CAA', location: 'UK CAA Training Center Manchester', start_date: '2025-07-08', end_date: '2025-07-11', max_participants: 12, assigned: 9, status: 'Confirmed', instructor: 'Capt. Emily Clarke', category: 'Engine Systems', prerequisites: ['A1 License', 'Turbine Rating'], recurrent: false, simulator_hours: 14, theory_hours: 22, practical_hours: 36, equipment: 'PW1100G Trainer', rating: 4.6, priority: 'Medium' },
+  { id: 14, code: 'B1.3-H225-UK-009', name: 'Airbus H225 Helicopter Systems', authority: 'UK CAA', location: 'UK CAA Training Center Norwich', start_date: '2025-07-15', end_date: '2025-07-19', max_participants: 8, assigned: 4, status: 'Open', instructor: 'Pilot Richard Davies', category: 'Helicopter', prerequisites: ['B1.3 License'], recurrent: false, simulator_hours: 20, theory_hours: 24, practical_hours: 36, equipment: 'H225 Simulator', rating: 4.5, priority: 'Medium' },
+
+  // Manufacturer Training - OEM Sessions
+  { id: 15, code: 'BOEING-787-ADV-001', name: 'Boeing 787 Advanced Troubleshooting', authority: 'Boeing', location: 'Boeing Training Center Everett', start_date: '2025-07-21', end_date: '2025-08-01', max_participants: 8, assigned: 3, status: 'Open', instructor: 'Boeing Master Instructor', category: 'OEM Training', prerequisites: ['B787 Type Rating', '2 Years Experience'], recurrent: false, simulator_hours: 30, theory_hours: 45, practical_hours: 105, equipment: 'B787 Factory Training', rating: 5.0, priority: 'Critical' },
+  { id: 16, code: 'AIRBUS-350-SPEC-003', name: 'A350 Specialized Systems Integration', authority: 'Airbus', location: 'Airbus Training Center Toulouse', start_date: '2025-08-04', end_date: '2025-08-15', max_participants: 10, assigned: 6, status: 'Scheduled', instructor: 'Airbus Senior Specialist', category: 'OEM Training', prerequisites: ['A350 Experience', 'C License'], recurrent: false, simulator_hours: 25, theory_hours: 50, practical_hours: 125, equipment: 'A350 Production Line', rating: 4.9, priority: 'Critical' },
+  { id: 17, code: 'CFM-LEAP-ENG-007', name: 'CFM LEAP Engine Maintenance', authority: 'CFM International', location: 'CFM Training Center Paris', start_date: '2025-08-11', end_date: '2025-08-15', max_participants: 12, assigned: 8, status: 'Confirmed', instructor: 'CFM Engine Specialist', category: 'Engine Systems', prerequisites: ['Turbine Experience'], recurrent: true, simulator_hours: 0, theory_hours: 25, practical_hours: 55, equipment: 'LEAP Engine Stand', rating: 4.7, priority: 'High' },
+
+  // Additional sessions for more comprehensive data
+  { id: 18, code: 'EASA-FUEL-SYS-012', name: 'Advanced Fuel Systems', authority: 'EASA', location: 'EASA Training Center Vienna', start_date: '2025-07-28', end_date: '2025-08-01', max_participants: 14, assigned: 11, status: 'Confirmed', instructor: 'Eng. Franz Huber', category: 'Systems', prerequisites: ['A1 or B1 License'], recurrent: false, simulator_hours: 8, theory_hours: 20, practical_hours: 32, equipment: 'Fuel System Trainer', rating: 4.4, priority: 'Medium' },
+  { id: 19, code: 'GCAA-SAFETY-SMS-015', name: 'Safety Management Systems', authority: 'GCAA', location: 'GCAA Training Center Dubai', start_date: '2025-08-18', end_date: '2025-08-22', max_participants: 20, assigned: 16, status: 'Scheduled', instructor: 'Safety Manager Ahmed Rashid', category: 'Safety Training', prerequisites: ['Management Position'], recurrent: true, simulator_hours: 0, theory_hours: 35, practical_hours: 5, equipment: 'Classroom', rating: 4.2, priority: 'High' },
+  { id: 20, code: 'FAA-NDT-CERT-008', name: 'Non-Destructive Testing Certification', authority: 'FAA', location: 'FAA Training Center Phoenix', start_date: '2025-08-25', end_date: '2025-08-29', max_participants: 10, assigned: 7, status: 'Open', instructor: 'NDT Level III Instructor', category: 'Inspection', prerequisites: ['5 Years Maintenance'], recurrent: false, simulator_hours: 0, theory_hours: 25, practical_hours: 35, equipment: 'NDT Laboratory', rating: 4.6, priority: 'Medium' }
+];
+
+// Comprehensive employee data
+const mockEmployees = [
+  { id: 1, e_number: 234001, name: 'Ahmed Al Mansoori', job_title: 'Senior Aircraft Engineer', team: 'Line Maintenance', department: 'Engineering', shift: 'Day', nationality: 'UAE', hire_date: '2018-03-15', supervisor: 'Khalid Rahman', location: 'Hangar 1A', certifications: [
+    { code: 'A1', aircraft: 'A320/B737', authority: 'EASA', expiry: '2027-08-07', status: 'Valid', days_to_expire: 774, issued_date: '2024-08-07' },
+    { code: 'B1.1', aircraft: 'B787', authority: 'EASA', expiry: '2025-07-15', status: 'Expiring Soon', days_to_expire: 22, issued_date: '2023-07-15' },
+    { code: 'B2', aircraft: 'B777', authority: 'GCAA', expiry: '2025-12-20', status: 'Valid', days_to_expire: 180, issued_date: '2023-12-20' }
+  ], next_training_due: '2025-07-15', priority_score: 95, phone: '+971501234567', email: 'ahmed.almansoori@company.com', training_completed: 8, training_pending: 2, performance_rating: 4.5, languages: ['English', 'Arabic'], skills: ['Turbine Engines', 'Avionics', 'Hydraulics'] },
+  
+  { id: 2, e_number: 234002, name: 'Fatima Al Qassimi', job_title: 'Lead Maintenance Technician', team: 'Base Maintenance', department: 'Technical Services', shift: 'Day', nationality: 'UAE', hire_date: '2019-01-10', supervisor: 'Omar Hassan', location: 'Hangar 2B', certifications: [
+    { code: 'B1.1', aircraft: 'B787', authority: 'EASA', expiry: '2025-07-07', status: 'Expiring Soon', days_to_expire: 14, issued_date: '2023-07-07' },
+    { code: 'A1', aircraft: 'A320/B737', authority: 'EASA', expiry: '2027-04-30', status: 'Valid', days_to_expire: 673, issued_date: '2024-04-30' },
+    { code: 'C', aircraft: 'All Aircraft', authority: 'GCAA', expiry: '2026-03-15', status: 'Valid', days_to_expire: 360, issued_date: '2022-03-15' }
+  ], next_training_due: '2025-07-07', priority_score: 98, phone: '+971501234568', email: 'fatima.qassimi@company.com', training_completed: 12, training_pending: 1, performance_rating: 4.8, languages: ['English', 'Arabic', 'French'], skills: ['Base Maintenance', 'Inspection', 'Quality Control'] },
+  
+  { id: 3, e_number: 234015, name: 'Zayed Al Mazrouei', job_title: 'Aircraft Technician', team: 'Line Maintenance', department: 'Operations', shift: 'Night', nationality: 'UAE', hire_date: '2020-06-20', supervisor: 'Ahmed Al Mansoori', location: 'Line Station', certifications: [
+    { code: 'B1.1', aircraft: 'B787', authority: 'UK CAA', expiry: '2025-11-05', status: 'Valid', days_to_expire: 135, issued_date: '2023-11-05' },
+    { code: 'B2', aircraft: 'B777', authority: 'EASA', expiry: '2025-10-05', status: 'Valid', days_to_expire: 104, issued_date: '2023-10-05' },
+    { code: 'A1', aircraft: 'A320/B737', authority: 'GCAA', expiry: '2026-08-20', status: 'Valid', days_to_expire: 520, issued_date: '2023-08-20' }
+  ], next_training_due: '2025-10-05', priority_score: 78, phone: '+971501234569', email: 'zayed.mazrouei@company.com', training_completed: 6, training_pending: 3, performance_rating: 4.2, languages: ['English', 'Arabic'], skills: ['Line Maintenance', 'Troubleshooting', 'Documentation'] },
+  
+  { id: 4, e_number: 234032, name: 'Aisha Al Mehairi', job_title: 'Avionics Engineer', team: 'Avionics', department: 'Engineering', shift: 'Day', nationality: 'UAE', hire_date: '2017-09-05', supervisor: 'Sarah Johnson', location: 'Avionics Shop', certifications: [
+    { code: 'B2', aircraft: 'B777', authority: 'EASA', expiry: '2025-08-15', status: 'Valid', days_to_expire: 53, issued_date: '2023-08-15' },
+    { code: 'A1', aircraft: 'A320/B737', authority: 'UK CAA', expiry: '2026-04-21', status: 'Valid', days_to_expire: 398, issued_date: '2023-04-21' },
+    { code: 'B1.4', aircraft: 'R44 Helicopter', authority: 'GCAA', expiry: '2025-09-03', status: 'Expiring Soon', days_to_expire: 72, issued_date: '2023-09-03' }
+  ], next_training_due: '2025-08-15', priority_score: 85, phone: '+971501234570', email: 'aisha.mehairi@company.com', training_completed: 10, training_pending: 2, performance_rating: 4.6, languages: ['English', 'Arabic', 'Hindi'], skills: ['Avionics Systems', 'Navigation', 'Communication'] },
+  
+  { id: 5, e_number: 234050, name: 'Amal Al Hammadi', job_title: 'Senior Technician Inspector', team: 'Base Maintenance', department: 'Quality Assurance', shift: 'Day', nationality: 'UAE', hire_date: '2016-11-12', supervisor: 'Michael Thompson', location: 'Hangar 3A', certifications: [
+    { code: 'C', aircraft: 'All Aircraft', authority: 'EASA', expiry: '2026-02-10', status: 'Valid', days_to_expire: 327, issued_date: '2022-02-10' },
+    { code: 'B1.1', aircraft: 'A350', authority: 'UK CAA', expiry: '2025-12-13', status: 'Valid', days_to_expire: 173, issued_date: '2023-12-13' },
+    { code: 'A2', aircraft: 'PA-28', authority: 'GCAA', expiry: '2025-05-20', status: 'Expired', days_to_expire: -34, issued_date: '2023-05-20' }
+  ], next_training_due: '2025-05-20', priority_score: 92, phone: '+971501234571', email: 'amal.hammadi@company.com', training_completed: 15, training_pending: 1, performance_rating: 4.7, languages: ['English', 'Arabic'], skills: ['Inspection', 'Quality Control', 'Compliance'] },
+  
+  { id: 6, e_number: 234021, name: 'Yasir Mahmood', job_title: 'Lead Aircraft Engineer', team: 'Line Maintenance', department: 'Engineering', shift: 'Day', nationality: 'Pakistan', hire_date: '2015-02-28', supervisor: 'Ahmed Al Mansoori', location: 'Hangar 1B', certifications: [
+    { code: 'B1.1', aircraft: 'B737 MAX', authority: 'FAA', expiry: '2025-07-24', status: 'Expiring Soon', days_to_expire: 31, issued_date: '2023-07-24' },
+    { code: 'C', aircraft: 'All Aircraft', authority: 'EASA', expiry: '2025-08-15', status: 'Valid', days_to_expire: 53, issued_date: '2021-08-15' },
+    { code: 'B1.1', aircraft: 'B787', authority: 'EASA', expiry: '2025-09-08', status: 'Valid', days_to_expire: 77, issued_date: '2023-09-08' }
+  ], next_training_due: '2025-07-24', priority_score: 88, phone: '+971501234572', email: 'yasir.mahmood@company.com', training_completed: 18, training_pending: 2, performance_rating: 4.4, languages: ['English', 'Urdu', 'Arabic'], skills: ['Boeing Systems', 'Leadership', 'Training'] },
+
+  // Additional employees for more comprehensive data
+  { id: 7, e_number: 234078, name: 'Maria Santos', job_title: 'Helicopter Maintenance Specialist', team: 'Rotorcraft', department: 'Specialized Operations', shift: 'Day', nationality: 'Philippines', hire_date: '2019-08-14', supervisor: 'James Wilson', location: 'Helicopter Hangar', certifications: [
+    { code: 'B1.3', aircraft: 'H225', authority: 'EASA', expiry: '2026-01-20', status: 'Valid', days_to_expire: 300, issued_date: '2023-01-20' },
+    { code: 'B1.4', aircraft: 'R44', authority: 'GCAA', expiry: '2025-11-30', status: 'Valid', days_to_expire: 160, issued_date: '2023-11-30' },
+    { code: 'A3', aircraft: 'H130', authority: 'EASA', expiry: '2026-06-15', status: 'Valid', days_to_expire: 447, issued_date: '2023-06-15' }
+  ], next_training_due: '2025-11-30', priority_score: 72, phone: '+971501234573', email: 'maria.santos@company.com', training_completed: 9, training_pending: 2, performance_rating: 4.3, languages: ['English', 'Filipino', 'Arabic'], skills: ['Helicopter Systems', 'Rotor Dynamics', 'Safety'] },
+
+  { id: 8, e_number: 234091, name: 'Rajesh Kumar', job_title: 'Engine Specialist', team: 'Powerplant', department: 'Engineering', shift: 'Day', nationality: 'India', hire_date: '2018-05-22', supervisor: 'David Harris', location: 'Engine Shop', certifications: [
+    { code: 'B1.1', aircraft: 'CFM56', authority: 'EASA', expiry: '2026-09-10', status: 'Valid', days_to_expire: 560, issued_date: '2023-09-10' },
+    { code: 'B1.1', aircraft: 'GEnx', authority: 'FAA', expiry: '2025-08-22', status: 'Valid', days_to_expire: 60, issued_date: '2023-08-22' },
+    { code: 'B1.1', aircraft: 'Trent 1000', authority: 'UK CAA', expiry: '2026-12-05', status: 'Valid', days_to_expire: 650, issued_date: '2023-12-05' }
+  ], next_training_due: '2025-08-22', priority_score: 82, phone: '+971501234574', email: 'rajesh.kumar@company.com', training_completed: 11, training_pending: 3, performance_rating: 4.5, languages: ['English', 'Hindi', 'Arabic'], skills: ['Engine Systems', 'Turbine Technology', 'Performance Analysis'] },
+
+  { id: 9, e_number: 234105, name: 'Elena Rodriguez', job_title: 'Composite Structures Specialist', team: 'Structures', department: 'Engineering', shift: 'Day', nationality: 'Spain', hire_date: '2020-01-15', supervisor: 'Michael Thompson', location: 'Composite Shop', certifications: [
+    { code: 'B1.1', aircraft: 'A350', authority: 'EASA', expiry: '2026-04-18', status: 'Valid', days_to_expire: 395, issued_date: '2023-04-18' },
+    { code: 'B1.1', aircraft: 'B787', authority: 'EASA', expiry: '2025-10-12', status: 'Valid', days_to_expire: 111, issued_date: '2023-10-12' },
+    { code: 'C', aircraft: 'Composite Aircraft', authority: 'EASA', expiry: '2026-07-30', status: 'Valid', days_to_expire: 508, issued_date: '2022-07-30' }
+  ], next_training_due: '2025-10-12', priority_score: 76, phone: '+971501234575', email: 'elena.rodriguez@company.com', training_completed: 7, training_pending: 1, performance_rating: 4.4, languages: ['English', 'Spanish', 'French'], skills: ['Composite Repair', 'NDT', 'Materials Engineering'] },
+
+  { id: 10, e_number: 234118, name: 'Chen Wei', job_title: 'Avionics Systems Engineer', team: 'Avionics', department: 'Engineering', shift: 'Evening', nationality: 'China', hire_date: '2019-03-08', supervisor: 'Sarah Johnson', location: 'Avionics Lab', certifications: [
+    { code: 'B2', aircraft: 'All Aircraft', authority: 'EASA', expiry: '2025-12-08', status: 'Valid', days_to_expire: 168, issued_date: '2023-12-08' },
+    { code: 'B2', aircraft: 'B787', authority: 'FAA', expiry: '2026-03-20', status: 'Valid', days_to_expire: 270, issued_date: '2024-03-20' },
+    { code: 'A1', aircraft: 'A320/B737', authority: 'GCAA', expiry: '2026-11-15', status: 'Valid', days_to_expire: 610, issued_date: '2023-11-15' }
+  ], next_training_due: '2025-12-08', priority_score: 74, phone: '+971501234576', email: 'chen.wei@company.com', training_completed: 6, training_pending: 2, performance_rating: 4.2, languages: ['English', 'Mandarin', 'Arabic'], skills: ['Flight Management Systems', 'Navigation', 'Software Troubleshooting'] }
+];
 
 // Training locations with more detail
 const trainingLocations = [
@@ -86,16 +122,6 @@ const statusColors = {
 };
 
 const TrainingManagementSystem = () => {
-  // Database state
-  const [trainingSessions, setTrainingSessions] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Mock data for component functionality
-  const [mockTrainingSessions, setMockTrainingSessions] = useState<any[]>([]);
-  const [mockEmployees, setMockEmployees] = useState<any[]>([]);
-
-  // Component state
   const [selectedSession, setSelectedSession] = useState(null);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
@@ -112,64 +138,12 @@ const TrainingManagementSystem = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const ganttRef = useRef(null);
 
-  // Fetch data from database
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch training sessions with proper joins
-        const { data: sessionsData, error: sessionsError } = await supabase
-          .from('training_sessions')
-          .select(`
-            *,
-            training_types!inner(name),
-            training_authorities!left(authority_name)
-          `)
-          .order('start_date', { ascending: true });
-        
-        if (sessionsError) {
-          console.error('Error fetching training sessions:', sessionsError);
-          setTrainingSessions([]);
-        } else {
-          setTrainingSessions(sessionsData || []);
-          setMockTrainingSessions(createMockTrainingSessions(sessionsData || []));
-        }
-        
-        // Fetch employees with proper joins
-        const { data: employeesData, error: employeesError } = await supabase
-          .from('employees')
-          .select(`
-            *,
-            teams!left(team_name),
-            job_titles!left(job_description)
-          `)
-          .eq('is_active', true);
-        
-        if (employeesError) {
-          console.error('Error fetching employees:', employeesError);
-          setEmployees([]);
-        } else {
-          setEmployees(employeesData || []);
-          setMockEmployees(createMockEmployees(employeesData || []));
-        }
-        
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
-
   // Analytics calculations
   const analytics = useMemo(() => {
     const totalSessions = mockTrainingSessions.length;
     const totalAssigned = Object.values(assignedEmployees).reduce((sum, arr) => sum + arr.length, 0);
     const totalCapacity = mockTrainingSessions.reduce((sum, session) => sum + session.max_participants, 0);
-    const utilization = totalCapacity > 0 ? Math.round((totalAssigned / totalCapacity) * 100) : 0;
+    const utilization = Math.round((totalAssigned / totalCapacity) * 100);
     
     const expiringEmployees = mockEmployees.filter(emp => 
       emp.certifications.some(cert => cert.days_to_expire < 90 && cert.days_to_expire > 0)
@@ -179,7 +153,7 @@ const TrainingManagementSystem = () => {
       emp.certifications.some(cert => cert.days_to_expire < 0)
     ).length;
 
-    const averageRating = totalSessions > 0 ? mockTrainingSessions.reduce((sum, session) => sum + session.rating, 0) / totalSessions : 0;
+    const averageRating = mockTrainingSessions.reduce((sum, session) => sum + session.rating, 0) / totalSessions;
 
     return {
       totalSessions,
@@ -191,7 +165,7 @@ const TrainingManagementSystem = () => {
       averageRating,
       availableSeats: totalCapacity - totalAssigned
     };
-  }, [assignedEmployees, mockTrainingSessions, mockEmployees]);
+  }, [assignedEmployees]);
 
   // Generate timeline for Gantt chart
   const generateTimeline = () => {
@@ -243,7 +217,7 @@ const TrainingManagementSystem = () => {
       
       return matchesFilter && matchesSearch && matchesPriority && matchesStatus;
     });
-  }, [filterBy, searchTerm, selectedPriority, selectedStatus, mockTrainingSessions]);
+  }, [filterBy, searchTerm, selectedPriority, selectedStatus]);
 
   // Group sessions by location
   const sessionsByLocation = useMemo(() => {
@@ -295,7 +269,7 @@ const TrainingManagementSystem = () => {
         isAssigned: assignedEmployees[selectedSession.id]?.includes(emp.id) || false
       }))
       .sort((a, b) => b.relevance - a.relevance);
-  }, [selectedSession, assignedEmployees, mockEmployees]);
+  }, [selectedSession, assignedEmployees]);
 
   const handleAssignEmployee = (employeeId) => {
     if (!selectedSession) return;
@@ -346,17 +320,6 @@ const TrainingManagementSystem = () => {
       default: return 'text-gray-700 bg-gray-100';
     }
   };
-
-  if (loading) {
-    return (
-      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading training management system...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
