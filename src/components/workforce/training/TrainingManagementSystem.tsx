@@ -962,7 +962,7 @@ const TrainingManagementSystem = () => {
 
       {/* Enhanced Training Session Details Modal */}
       {showSessionModal && selectedSession && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
           <div className="bg-white rounded-lg w-[90%] h-[90%] flex flex-col">
             {/* Modal Header */}
             <div className="border-b p-6 flex justify-between items-start">
@@ -1274,7 +1274,7 @@ const TrainingManagementSystem = () => {
 
       {/* Enhanced Swap Modal */}
       {showSwapModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-9999">
           <div className="bg-white rounded-lg w-[700px] max-h-[80vh] overflow-hidden">
             <div className="p-6 border-b">
               <h3 className="text-xl font-semibold mb-2">Advanced Training Assignment Swap</h3>
