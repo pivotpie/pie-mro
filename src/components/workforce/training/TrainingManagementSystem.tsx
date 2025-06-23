@@ -1361,7 +1361,7 @@ const TrainingManagementSystem = () => {
                         )
                       : mockEmployees
                           .filter(emp => 
-                            !assignedEmployees[selectedSession?.id]?.includes(emp.id.toString()) && // Not already assigned
+                            !assignedEmployees[selectedSession?.id]?.includes(emp.id) && // Not already assigned
                             emp.id !== selectedEmployeeForSwap && // Not the employee being replaced
                             // Add qualification logic here - check if employee meets prerequisites
                             selectedSession?.prerequisites.some(prereq => 
