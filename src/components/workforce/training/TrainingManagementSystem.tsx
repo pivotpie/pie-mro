@@ -196,8 +196,8 @@ const TrainingManagementSystem = () => {
     const endDate = new Date(session.end_date);
     const timelineStart = timeline[0].date;
     
-    const startDiff = Math.floor((startDate - timelineStart) / (1000 * 60 * 60 * 24));
-    const duration = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    const startDiff = Math.floor((startDate.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24));
+    const duration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     return {
       left: `${(startDiff * 35)}px`, // 35px per day
@@ -786,7 +786,7 @@ const TrainingManagementSystem = () => {
                         <div>{session.start_date}</div>
                         <div className="text-gray-500">to {session.end_date}</div>
                         <div className="text-xs text-gray-400">
-                          {Math.ceil((new Date(session.end_date) - new Date(session.start_date)) / (1000 * 60 * 60 * 24))} days
+                          {Math.ceil((new Date(session.end_date).getTime() - new Date(session.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1011,7 +1011,7 @@ const TrainingManagementSystem = () => {
                       <div>
                         <span className="text-gray-600 block mb-1">Duration:</span>
                         <span className="font-medium">
-                          {Math.ceil((new Date(selectedSession.end_date) - new Date(selectedSession.start_date)) / (1000 * 60 * 60 * 24))} days
+                          {Math.ceil((new Date(selectedSession.end_date).getTime() - new Date(selectedSession.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
                         </span>
                       </div>
                       <div>
@@ -1248,7 +1248,7 @@ const TrainingManagementSystem = () => {
                     : 0
                 }</span>
                 <span>⭐ <strong>Training Rating:</strong> {selectedSession.rating}/5.0</span>
-                <span>📚 <strong>Duration:</strong> {Math.ceil((new Date(selectedSession.end_date) - new Date(selectedSession.start_date)) / (1000 * 60 * 60 * 24))} days</span>
+                <span>📚 <strong>Duration:</strong> {Math.ceil((new Date(selectedSession.end_date).getTime() - new Date(selectedSession.start_date).getTime()) / (1000 * 60 * 60 * 24))} days</span>
               </div>
               <div className="flex gap-3">
                 <button
