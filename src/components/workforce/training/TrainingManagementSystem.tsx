@@ -1,107 +1,68 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Calendar, Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Plus, Filter, Search, ChevronLeft, ChevronRight, Download, Upload, Settings, Bell, BarChart3, TrendingUp, Shield, Award, AlertCircle, FileText, Target, Zap, Globe, BookOpen, Activity } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-// Comprehensive training sessions data
-const [trainingSessions, setTrainingSessions] = useState<any[]>([]);
-const [loading, setLoading] = useState(true);
+// Mock data structure to maintain existing functionality while transitioning to database
+const createMockTrainingSessions = (dbSessions: any[]) => {
+  return dbSessions.map(session => ({
+    id: session.id,
+    code: session.session_code,
+    name: session.session_name,
+    authority: session.training_authorities?.authority_name || 'Unknown',
+    location: session.location || 'TBD',
+    start_date: session.start_date,
+    end_date: session.end_date,
+    max_participants: session.max_participants,
+    assigned: 0, // Will be calculated separately
+    status: session.status,
+    instructor: session.instructor_name || 'TBD',
+    category: session.training_types?.name || 'General',
+    prerequisites: session.prerequisites?.split(',') || [],
+    recurrent: session.is_mandatory,
+    simulator_hours: session.duration_hours || 0,
+    theory_hours: session.duration_hours || 0,
+    practical_hours: session.duration_hours || 0,
+    equipment: session.materials_required || 'Standard',
+    rating: 4.5, // Default rating
+    priority: session.priority_level === 1 ? 'Critical' : 
+             session.priority_level === 2 ? 'High' : 
+             session.priority_level === 3 ? 'Medium' : 'Low'
+  }));
+};
 
-useEffect(() => {
-  const fetchTrainingSessions = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('training_sessions')
-        .select(`
-          *,
-          training_types(name),
-          training_authorities(authority_name)
-        `)
-        .order('start_date', { ascending: true });
-      
-      if (error) throw error;
-      
-      // Transform data to match expected format
-      const transformedSessions = data?.map(session => ({
-        id: session.id,
-        code: session.session_code,
-        name: session.session_name,
-        authority: session.training_authorities?.authority_name || 'Unknown',
-        location: session.location,
-        start_date: session.start_date,
-        end_date: session.end_date,
-        max_participants: session.max_participants,
-        assigned: session.assigned || 0, // You'll need to calculate this
-        status: session.status,
-        instructor: session.instructor_name,
-        category: session.training_types?.name || 'General',
-        prerequisites: session.prerequisites?.split(',') || [],
-        recurrent: session.is_mandatory,
-        simulator_hours: session.duration_hours || 0,
-        theory_hours: session.duration_hours || 0,
-        practical_hours: session.duration_hours || 0,
-        equipment: session.materials_required,
-        rating: 4.5, // You'll need rating logic
-        priority: session.priority_level === 1 ? 'Critical' : 
-                 session.priority_level === 2 ? 'High' : 
-                 session.priority_level === 3 ? 'Medium' : 'Low'
-      })) || [];
-      
-      setTrainingSessions(transformedSessions);
-    } catch (error) {
-      console.error('Error fetching training sessions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  fetchTrainingSessions();
-}, []);
-
-
-// Comprehensive employee data
-const [employees, setEmployees] = useState<any[]>([]);
-
-useEffect(() => {
-  const fetchEmployees = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('employees')
-        .select(`
-          *,
-          teams(team_name),
-          job_titles(job_description)
-        `)
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      
-      const transformedEmployees = data?.map(emp => ({
-        id: emp.id,
-        e_number: emp.e_number,
-        name: emp.name,
-        job_title: emp.job_titles?.job_description || 'Unknown',
-        team: emp.teams?.team_name || 'No Team',
-        department: emp.profit_center || 'Unknown',
-        shift: 'Day', // You'll need shift logic
-        nationality: emp.nationality,
-        hire_date: emp.date_of_joining,
-        supervisor: 'Unknown', // You'll need supervisor logic
-        location: 'Unknown', // You'll need location logic
-        phone: emp.mobile_number,
-        email: `${emp.name?.toLowerCase().replace(' ', '.')}@company.com`,
-        // Add other fields as needed
-      })) || [];
-      
-      setEmployees(transformedEmployees);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-    }
-  };
-  
-  fetchEmployees();
-}, []);
-
+const createMockEmployees = (dbEmployees: any[]) => {
+  return dbEmployees.map(emp => ({
+    id: emp.id,
+    e_number: emp.e_number,
+    name: emp.name,
+    job_title: emp.job_titles?.job_description || 'Unknown',
+    team: emp.teams?.team_name || 'No Team',
+    department: emp.profit_center || 'Unknown',
+    shift: 'Day', // Default value
+    nationality: emp.nationality,
+    hire_date: emp.date_of_joining,
+    supervisor: 'TBD', // Will need separate query
+    location: 'Unknown', // Will need separate query
+    phone: emp.mobile_number,
+    email: `${emp.name?.toLowerCase().replace(' ', '.')}@company.com`,
+    priority_score: Math.floor(Math.random() * 100), // Mock calculation
+    performance_rating: (Math.random() * 2 + 3).toFixed(1), // 3-5 range
+    training_completed: Math.floor(Math.random() * 20),
+    next_training_due: '2025-07-01', // Mock date
+    certifications: [
+      {
+        code: 'B1.1',
+        authority: 'EASA',
+        aircraft: 'A320',
+        status: Math.random() > 0.7 ? 'Expired' : Math.random() > 0.5 ? 'Expiring Soon' : 'Valid',
+        issued_date: '2023-01-15',
+        expiry: '2025-01-15',
+        days_to_expire: Math.floor(Math.random() * 365) - 30
+      }
+    ]
+  }));
+};
 
 // Training locations with more detail
 const trainingLocations = [
@@ -125,6 +86,16 @@ const statusColors = {
 };
 
 const TrainingManagementSystem = () => {
+  // Database state
+  const [trainingSessions, setTrainingSessions] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Mock data for component functionality
+  const [mockTrainingSessions, setMockTrainingSessions] = useState<any[]>([]);
+  const [mockEmployees, setMockEmployees] = useState<any[]>([]);
+
+  // Component state
   const [selectedSession, setSelectedSession] = useState(null);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
@@ -141,12 +112,64 @@ const TrainingManagementSystem = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const ganttRef = useRef(null);
 
+  // Fetch data from database
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch training sessions with proper joins
+        const { data: sessionsData, error: sessionsError } = await supabase
+          .from('training_sessions')
+          .select(`
+            *,
+            training_types!inner(name),
+            training_authorities!left(authority_name)
+          `)
+          .order('start_date', { ascending: true });
+        
+        if (sessionsError) {
+          console.error('Error fetching training sessions:', sessionsError);
+          setTrainingSessions([]);
+        } else {
+          setTrainingSessions(sessionsData || []);
+          setMockTrainingSessions(createMockTrainingSessions(sessionsData || []));
+        }
+        
+        // Fetch employees with proper joins
+        const { data: employeesData, error: employeesError } = await supabase
+          .from('employees')
+          .select(`
+            *,
+            teams!left(team_name),
+            job_titles!left(job_description)
+          `)
+          .eq('is_active', true);
+        
+        if (employeesError) {
+          console.error('Error fetching employees:', employeesError);
+          setEmployees([]);
+        } else {
+          setEmployees(employeesData || []);
+          setMockEmployees(createMockEmployees(employeesData || []));
+        }
+        
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
   // Analytics calculations
   const analytics = useMemo(() => {
     const totalSessions = mockTrainingSessions.length;
     const totalAssigned = Object.values(assignedEmployees).reduce((sum, arr) => sum + arr.length, 0);
     const totalCapacity = mockTrainingSessions.reduce((sum, session) => sum + session.max_participants, 0);
-    const utilization = Math.round((totalAssigned / totalCapacity) * 100);
+    const utilization = totalCapacity > 0 ? Math.round((totalAssigned / totalCapacity) * 100) : 0;
     
     const expiringEmployees = mockEmployees.filter(emp => 
       emp.certifications.some(cert => cert.days_to_expire < 90 && cert.days_to_expire > 0)
@@ -156,7 +179,7 @@ const TrainingManagementSystem = () => {
       emp.certifications.some(cert => cert.days_to_expire < 0)
     ).length;
 
-    const averageRating = mockTrainingSessions.reduce((sum, session) => sum + session.rating, 0) / totalSessions;
+    const averageRating = totalSessions > 0 ? mockTrainingSessions.reduce((sum, session) => sum + session.rating, 0) / totalSessions : 0;
 
     return {
       totalSessions,
@@ -168,7 +191,7 @@ const TrainingManagementSystem = () => {
       averageRating,
       availableSeats: totalCapacity - totalAssigned
     };
-  }, [assignedEmployees]);
+  }, [assignedEmployees, mockTrainingSessions, mockEmployees]);
 
   // Generate timeline for Gantt chart
   const generateTimeline = () => {
@@ -220,7 +243,7 @@ const TrainingManagementSystem = () => {
       
       return matchesFilter && matchesSearch && matchesPriority && matchesStatus;
     });
-  }, [filterBy, searchTerm, selectedPriority, selectedStatus]);
+  }, [filterBy, searchTerm, selectedPriority, selectedStatus, mockTrainingSessions]);
 
   // Group sessions by location
   const sessionsByLocation = useMemo(() => {
@@ -272,7 +295,7 @@ const TrainingManagementSystem = () => {
         isAssigned: assignedEmployees[selectedSession.id]?.includes(emp.id) || false
       }))
       .sort((a, b) => b.relevance - a.relevance);
-  }, [selectedSession, assignedEmployees]);
+  }, [selectedSession, assignedEmployees, mockEmployees]);
 
   const handleAssignEmployee = (employeeId) => {
     if (!selectedSession) return;
@@ -323,6 +346,17 @@ const TrainingManagementSystem = () => {
       default: return 'text-gray-700 bg-gray-100';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading training management system...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
