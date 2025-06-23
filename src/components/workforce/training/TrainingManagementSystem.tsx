@@ -1,96 +1,114 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { Calendar, Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Plus, Filter, Search, ChevronLeft, ChevronRight, Download, Upload, Bell, BarChart3, TrendingUp, Award, FileText, Target } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Calendar, Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Plus, Filter, Search, ChevronLeft, ChevronRight, Download, Upload, Settings, Bell, BarChart3, TrendingUp, Shield, Award, AlertCircle, FileText, Target, Zap, Globe, BookOpen, Activity } from 'lucide-react';
 
 // Comprehensive training sessions data
 const mockTrainingSessions = [
-  {
-    id: 1,
-    name: "Boeing 737 MAX Type Rating",
-    code: "B737MAX-TR",
-    authority: "EASA",
-    category: "Type Rating",
-    start_date: "2025-06-15",
-    end_date: "2025-06-22",
-    location: "Training Center A",
-    instructor: "Capt. Ahmed Al-Mansoori",
-    max_participants: 8,
-    theory_hours: 40,
-    practical_hours: 20,
-    simulator_hours: 15,
-    equipment: "B737 MAX Simulator",
-    status: "Confirmed",
-    priority: "High",
-    rating: 4.8
-  },
-  {
-    id: 2,
-    name: "A320 Recurrent Training",
-    code: "A320-REC",
-    authority: "GCAA",
-    category: "Recurrent",
-    start_date: "2025-06-20",
-    end_date: "2025-06-25",
-    location: "Training Center B",
-    instructor: "Capt. Sarah Johnson",
-    max_participants: 12,
-    theory_hours: 20,
-    practical_hours: 15,
-    simulator_hours: 10,
-    equipment: "A320 Simulator",
-    status: "Open",
-    priority: "Medium",
-    rating: 4.6
-  }
+  // EASA Training Center - June 2025
+  { id: 1, code: 'B1.1-787-001', name: 'Boeing 787 Type Rating Initial', authority: 'EASA', location: 'EASA Training Center Frankfurt', start_date: '2025-06-02', end_date: '2025-06-13', max_participants: 12, assigned: 10, status: 'Confirmed', instructor: 'Capt. Hans Mueller', category: 'Type Rating', prerequisites: ['B1.1 Basic'], recurrent: false, simulator_hours: 40, theory_hours: 80, practical_hours: 60, equipment: 'B787 Simulator', rating: 4.8, priority: 'High' },
+  { id: 2, code: 'A1-320-015', name: 'A320 Line Maintenance Recurrent', authority: 'EASA', location: 'EASA Training Center Toulouse', start_date: '2025-06-09', end_date: '2025-06-11', max_participants: 18, assigned: 15, status: 'Confirmed', instructor: 'Eng. Pierre Dubois', category: 'Line Maintenance', prerequisites: ['A1 Initial'], recurrent: true, simulator_hours: 8, theory_hours: 16, practical_hours: 24, equipment: 'A320 Training Aircraft', rating: 4.6, priority: 'Medium' },
+  { id: 3, code: 'B2-777-008', name: 'B777 Avionics Systems Advanced', authority: 'EASA', location: 'EASA Training Center Munich', start_date: '2025-06-16', end_date: '2025-06-20', max_participants: 14, assigned: 12, status: 'Confirmed', instructor: 'Tech. Klaus Weber', category: 'Avionics', prerequisites: ['B2 Basic', 'Electronics Fundamentals'], recurrent: false, simulator_hours: 20, theory_hours: 30, practical_hours: 50, equipment: 'B777 Avionics Trainer', rating: 4.9, priority: 'High' },
+  { id: 4, code: 'C-350-003', name: 'A350 Base Maintenance Comprehensive', authority: 'EASA', location: 'EASA Training Center Hamburg', start_date: '2025-06-23', end_date: '2025-07-04', max_participants: 10, assigned: 8, status: 'Open', instructor: 'Sr. Eng. Wolfgang Fischer', category: 'Base Maintenance', prerequisites: ['C License', '5 Years Experience'], recurrent: false, simulator_hours: 0, theory_hours: 60, practical_hours: 140, equipment: 'A350 Training Bay', rating: 4.7, priority: 'Critical' },
+
+  // GCAA Training Center - June/July 2025
+  { id: 5, code: 'B1.1-MAX-012', name: 'B737 MAX Systems Initial', authority: 'GCAA', location: 'GCAA Training Center Dubai', start_date: '2025-06-05', end_date: '2025-06-16', max_participants: 16, assigned: 14, status: 'Confirmed', instructor: 'Capt. Ahmed Al Mansouri', category: 'Type Rating', prerequisites: ['B1.1 Basic', 'B737 NG'], recurrent: false, simulator_hours: 35, theory_hours: 70, practical_hours: 55, equipment: 'B737 MAX Simulator', rating: 4.5, priority: 'High' },
+  { id: 6, code: 'A2-PA28-007', name: 'PA-28 Piston Aircraft Maintenance', authority: 'GCAA', location: 'GCAA Training Center Al Ain', start_date: '2025-06-12', end_date: '2025-06-14', max_participants: 12, assigned: 9, status: 'Scheduled', instructor: 'Eng. Fatima Al Qassimi', category: 'General Aviation', prerequisites: ['A2 Basic'], recurrent: true, simulator_hours: 0, theory_hours: 12, practical_hours: 36, equipment: 'PA-28 Aircraft', rating: 4.3, priority: 'Low' },
+  { id: 7, code: 'B1.4-R44-005', name: 'Robinson R44 Helicopter Systems', authority: 'GCAA', location: 'GCAA Training Center Sharjah', start_date: '2025-06-19', end_date: '2025-06-21', max_participants: 8, assigned: 6, status: 'Open', instructor: 'Pilot Khalid Al Nuaimi', category: 'Helicopter', prerequisites: ['B1.4 Basic'], recurrent: false, simulator_hours: 15, theory_hours: 18, practical_hours: 27, equipment: 'R44 Simulator', rating: 4.4, priority: 'Medium' },
+  { id: 8, code: 'C-777-013', name: 'B777 Base Maintenance Inspector', authority: 'GCAA', location: 'GCAA Training Center Abu Dhabi', start_date: '2025-06-26', end_date: '2025-07-07', max_participants: 12, assigned: 10, status: 'Confirmed', instructor: 'Sr. Eng. Mariam Al Shamsi', category: 'Base Maintenance', prerequisites: ['C License', 'Inspector Authorization'], recurrent: false, simulator_hours: 0, theory_hours: 48, practical_hours: 112, equipment: 'B777 Hangar Training', rating: 4.6, priority: 'High' },
+
+  // FAA Training Center - June/July 2025
+  { id: 9, code: 'B1.1-787-FAA-004', name: 'B787 GEnx Engine Specialist', authority: 'FAA', location: 'FAA Training Center Seattle', start_date: '2025-06-03', end_date: '2025-06-07', max_participants: 10, assigned: 8, status: 'Confirmed', instructor: 'Eng. Michael Roberts', category: 'Engine Systems', prerequisites: ['B1.1 License', 'Turbine Experience'], recurrent: false, simulator_hours: 16, theory_hours: 24, practical_hours: 40, equipment: 'GEnx Engine Trainer', rating: 4.7, priority: 'High' },
+  { id: 10, code: 'B2-MAX-FAA-009', name: 'B737 MAX Electrical Systems', authority: 'FAA', location: 'FAA Training Center Miami', start_date: '2025-06-10', end_date: '2025-06-13', max_participants: 14, assigned: 5, status: 'Open', instructor: 'Tech. Sarah Anderson', category: 'Electrical Systems', prerequisites: ['B2 License'], recurrent: false, simulator_hours: 12, theory_hours: 20, practical_hours: 28, equipment: 'MAX Electrical Trainer', rating: 4.4, priority: 'Medium' },
+  { id: 11, code: 'A1-320-FAA-018', name: 'A320 NEO Line Maintenance', authority: 'FAA', location: 'FAA Training Center Dallas', start_date: '2025-06-17', end_date: '2025-06-19', max_participants: 16, assigned: 12, status: 'Scheduled', instructor: 'Eng. David Thompson', category: 'Line Maintenance', prerequisites: ['A1 License', 'A320 Experience'], recurrent: true, simulator_hours: 6, theory_hours: 12, practical_hours: 30, equipment: 'A320neo Training', rating: 4.5, priority: 'Medium' },
+
+  // UK CAA Training Center - July 2025
+  { id: 12, code: 'C-777-UKCAA-002', name: 'B777 Base Maintenance Advanced', authority: 'UK CAA', location: 'UK CAA Training Center Gatwick', start_date: '2025-07-01', end_date: '2025-07-12', max_participants: 9, assigned: 7, status: 'Scheduled', instructor: 'Sr. Eng. James Wilson', category: 'Base Maintenance', prerequisites: ['C License', 'B777 Experience'], recurrent: false, simulator_hours: 0, theory_hours: 54, practical_hours: 126, equipment: 'B777 Maintenance Bay', rating: 4.8, priority: 'High' },
+  { id: 13, code: 'A1-NEO-UKCAA-006', name: 'A320neo PW1100G Engine', authority: 'UK CAA', location: 'UK CAA Training Center Manchester', start_date: '2025-07-08', end_date: '2025-07-11', max_participants: 12, assigned: 9, status: 'Confirmed', instructor: 'Capt. Emily Clarke', category: 'Engine Systems', prerequisites: ['A1 License', 'Turbine Rating'], recurrent: false, simulator_hours: 14, theory_hours: 22, practical_hours: 36, equipment: 'PW1100G Trainer', rating: 4.6, priority: 'Medium' },
+  { id: 14, code: 'B1.3-H225-UK-009', name: 'Airbus H225 Helicopter Systems', authority: 'UK CAA', location: 'UK CAA Training Center Norwich', start_date: '2025-07-15', end_date: '2025-07-19', max_participants: 8, assigned: 4, status: 'Open', instructor: 'Pilot Richard Davies', category: 'Helicopter', prerequisites: ['B1.3 License'], recurrent: false, simulator_hours: 20, theory_hours: 24, practical_hours: 36, equipment: 'H225 Simulator', rating: 4.5, priority: 'Medium' },
+
+  // Manufacturer Training - OEM Sessions
+  { id: 15, code: 'BOEING-787-ADV-001', name: 'Boeing 787 Advanced Troubleshooting', authority: 'Boeing', location: 'Boeing Training Center Everett', start_date: '2025-07-21', end_date: '2025-08-01', max_participants: 8, assigned: 3, status: 'Open', instructor: 'Boeing Master Instructor', category: 'OEM Training', prerequisites: ['B787 Type Rating', '2 Years Experience'], recurrent: false, simulator_hours: 30, theory_hours: 45, practical_hours: 105, equipment: 'B787 Factory Training', rating: 5.0, priority: 'Critical' },
+  { id: 16, code: 'AIRBUS-350-SPEC-003', name: 'A350 Specialized Systems Integration', authority: 'Airbus', location: 'Airbus Training Center Toulouse', start_date: '2025-08-04', end_date: '2025-08-15', max_participants: 10, assigned: 6, status: 'Scheduled', instructor: 'Airbus Senior Specialist', category: 'OEM Training', prerequisites: ['A350 Experience', 'C License'], recurrent: false, simulator_hours: 25, theory_hours: 50, practical_hours: 125, equipment: 'A350 Production Line', rating: 4.9, priority: 'Critical' },
+  { id: 17, code: 'CFM-LEAP-ENG-007', name: 'CFM LEAP Engine Maintenance', authority: 'CFM International', location: 'CFM Training Center Paris', start_date: '2025-08-11', end_date: '2025-08-15', max_participants: 12, assigned: 8, status: 'Confirmed', instructor: 'CFM Engine Specialist', category: 'Engine Systems', prerequisites: ['Turbine Experience'], recurrent: true, simulator_hours: 0, theory_hours: 25, practical_hours: 55, equipment: 'LEAP Engine Stand', rating: 4.7, priority: 'High' },
+
+  // Additional sessions for more comprehensive data
+  { id: 18, code: 'EASA-FUEL-SYS-012', name: 'Advanced Fuel Systems', authority: 'EASA', location: 'EASA Training Center Vienna', start_date: '2025-07-28', end_date: '2025-08-01', max_participants: 14, assigned: 11, status: 'Confirmed', instructor: 'Eng. Franz Huber', category: 'Systems', prerequisites: ['A1 or B1 License'], recurrent: false, simulator_hours: 8, theory_hours: 20, practical_hours: 32, equipment: 'Fuel System Trainer', rating: 4.4, priority: 'Medium' },
+  { id: 19, code: 'GCAA-SAFETY-SMS-015', name: 'Safety Management Systems', authority: 'GCAA', location: 'GCAA Training Center Dubai', start_date: '2025-08-18', end_date: '2025-08-22', max_participants: 20, assigned: 16, status: 'Scheduled', instructor: 'Safety Manager Ahmed Rashid', category: 'Safety Training', prerequisites: ['Management Position'], recurrent: true, simulator_hours: 0, theory_hours: 35, practical_hours: 5, equipment: 'Classroom', rating: 4.2, priority: 'High' },
+  { id: 20, code: 'FAA-NDT-CERT-008', name: 'Non-Destructive Testing Certification', authority: 'FAA', location: 'FAA Training Center Phoenix', start_date: '2025-08-25', end_date: '2025-08-29', max_participants: 10, assigned: 7, status: 'Open', instructor: 'NDT Level III Instructor', category: 'Inspection', prerequisites: ['5 Years Maintenance'], recurrent: false, simulator_hours: 0, theory_hours: 25, practical_hours: 35, equipment: 'NDT Laboratory', rating: 4.6, priority: 'Medium' }
 ];
 
+// Comprehensive employee data
 const mockEmployees = [
-  {
-    id: 1,
-    name: "John Smith",
-    e_number: 1001,
-    job_title: "Captain",
-    team: "Alpha",
-    department: "Flight Operations",
-    performance_rating: 4.8,
-    priority_score: 85,
-    certifications: [
-      { code: "ATPL", authority: "EASA", status: "Valid", days_to_expire: 365 },
-      { code: "B737", authority: "GCAA", status: "Expiring Soon", days_to_expire: 45 }
-    ]
-  },
-  {
-    id: 2,
-    name: "Sarah Ahmed",
-    e_number: 1002,
-    job_title: "First Officer",
-    team: "Beta",
-    department: "Flight Operations",
-    performance_rating: 4.5,
-    priority_score: 78,
-    certifications: [
-      { code: "CPL", authority: "GCAA", status: "Valid", days_to_expire: 200 },
-      { code: "A320", authority: "EASA", status: "Valid", days_to_expire: 120 }
-    ]
-  }
+  { id: 1, e_number: 234001, name: 'Ahmed Al Mansoori', job_title: 'Senior Aircraft Engineer', team: 'Line Maintenance', department: 'Engineering', shift: 'Day', nationality: 'UAE', hire_date: '2018-03-15', supervisor: 'Khalid Rahman', location: 'Hangar 1A', certifications: [
+    { code: 'A1', aircraft: 'A320/B737', authority: 'EASA', expiry: '2027-08-07', status: 'Valid', days_to_expire: 774, issued_date: '2024-08-07' },
+    { code: 'B1.1', aircraft: 'B787', authority: 'EASA', expiry: '2025-07-15', status: 'Expiring Soon', days_to_expire: 22, issued_date: '2023-07-15' },
+    { code: 'B2', aircraft: 'B777', authority: 'GCAA', expiry: '2025-12-20', status: 'Valid', days_to_expire: 180, issued_date: '2023-12-20' }
+  ], next_training_due: '2025-07-15', priority_score: 95, phone: '+971501234567', email: 'ahmed.almansoori@company.com', training_completed: 8, training_pending: 2, performance_rating: 4.5, languages: ['English', 'Arabic'], skills: ['Turbine Engines', 'Avionics', 'Hydraulics'] },
+  
+  { id: 2, e_number: 234002, name: 'Fatima Al Qassimi', job_title: 'Lead Maintenance Technician', team: 'Base Maintenance', department: 'Technical Services', shift: 'Day', nationality: 'UAE', hire_date: '2019-01-10', supervisor: 'Omar Hassan', location: 'Hangar 2B', certifications: [
+    { code: 'B1.1', aircraft: 'B787', authority: 'EASA', expiry: '2025-07-07', status: 'Expiring Soon', days_to_expire: 14, issued_date: '2023-07-07' },
+    { code: 'A1', aircraft: 'A320/B737', authority: 'EASA', expiry: '2027-04-30', status: 'Valid', days_to_expire: 673, issued_date: '2024-04-30' },
+    { code: 'C', aircraft: 'All Aircraft', authority: 'GCAA', expiry: '2026-03-15', status: 'Valid', days_to_expire: 360, issued_date: '2022-03-15' }
+  ], next_training_due: '2025-07-07', priority_score: 98, phone: '+971501234568', email: 'fatima.qassimi@company.com', training_completed: 12, training_pending: 1, performance_rating: 4.8, languages: ['English', 'Arabic', 'French'], skills: ['Base Maintenance', 'Inspection', 'Quality Control'] },
+  
+  { id: 3, e_number: 234015, name: 'Zayed Al Mazrouei', job_title: 'Aircraft Technician', team: 'Line Maintenance', department: 'Operations', shift: 'Night', nationality: 'UAE', hire_date: '2020-06-20', supervisor: 'Ahmed Al Mansoori', location: 'Line Station', certifications: [
+    { code: 'B1.1', aircraft: 'B787', authority: 'UK CAA', expiry: '2025-11-05', status: 'Valid', days_to_expire: 135, issued_date: '2023-11-05' },
+    { code: 'B2', aircraft: 'B777', authority: 'EASA', expiry: '2025-10-05', status: 'Valid', days_to_expire: 104, issued_date: '2023-10-05' },
+    { code: 'A1', aircraft: 'A320/B737', authority: 'GCAA', expiry: '2026-08-20', status: 'Valid', days_to_expire: 520, issued_date: '2023-08-20' }
+  ], next_training_due: '2025-10-05', priority_score: 78, phone: '+971501234569', email: 'zayed.mazrouei@company.com', training_completed: 6, training_pending: 3, performance_rating: 4.2, languages: ['English', 'Arabic'], skills: ['Line Maintenance', 'Troubleshooting', 'Documentation'] },
+  
+  { id: 4, e_number: 234032, name: 'Aisha Al Mehairi', job_title: 'Avionics Engineer', team: 'Avionics', department: 'Engineering', shift: 'Day', nationality: 'UAE', hire_date: '2017-09-05', supervisor: 'Sarah Johnson', location: 'Avionics Shop', certifications: [
+    { code: 'B2', aircraft: 'B777', authority: 'EASA', expiry: '2025-08-15', status: 'Valid', days_to_expire: 53, issued_date: '2023-08-15' },
+    { code: 'A1', aircraft: 'A320/B737', authority: 'UK CAA', expiry: '2026-04-21', status: 'Valid', days_to_expire: 398, issued_date: '2023-04-21' },
+    { code: 'B1.4', aircraft: 'R44 Helicopter', authority: 'GCAA', expiry: '2025-09-03', status: 'Expiring Soon', days_to_expire: 72, issued_date: '2023-09-03' }
+  ], next_training_due: '2025-08-15', priority_score: 85, phone: '+971501234570', email: 'aisha.mehairi@company.com', training_completed: 10, training_pending: 2, performance_rating: 4.6, languages: ['English', 'Arabic', 'Hindi'], skills: ['Avionics Systems', 'Navigation', 'Communication'] },
+  
+  { id: 5, e_number: 234050, name: 'Amal Al Hammadi', job_title: 'Senior Technician Inspector', team: 'Base Maintenance', department: 'Quality Assurance', shift: 'Day', nationality: 'UAE', hire_date: '2016-11-12', supervisor: 'Michael Thompson', location: 'Hangar 3A', certifications: [
+    { code: 'C', aircraft: 'All Aircraft', authority: 'EASA', expiry: '2026-02-10', status: 'Valid', days_to_expire: 327, issued_date: '2022-02-10' },
+    { code: 'B1.1', aircraft: 'A350', authority: 'UK CAA', expiry: '2025-12-13', status: 'Valid', days_to_expire: 173, issued_date: '2023-12-13' },
+    { code: 'A2', aircraft: 'PA-28', authority: 'GCAA', expiry: '2025-05-20', status: 'Expired', days_to_expire: -34, issued_date: '2023-05-20' }
+  ], next_training_due: '2025-05-20', priority_score: 92, phone: '+971501234571', email: 'amal.hammadi@company.com', training_completed: 15, training_pending: 1, performance_rating: 4.7, languages: ['English', 'Arabic'], skills: ['Inspection', 'Quality Control', 'Compliance'] },
+  
+  { id: 6, e_number: 234021, name: 'Yasir Mahmood', job_title: 'Lead Aircraft Engineer', team: 'Line Maintenance', department: 'Engineering', shift: 'Day', nationality: 'Pakistan', hire_date: '2015-02-28', supervisor: 'Ahmed Al Mansoori', location: 'Hangar 1B', certifications: [
+    { code: 'B1.1', aircraft: 'B737 MAX', authority: 'FAA', expiry: '2025-07-24', status: 'Expiring Soon', days_to_expire: 31, issued_date: '2023-07-24' },
+    { code: 'C', aircraft: 'All Aircraft', authority: 'EASA', expiry: '2025-08-15', status: 'Valid', days_to_expire: 53, issued_date: '2021-08-15' },
+    { code: 'B1.1', aircraft: 'B787', authority: 'EASA', expiry: '2025-09-08', status: 'Valid', days_to_expire: 77, issued_date: '2023-09-08' }
+  ], next_training_due: '2025-07-24', priority_score: 88, phone: '+971501234572', email: 'yasir.mahmood@company.com', training_completed: 18, training_pending: 2, performance_rating: 4.4, languages: ['English', 'Urdu', 'Arabic'], skills: ['Boeing Systems', 'Leadership', 'Training'] },
+
+  // Additional employees for more comprehensive data
+  { id: 7, e_number: 234078, name: 'Maria Santos', job_title: 'Helicopter Maintenance Specialist', team: 'Rotorcraft', department: 'Specialized Operations', shift: 'Day', nationality: 'Philippines', hire_date: '2019-08-14', supervisor: 'James Wilson', location: 'Helicopter Hangar', certifications: [
+    { code: 'B1.3', aircraft: 'H225', authority: 'EASA', expiry: '2026-01-20', status: 'Valid', days_to_expire: 300, issued_date: '2023-01-20' },
+    { code: 'B1.4', aircraft: 'R44', authority: 'GCAA', expiry: '2025-11-30', status: 'Valid', days_to_expire: 160, issued_date: '2023-11-30' },
+    { code: 'A3', aircraft: 'H130', authority: 'EASA', expiry: '2026-06-15', status: 'Valid', days_to_expire: 447, issued_date: '2023-06-15' }
+  ], next_training_due: '2025-11-30', priority_score: 72, phone: '+971501234573', email: 'maria.santos@company.com', training_completed: 9, training_pending: 2, performance_rating: 4.3, languages: ['English', 'Filipino', 'Arabic'], skills: ['Helicopter Systems', 'Rotor Dynamics', 'Safety'] },
+
+  { id: 8, e_number: 234091, name: 'Rajesh Kumar', job_title: 'Engine Specialist', team: 'Powerplant', department: 'Engineering', shift: 'Day', nationality: 'India', hire_date: '2018-05-22', supervisor: 'David Harris', location: 'Engine Shop', certifications: [
+    { code: 'B1.1', aircraft: 'CFM56', authority: 'EASA', expiry: '2026-09-10', status: 'Valid', days_to_expire: 560, issued_date: '2023-09-10' },
+    { code: 'B1.1', aircraft: 'GEnx', authority: 'FAA', expiry: '2025-08-22', status: 'Valid', days_to_expire: 60, issued_date: '2023-08-22' },
+    { code: 'B1.1', aircraft: 'Trent 1000', authority: 'UK CAA', expiry: '2026-12-05', status: 'Valid', days_to_expire: 650, issued_date: '2023-12-05' }
+  ], next_training_due: '2025-08-22', priority_score: 82, phone: '+971501234574', email: 'rajesh.kumar@company.com', training_completed: 11, training_pending: 3, performance_rating: 4.5, languages: ['English', 'Hindi', 'Arabic'], skills: ['Engine Systems', 'Turbine Technology', 'Performance Analysis'] },
+
+  { id: 9, e_number: 234105, name: 'Elena Rodriguez', job_title: 'Composite Structures Specialist', team: 'Structures', department: 'Engineering', shift: 'Day', nationality: 'Spain', hire_date: '2020-01-15', supervisor: 'Michael Thompson', location: 'Composite Shop', certifications: [
+    { code: 'B1.1', aircraft: 'A350', authority: 'EASA', expiry: '2026-04-18', status: 'Valid', days_to_expire: 395, issued_date: '2023-04-18' },
+    { code: 'B1.1', aircraft: 'B787', authority: 'EASA', expiry: '2025-10-12', status: 'Valid', days_to_expire: 111, issued_date: '2023-10-12' },
+    { code: 'C', aircraft: 'Composite Aircraft', authority: 'EASA', expiry: '2026-07-30', status: 'Valid', days_to_expire: 508, issued_date: '2022-07-30' }
+  ], next_training_due: '2025-10-12', priority_score: 76, phone: '+971501234575', email: 'elena.rodriguez@company.com', training_completed: 7, training_pending: 1, performance_rating: 4.4, languages: ['English', 'Spanish', 'French'], skills: ['Composite Repair', 'NDT', 'Materials Engineering'] },
+
+  { id: 10, e_number: 234118, name: 'Chen Wei', job_title: 'Avionics Systems Engineer', team: 'Avionics', department: 'Engineering', shift: 'Evening', nationality: 'China', hire_date: '2019-03-08', supervisor: 'Sarah Johnson', location: 'Avionics Lab', certifications: [
+    { code: 'B2', aircraft: 'All Aircraft', authority: 'EASA', expiry: '2025-12-08', status: 'Valid', days_to_expire: 168, issued_date: '2023-12-08' },
+    { code: 'B2', aircraft: 'B787', authority: 'FAA', expiry: '2026-03-20', status: 'Valid', days_to_expire: 270, issued_date: '2024-03-20' },
+    { code: 'A1', aircraft: 'A320/B737', authority: 'GCAA', expiry: '2026-11-15', status: 'Valid', days_to_expire: 610, issued_date: '2023-11-15' }
+  ], next_training_due: '2025-12-08', priority_score: 74, phone: '+971501234576', email: 'chen.wei@company.com', training_completed: 6, training_pending: 2, performance_rating: 4.2, languages: ['English', 'Mandarin', 'Arabic'], skills: ['Flight Management Systems', 'Navigation', 'Software Troubleshooting'] }
 ];
 
+// Training locations with more detail
 const trainingLocations = [
-  {
-    id: 1,
-    name: "Training Center A - Main Campus",
-    capacity: 50,
-    utilization: 85,
-    rating: 4.8,
-    color: "bg-blue-500"
-  },
-  {
-    id: 2,
-    name: "Training Center B - Simulator Hub",
-    capacity: 30,
-    utilization: 92,
-    rating: 4.6,
-    color: "bg-green-500"
-  }
+  { id: 'easa', name: 'EASA Training Centers', color: 'bg-blue-500', capacity: 150, utilization: 78, rating: 4.7, sessions_count: 6 },
+  { id: 'gcaa', name: 'GCAA Training Centers', color: 'bg-green-500', capacity: 120, utilization: 82, rating: 4.5, sessions_count: 4 },
+  { id: 'faa', name: 'FAA Training Centers', color: 'bg-purple-500', capacity: 100, utilization: 65, rating: 4.6, sessions_count: 3 },
+  { id: 'ukcaa', name: 'UK CAA Training Centers', color: 'bg-orange-500', capacity: 80, utilization: 70, rating: 4.8, sessions_count: 2 },
+  { id: 'boeing', name: 'Boeing Training Centers', color: 'bg-indigo-500', capacity: 40, utilization: 45, rating: 5.0, sessions_count: 1 },
+  { id: 'airbus', name: 'Airbus Training Centers', color: 'bg-cyan-500', capacity: 50, utilization: 60, rating: 4.9, sessions_count: 1 },
+  { id: 'oem', name: 'OEM/Other Training Centers', color: 'bg-pink-500', capacity: 60, utilization: 55, rating: 4.7, sessions_count: 3 }
 ];
 
 const statusColors = {
@@ -99,7 +117,8 @@ const statusColors = {
   'In Progress': 'bg-blue-400',
   'Completed': 'bg-gray-400',
   'Open': 'bg-red-300',
-  'Cancelled': 'bg-red-500'
+  'Cancelled': 'bg-red-500',
+  'Waitlist': 'bg-orange-300'
 };
 
 const TrainingManagementSystem = () => {
@@ -108,10 +127,10 @@ const TrainingManagementSystem = () => {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [selectedEmployeeForSwap, setSelectedEmployeeForSwap] = useState(null);
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1));
-  const [viewMode, setViewMode] = useState('gantt');
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1)); // June 2025
+  const [viewMode, setViewMode] = useState('gantt'); // gantt, calendar, list
   const [assignedEmployees, setAssignedEmployees] = useState({
-    1: [1, 2], 2: [3, 4], 3: [5], 4: [1], 5: [2, 3], 6: [4], 7: [5], 8: [1, 2], 9: [3], 10: [4, 5]
+    1: [1, 2, 4], 2: [3, 5, 7], 3: [6, 8, 9], 4: [1, 10], 5: [2, 3, 6], 6: [4, 7], 7: [5, 8], 8: [9, 10, 1], 9: [2], 10: [3, 4], 11: [5, 6, 7], 12: [8, 9], 13: [10, 1, 2], 14: [3], 15: [4, 5], 16: [6, 7, 8], 17: [9, 10], 18: [1, 3], 19: [2, 4, 5], 20: [6, 7]
   });
   const [filterBy, setFilterBy] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,7 +173,7 @@ const TrainingManagementSystem = () => {
     startDate.setDate(1);
     const timeline = [];
     
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 120; i++) { // Show 120 days (4 months)
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       timeline.push({
@@ -171,27 +190,28 @@ const TrainingManagementSystem = () => {
 
   const timeline = generateTimeline();
 
-  // Calculate position for training sessions
+  // Calculate position and width for training sessions
   const getSessionPosition = (session) => {
     const startDate = new Date(session.start_date);
     const endDate = new Date(session.end_date);
     const timelineStart = timeline[0].date;
     
-    const startDiff = Math.floor((startDate.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24));
-    const duration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const startDiff = Math.floor((startDate - timelineStart) / (1000 * 60 * 60 * 24));
+    const duration = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
     
     return {
-      left: `${(startDiff * 35)}px`,
-      width: `${(duration * 35) - 2}px`
+      left: `${(startDiff * 35)}px`, // 35px per day
+      width: `${(duration * 35) - 2}px` // -2px for border
     };
   };
 
-  // Filter sessions
+  // Filter sessions based on current filters
   const filteredSessions = useMemo(() => {
     return mockTrainingSessions.filter(session => {
       const matchesFilter = filterBy === 'all' || session.authority.toLowerCase() === filterBy.toLowerCase();
       const matchesSearch = session.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           session.code.toLowerCase().includes(searchTerm.toLowerCase());
+                           session.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           session.instructor.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesPriority = selectedPriority === 'all' || session.priority.toLowerCase() === selectedPriority.toLowerCase();
       const matchesStatus = selectedStatus === 'all' || session.status.toLowerCase() === selectedStatus.toLowerCase();
       
@@ -203,9 +223,15 @@ const TrainingManagementSystem = () => {
   const sessionsByLocation = useMemo(() => {
     const grouped = {};
     trainingLocations.forEach(location => {
-      grouped[location.id] = filteredSessions.filter(session => 
-        session.location.toLowerCase().includes(location.name.split(' ')[0].toLowerCase())
-      );
+      if (location.id === 'oem') {
+        grouped[location.id] = filteredSessions.filter(session => 
+          ['Boeing', 'Airbus', 'CFM International'].includes(session.authority)
+        );
+      } else {
+        grouped[location.id] = filteredSessions.filter(session => 
+          session.location.toLowerCase().includes(location.name.split(' ')[0].toLowerCase())
+        );
+      }
     });
     return grouped;
   }, [filteredSessions]);
@@ -219,6 +245,31 @@ const TrainingManagementSystem = () => {
   const goToToday = () => {
     setCurrentDate(new Date());
   };
+
+  const getEmployeePriority = (employee, sessionType) => {
+    const relevantCerts = employee.certifications.filter(cert => 
+      sessionType.includes(cert.code) || sessionType.includes(cert.aircraft)
+    );
+    
+    if (relevantCerts.length === 0) return 0;
+    
+    const expiringCerts = relevantCerts.filter(cert => cert.days_to_expire < 90);
+    const expiredCerts = relevantCerts.filter(cert => cert.days_to_expire < 0);
+    
+    return employee.priority_score + (expiringCerts.length * 20) + (expiredCerts.length * 50);
+  };
+
+  const sortedEmployeesForSession = useMemo(() => {
+    if (!selectedSession) return [];
+    
+    return mockEmployees
+      .map(emp => ({
+        ...emp,
+        relevance: getEmployeePriority(emp, selectedSession.name),
+        isAssigned: assignedEmployees[selectedSession.id]?.includes(emp.id) || false
+      }))
+      .sort((a, b) => b.relevance - a.relevance);
+  }, [selectedSession, assignedEmployees]);
 
   const handleAssignEmployee = (employeeId) => {
     if (!selectedSession) return;
@@ -255,6 +306,7 @@ const TrainingManagementSystem = () => {
       case 'UK CAA': return 'bg-orange-100 text-orange-800';
       case 'Boeing': return 'bg-indigo-100 text-indigo-800';
       case 'Airbus': return 'bg-cyan-100 text-cyan-800';
+      case 'CFM International': return 'bg-pink-100 text-pink-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -301,7 +353,7 @@ const TrainingManagementSystem = () => {
           </div>
         </div>
 
-        {/* Quick Stats */}
+        {/* Enhanced Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
             <div className="flex items-center">
@@ -376,7 +428,7 @@ const TrainingManagementSystem = () => {
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Enhanced Controls */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-4">
@@ -434,7 +486,7 @@ const TrainingManagementSystem = () => {
             </div>
           </div>
 
-          {/* Filters */}
+          {/* Advanced Filters */}
           <div className="flex items-center gap-4">
             <select
               value={filterBy}
@@ -446,6 +498,8 @@ const TrainingManagementSystem = () => {
               <option value="gcaa">GCAA</option>
               <option value="faa">FAA</option>
               <option value="uk caa">UK CAA</option>
+              <option value="boeing">Boeing</option>
+              <option value="airbus">Airbus</option>
             </select>
 
             <select
@@ -469,6 +523,8 @@ const TrainingManagementSystem = () => {
               <option value="scheduled">Scheduled</option>
               <option value="confirmed">Confirmed</option>
               <option value="open">Open</option>
+              <option value="in progress">In Progress</option>
+              <option value="completed">Completed</option>
             </select>
             
             <div className="relative">
@@ -484,7 +540,7 @@ const TrainingManagementSystem = () => {
           </div>
         </div>
 
-        {/* Legend */}
+        {/* Enhanced Legend */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4 text-xs">
             <div className="flex items-center gap-1">
@@ -496,8 +552,16 @@ const TrainingManagementSystem = () => {
               <span>Scheduled</span>
             </div>
             <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-blue-400 rounded"></div>
+              <span>In Progress</span>
+            </div>
+            <div className="flex items-center gap-1">
               <div className="w-3 h-3 bg-red-300 rounded"></div>
               <span>Open</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-gray-400 rounded"></div>
+              <span>Completed</span>
             </div>
           </div>
           
@@ -507,10 +571,11 @@ const TrainingManagementSystem = () => {
         </div>
       </div>
 
-      {/* Gantt View */}
+      {/* Enhanced Gantt Chart */}
       {viewMode === 'gantt' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="flex">
+            {/* Enhanced Location Labels */}
             <div className="w-80 bg-gray-50 border-r">
               <div className="h-20 border-b flex items-center px-4 bg-gray-100">
                 <h3 className="font-semibold text-gray-900">Training Centers</h3>
@@ -532,14 +597,16 @@ const TrainingManagementSystem = () => {
               ))}
             </div>
 
+            {/* Enhanced Timeline and Sessions */}
             <div className="flex-1 overflow-x-auto" ref={ganttRef}>
               <div style={{ width: `${timeline.length * 35}px` }}>
+                {/* Enhanced Timeline Header */}
                 <div className="h-20 border-b bg-gray-100">
                   <div className="flex">
                     {timeline.map((day, index) => (
                       <div
                         key={index}
-                        className={`border-r text-xs text-center ${
+                        className={`w-8.75 border-r text-xs text-center ${
                           day.isWeekend ? 'bg-gray-200' : ''
                         } ${day.isToday ? 'bg-blue-100 border-blue-300' : ''}`}
                         style={{ width: '35px' }}
@@ -551,14 +618,19 @@ const TrainingManagementSystem = () => {
                           <div className="text-gray-500 text-xs">
                             {day.day === 1 ? day.date.toLocaleDateString('en-US', { month: 'short' }) : ''}
                           </div>
+                          <div className="text-gray-400 text-xs">
+                            {day.date.toLocaleDateString('en-US', { weekday: 'narrow' })}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
+                {/* Enhanced Session Rows */}
                 {trainingLocations.map(location => (
                   <div key={location.id} className="h-20 border-b relative">
+                    {/* Weekend and today highlighting */}
                     {timeline.map((day, index) => (
                       <div
                         key={index}
@@ -569,20 +641,22 @@ const TrainingManagementSystem = () => {
                       ></div>
                     ))}
                     
+                    {/* Enhanced Training Sessions */}
                     {sessionsByLocation[location.id]?.map(session => {
                       const position = getSessionPosition(session);
                       const assignedCount = assignedEmployees[session.id]?.length || 0;
+                      const utilizationPercent = Math.round((assignedCount / session.max_participants) * 100);
                       
                       return (
                         <div
                           key={session.id}
-                          className={`absolute h-16 top-2 rounded-lg cursor-pointer border-2 border-white shadow-lg hover:shadow-xl transition-all ${statusColors[session.status]} flex items-center px-3`}
+                          className={`absolute h-16 top-2 rounded-lg cursor-pointer border-2 border-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105 ${statusColors[session.status]} flex items-center px-3`}
                           style={position}
                           onClick={() => {
                             setSelectedSession(session);
                             setShowSessionModal(true);
                           }}
-                          title={`${session.name}\nStatus: ${session.status}\nAssigned: ${assignedCount}/${session.max_participants}`}
+                          title={`${session.name}\nStatus: ${session.status}\nUtilization: ${utilizationPercent}%\nInstructor: ${session.instructor}\nRating: ⭐ ${session.rating}/5.0`}
                         >
                           <div className="text-xs font-medium text-white w-full">
                             <div className="truncate font-bold">{session.code}</div>
@@ -663,14 +737,30 @@ const TrainingManagementSystem = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Authority</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Session
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Authority
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dates
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Capacity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Priority
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -696,7 +786,7 @@ const TrainingManagementSystem = () => {
                         <div>{session.start_date}</div>
                         <div className="text-gray-500">to {session.end_date}</div>
                         <div className="text-xs text-gray-400">
-                          {Math.ceil((new Date(session.end_date).getTime() - new Date(session.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
+                          {Math.ceil((new Date(session.end_date) - new Date(session.start_date)) / (1000 * 60 * 60 * 24))} days
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -768,6 +858,7 @@ const TrainingManagementSystem = () => {
             
             <div className="flex-1 p-6 overflow-y-auto">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Training Center Performance */}
                 <div className="bg-gray-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4">Training Center Performance</h3>
                   <div className="space-y-4">
@@ -780,27 +871,87 @@ const TrainingManagementSystem = () => {
                         <div className="flex items-center gap-4 text-sm">
                           <span>★ {location.rating}</span>
                           <span>{location.utilization}% util</span>
+                          <span>{location.sessions_count} sessions</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
+                {/* Certification Status Overview */}
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4">Session Statistics</h3>
+                  <h3 className="text-lg font-semibold mb-4">Certification Status Overview</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-green-600">● Valid Certifications</span>
+                      <span className="font-bold">
+                        {mockEmployees.reduce((sum, emp) => 
+                          sum + emp.certifications.filter(cert => cert.status === 'Valid').length, 0
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-orange-600">● Expiring Soon</span>
+                      <span className="font-bold">
+                        {mockEmployees.reduce((sum, emp) => 
+                          sum + emp.certifications.filter(cert => cert.status === 'Expiring Soon').length, 0
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-red-600">● Expired</span>
+                      <span className="font-bold">
+                        {mockEmployees.reduce((sum, emp) => 
+                          sum + emp.certifications.filter(cert => cert.status === 'Expired').length, 0
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Training Efficiency */}
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4">Training Efficiency Metrics</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span>Total Sessions</span>
-                      <span className="font-bold">{analytics.totalSessions}</span>
+                      <span>Session Utilization Rate</span>
+                      <span className="font-bold">{analytics.utilization}%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Average Rating</span>
+                      <span>Average Session Rating</span>
                       <span className="font-bold">⭐ {analytics.averageRating.toFixed(1)}/5.0</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Utilization Rate</span>
-                      <span className="font-bold">{analytics.utilization}%</span>
+                      <span>Completion Rate</span>
+                      <span className="font-bold text-green-600">94%</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span>Employee Satisfaction</span>
+                      <span className="font-bold text-green-600">4.6/5.0</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Employee Training Progress */}
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4">Top Performing Employees</h3>
+                  <div className="space-y-3">
+                    {mockEmployees
+                      .sort((a, b) => b.training_completed - a.training_completed)
+                      .slice(0, 5)
+                      .map(emp => (
+                        <div key={emp.id} className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium">{emp.name}</div>
+                            <div className="text-sm text-gray-600">{emp.job_title}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold">{emp.training_completed} completed</div>
+                            <div className="text-sm text-gray-600">★ {emp.performance_rating}</div>
+                          </div>
+                        </div>
+                      ))
+                    }
                   </div>
                 </div>
               </div>
@@ -809,10 +960,11 @@ const TrainingManagementSystem = () => {
         </div>
       )}
 
-      {/* Session Modal */}
+      {/* Enhanced Training Session Details Modal */}
       {showSessionModal && selectedSession && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-[90%] h-[90%] flex flex-col">
+            {/* Modal Header */}
             <div className="border-b p-6 flex justify-between items-start">
               <div className="flex-1">
                 <div className="flex items-center gap-4 mb-3">
@@ -822,6 +974,9 @@ const TrainingManagementSystem = () => {
                   </span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${statusColors[selectedSession.status]}`}>
                     {selectedSession.status}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(selectedSession.priority)}`}>
+                    {selectedSession.priority} Priority
                   </span>
                 </div>
                 <p className="text-gray-600 text-lg mb-2">{selectedSession.code}</p>
@@ -840,9 +995,12 @@ const TrainingManagementSystem = () => {
               </button>
             </div>
 
+            {/* Modal Content */}
             <div className="flex-1 flex overflow-hidden">
+              {/* Left Side - Session Details & Assigned Employees */}
               <div className="w-1/2 border-r p-6 overflow-y-auto">
                 <div className="space-y-6">
+                  {/* Comprehensive Session Info */}
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
                     <h3 className="font-semibold text-lg mb-4 text-blue-900">Session Information</h3>
                     <div className="grid grid-cols-2 gap-6 text-sm">
@@ -853,7 +1011,7 @@ const TrainingManagementSystem = () => {
                       <div>
                         <span className="text-gray-600 block mb-1">Duration:</span>
                         <span className="font-medium">
-                          {Math.ceil((new Date(selectedSession.end_date).getTime() - new Date(selectedSession.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
+                          {Math.ceil((new Date(selectedSession.end_date) - new Date(selectedSession.start_date)) / (1000 * 60 * 60 * 24))} days
                         </span>
                       </div>
                       <div>
@@ -872,21 +1030,50 @@ const TrainingManagementSystem = () => {
                         <span className="text-gray-600 block mb-1">Equipment:</span>
                         <span className="font-medium">{selectedSession.equipment}</span>
                       </div>
+                      <div>
+                        <span className="text-gray-600 block mb-1">Prerequisites:</span>
+                        <span className="font-medium">{selectedSession.prerequisites.join(', ')}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 block mb-1">Recurrent:</span>
+                        <span className={`font-medium ${selectedSession.recurrent ? 'text-green-600' : 'text-gray-600'}`}>
+                          {selectedSession.recurrent ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 block mb-1">Capacity:</span>
+                        <span className="font-medium">{selectedSession.max_participants} participants</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 block mb-1">Rating:</span>
+                        <span className="font-medium">⭐ {selectedSession.rating}/5.0</span>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Enhanced Assigned Employees */}
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="font-semibold text-lg">
                         Assigned Employees ({assignedEmployees[selectedSession.id]?.length || 0}/{selectedSession.max_participants})
                       </h3>
-                      <button
-                        onClick={() => setShowSwapModal(true)}
-                        className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 flex items-center gap-2 text-sm font-medium"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                        Swap
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowSwapModal(true)}
+                          className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 flex items-center gap-2 text-sm font-medium"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          Swap
+                        </button>
+                        <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 flex items-center gap-2 text-sm font-medium">
+                          <Bell className="h-4 w-4" />
+                          Notify All
+                        </button>
+                        <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center gap-2 text-sm font-medium">
+                          <FileText className="h-4 w-4" />
+                          Generate Report
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="space-y-3">
@@ -903,21 +1090,32 @@ const TrainingManagementSystem = () => {
                                 </div>
                                 <div className="text-sm text-gray-600">#{employee.e_number} - {employee.job_title}</div>
                                 <div className="text-sm text-gray-600">{employee.team} Team - {employee.department}</div>
+                                <div className="text-xs text-gray-500 mt-1 flex gap-4">
+                                  <span>📧 {employee.email}</span>
+                                  <span>📱 {employee.phone}</span>
+                                  <span>🎯 Performance: {employee.performance_rating}/5</span>
+                                </div>
                               </div>
-                              <button
-                                onClick={() => handleUnassignEmployee(empId)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <XCircle className="h-5 w-5" />
-                              </button>
+                              <div className="flex gap-2">
+                                <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                  Profile
+                                </button>
+                                <button
+                                  onClick={() => handleUnassignEmployee(empId)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <XCircle className="h-5 w-5" />
+                                </button>
+                              </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {employee.certifications.map((cert, idx) => (
                                 <span
                                   key={idx}
                                   className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(cert.status)}`}
+                                  title={`Issued: ${cert.issued_date}, Expires: ${cert.expiry}`}
                                 >
-                                  {cert.code} - {cert.authority}
+                                  {cert.code} - {cert.authority} ({cert.days_to_expire}d)
                                 </span>
                               ))}
                             </div>
@@ -929,6 +1127,7 @@ const TrainingManagementSystem = () => {
                         <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg">
                           <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                           <p className="text-lg">No employees assigned yet</p>
+                          <p className="text-sm">Select employees from the available list to assign them to this training session</p>
                         </div>
                       )}
                     </div>
@@ -936,30 +1135,43 @@ const TrainingManagementSystem = () => {
                 </div>
               </div>
 
+              {/* Right Side - Available Employees */}
               <div className="w-1/2 p-6 overflow-y-auto">
                 <div className="mb-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-semibold text-lg">Available Employees</h3>
-                    <div className="relative">
-                      <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search employees..."
-                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
+                    <div className="flex gap-2">
+                      <div className="relative">
+                        <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search employees..."
+                          className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                      <button className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
+                        <Filter className="h-4 w-4" />
+                      </button>
                     </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-800">
+                      💡 <strong>Smart AI Sorting:</strong> Employees are intelligently ranked by certification relevance, 
+                      expiry urgency, performance ratings, and training history. Higher scores indicate optimal candidates.
+                    </p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  {mockEmployees.map(employee => {
-                    const isAssigned = assignedEmployees[selectedSession.id]?.includes(employee.id) || false;
+                  {sortedEmployeesForSession.map(employee => {
+                    const urgentCerts = employee.certifications.filter(cert => cert.days_to_expire < 90 && cert.days_to_expire > 0);
+                    const expiredCerts = employee.certifications.filter(cert => cert.days_to_expire < 0);
                     
                     return (
                       <div
                         key={employee.id}
                         className={`border rounded-lg p-4 transition-all ${
-                          isAssigned 
+                          employee.isAssigned 
                             ? 'bg-gray-100 opacity-60 border-gray-300' 
                             : 'bg-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:border-blue-300 border-gray-200'
                         }`}
@@ -968,6 +1180,16 @@ const TrainingManagementSystem = () => {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-semibold text-lg">{employee.name}</span>
+                              {urgentCerts.length > 0 && (
+                                <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full font-medium">
+                                  Urgent ({urgentCerts.length})
+                                </span>
+                              )}
+                              {expiredCerts.length > 0 && (
+                                <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium">
+                                  Expired ({expiredCerts.length})
+                                </span>
+                              )}
                               {employee.performance_rating >= 4.5 && (
                                 <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">
                                   ⭐ Top Performer
@@ -976,20 +1198,23 @@ const TrainingManagementSystem = () => {
                             </div>
                             <div className="text-sm text-gray-600">#{employee.e_number} - {employee.job_title}</div>
                             <div className="text-sm text-gray-600">{employee.team} Team - {employee.department}</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              ⭐ Performance: {employee.performance_rating}/5
+                            <div className="text-xs text-gray-500 mt-1 grid grid-cols-2 gap-2">
+                              <span>🎯 Priority Score: {employee.relevance}</span>
+                              <span>📅 Next Training: {employee.next_training_due}</span>
+                              <span>⭐ Performance: {employee.performance_rating}/5</span>
+                              <span>📚 Training Completed: {employee.training_completed}</span>
                             </div>
                           </div>
                           <button
-                            onClick={() => isAssigned ? handleUnassignEmployee(employee.id) : handleAssignEmployee(employee.id)}
-                            disabled={!isAssigned && (assignedEmployees[selectedSession.id]?.length || 0) >= selectedSession.max_participants}
+                            onClick={() => employee.isAssigned ? handleUnassignEmployee(employee.id) : handleAssignEmployee(employee.id)}
+                            disabled={!employee.isAssigned && (assignedEmployees[selectedSession.id]?.length || 0) >= selectedSession.max_participants}
                             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                              isAssigned
+                              employee.isAssigned
                                 ? 'bg-red-100 text-red-700 hover:bg-red-200'
                                 : 'bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed'
                             }`}
                           >
-                            {isAssigned ? 'Remove' : 'Schedule'}
+                            {employee.isAssigned ? 'Remove' : 'Schedule'}
                           </button>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -997,8 +1222,9 @@ const TrainingManagementSystem = () => {
                             <span
                               key={idx}
                               className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(cert.status)}`}
+                              title={`Issued: ${cert.issued_date}, Expires in ${cert.days_to_expire} days`}
                             >
-                              {cert.code} - {cert.authority}
+                              {cert.code} - {cert.authority} ({cert.days_to_expire}d)
                             </span>
                           ))}
                         </div>
@@ -1009,10 +1235,20 @@ const TrainingManagementSystem = () => {
               </div>
             </div>
 
+            {/* Enhanced Modal Footer */}
             <div className="border-t p-6 flex justify-between items-center bg-gray-50">
               <div className="text-sm text-gray-600 space-x-8">
                 <span>👥 <strong>Utilization:</strong> {Math.round(((assignedEmployees[selectedSession.id]?.length || 0) / selectedSession.max_participants) * 100)}%</span>
+                <span>🎯 <strong>Avg Priority:</strong> {
+                  assignedEmployees[selectedSession.id]?.length > 0 
+                    ? Math.round(assignedEmployees[selectedSession.id].reduce((sum, empId) => {
+                        const emp = mockEmployees.find(e => e.id === empId);
+                        return sum + (emp?.priority_score || 0);
+                      }, 0) / assignedEmployees[selectedSession.id].length)
+                    : 0
+                }</span>
                 <span>⭐ <strong>Training Rating:</strong> {selectedSession.rating}/5.0</span>
+                <span>📚 <strong>Duration:</strong> {Math.ceil((new Date(selectedSession.end_date) - new Date(selectedSession.start_date)) / (1000 * 60 * 60 * 24))} days</span>
               </div>
               <div className="flex gap-3">
                 <button
@@ -1020,6 +1256,12 @@ const TrainingManagementSystem = () => {
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
                 >
                   Close
+                </button>
+                <button className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium">
+                  Export to Calendar
+                </button>
+                <button className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
+                  Save & Notify All
                 </button>
                 <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
                   Save Changes
@@ -1030,14 +1272,14 @@ const TrainingManagementSystem = () => {
         </div>
       )}
 
-      {/* Swap Modal */}
+      {/* Enhanced Swap Modal */}
       {showSwapModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
           <div className="bg-white rounded-lg w-[700px] max-h-[80vh] overflow-hidden">
             <div className="p-6 border-b">
-              <h3 className="text-xl font-semibold mb-2">Training Assignment Swap</h3>
+              <h3 className="text-xl font-semibold mb-2">Advanced Training Assignment Swap</h3>
               <p className="text-gray-600">
-                Select an employee to swap from this training session.
+                Select an employee to swap from this training session. Our AI system will suggest optimal alternative sessions based on certification needs, schedule availability, and priority scores.
               </p>
             </div>
             
@@ -1073,6 +1315,49 @@ const TrainingManagementSystem = () => {
                   );
                 })}
               </div>
+
+              {selectedEmployeeForSwap && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
+                  <h4 className="font-medium mb-4 text-blue-900">
+                    🤖 AI-Recommended Alternative Sessions for {mockEmployees.find(e => e.id === selectedEmployeeForSwap)?.name}
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center p-3 bg-white rounded border">
+                      <div>
+                        <div className="font-medium">B2-777-008 - B777 Avionics Systems Advanced</div>
+                        <div className="text-gray-600">June 16-20, 2025 • EASA Training Center Munich</div>
+                        <div className="text-xs text-green-600">Perfect match for B2 certification renewal</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-green-600 font-medium">12/14 slots</div>
+                        <div className="text-xs text-gray-500">95% match</div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white rounded border">
+                      <div>
+                        <div className="font-medium">C-350-003 - A350 Base Maintenance Comprehensive</div>
+                        <div className="text-gray-600">June 23 - July 4, 2025 • EASA Training Center Hamburg</div>
+                        <div className="text-xs text-orange-600">High priority due to C license expiry</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-green-600 font-medium">8/10 slots</div>
+                        <div className="text-xs text-gray-500">88% match</div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white rounded border">
+                      <div>
+                        <div className="font-medium">BOEING-787-ADV-001 - Boeing 787 Advanced Troubleshooting</div>
+                        <div className="text-gray-600">July 21 - August 1, 2025 • Boeing Training Center Everett</div>
+                        <div className="text-xs text-blue-600">Premium OEM training opportunity</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-orange-600 font-medium">3/8 slots</div>
+                        <div className="text-xs text-gray-500">92% match</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="p-6 border-t flex gap-3">
@@ -1089,7 +1374,7 @@ const TrainingManagementSystem = () => {
                 disabled={!selectedEmployeeForSwap}
                 className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-400 font-medium"
               >
-                Proceed with Swap
+                Proceed with Smart Swap
               </button>
             </div>
           </div>
