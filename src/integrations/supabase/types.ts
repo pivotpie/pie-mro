@@ -1031,6 +1031,507 @@ export type Database = {
         }
         Relationships: []
       }
+      training_authorities: {
+        Row: {
+          authority_code: string
+          authority_name: string
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string | null
+          id: number
+          is_active: boolean | null
+          updated_at: string | null
+          website_url: string | null
+        }
+        Insert: {
+          authority_code: string
+          authority_name: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: number
+          is_active?: boolean | null
+          updated_at?: string | null
+          website_url?: string | null
+        }
+        Update: {
+          authority_code?: string
+          authority_name?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: number
+          is_active?: boolean | null
+          updated_at?: string | null
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      training_conflicts: {
+        Row: {
+          conflict_description: string
+          conflict_type: string
+          created_at: string | null
+          detected_at: string | null
+          employee_id: number
+          id: number
+          resolution_method: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity_level: number | null
+          status: string | null
+          training_session_id: number
+          updated_at: string | null
+        }
+        Insert: {
+          conflict_description: string
+          conflict_type: string
+          created_at?: string | null
+          detected_at?: string | null
+          employee_id: number
+          id?: number
+          resolution_method?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity_level?: number | null
+          status?: string | null
+          training_session_id: number
+          updated_at?: string | null
+        }
+        Update: {
+          conflict_description?: string
+          conflict_type?: string
+          created_at?: string | null
+          detected_at?: string | null
+          employee_id?: number
+          id?: number
+          resolution_method?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity_level?: number | null
+          status?: string | null
+          training_session_id?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_conflicts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_conflicts_training_session_id_fkey"
+            columns: ["training_session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_prerequisites: {
+        Row: {
+          created_at: string | null
+          id: number
+          is_mandatory: boolean | null
+          prerequisite_training_type_id: number
+          training_type_id: number
+          validity_months: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          is_mandatory?: boolean | null
+          prerequisite_training_type_id: number
+          training_type_id: number
+          validity_months?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          is_mandatory?: boolean | null
+          prerequisite_training_type_id?: number
+          training_type_id?: number
+          validity_months?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_prerequisites_prerequisite_training_type_id_fkey"
+            columns: ["prerequisite_training_type_id"]
+            isOneToOne: false
+            referencedRelation: "training_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_prerequisites_training_type_id_fkey"
+            columns: ["training_type_id"]
+            isOneToOne: false
+            referencedRelation: "training_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_resources: {
+        Row: {
+          availability_schedule: Json | null
+          capacity: number | null
+          created_at: string | null
+          id: number
+          is_active: boolean | null
+          location: string | null
+          resource_name: string
+          resource_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          availability_schedule?: Json | null
+          capacity?: number | null
+          created_at?: string | null
+          id?: number
+          is_active?: boolean | null
+          location?: string | null
+          resource_name: string
+          resource_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          availability_schedule?: Json | null
+          capacity?: number | null
+          created_at?: string | null
+          id?: number
+          is_active?: boolean | null
+          location?: string | null
+          resource_name?: string
+          resource_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      training_session_assignments: {
+        Row: {
+          assigned_by: string | null
+          assignment_date: string | null
+          assignment_status: string | null
+          attendance_status: string | null
+          certificate_expiry_date: string | null
+          certificate_issue_date: string | null
+          certificate_issued: boolean | null
+          certificate_number: string | null
+          completion_status: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string | null
+          employee_id: number
+          feedback: string | null
+          id: number
+          score: number | null
+          training_session_id: number
+          updated_at: string | null
+          withdrawal_reason: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          assignment_date?: string | null
+          assignment_status?: string | null
+          attendance_status?: string | null
+          certificate_expiry_date?: string | null
+          certificate_issue_date?: string | null
+          certificate_issued?: boolean | null
+          certificate_number?: string | null
+          completion_status?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string | null
+          employee_id: number
+          feedback?: string | null
+          id?: number
+          score?: number | null
+          training_session_id: number
+          updated_at?: string | null
+          withdrawal_reason?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          assignment_date?: string | null
+          assignment_status?: string | null
+          attendance_status?: string | null
+          certificate_expiry_date?: string | null
+          certificate_issue_date?: string | null
+          certificate_issued?: boolean | null
+          certificate_number?: string | null
+          completion_status?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string | null
+          employee_id?: number
+          feedback?: string | null
+          id?: number
+          score?: number | null
+          training_session_id?: number
+          updated_at?: string | null
+          withdrawal_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_session_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_session_assignments_training_session_id_fkey"
+            columns: ["training_session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_session_resources: {
+        Row: {
+          allocated_at: string | null
+          id: number
+          quantity_required: number | null
+          training_resource_id: number
+          training_session_id: number
+        }
+        Insert: {
+          allocated_at?: string | null
+          id?: number
+          quantity_required?: number | null
+          training_resource_id: number
+          training_session_id: number
+        }
+        Update: {
+          allocated_at?: string | null
+          id?: number
+          quantity_required?: number | null
+          training_resource_id?: number
+          training_session_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_session_resources_training_resource_id_fkey"
+            columns: ["training_resource_id"]
+            isOneToOne: false
+            referencedRelation: "training_resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_session_resources_training_session_id_fkey"
+            columns: ["training_session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_session_swaps: {
+        Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          deadline_date: string | null
+          id: number
+          original_assignment_id: number
+          original_session_id: number
+          priority_level: number | null
+          rejection_reason: string | null
+          request_date: string | null
+          request_reason: string
+          requesting_employee_id: number
+          swap_type: string
+          target_employee_id: number
+          target_session_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          deadline_date?: string | null
+          id?: number
+          original_assignment_id: number
+          original_session_id: number
+          priority_level?: number | null
+          rejection_reason?: string | null
+          request_date?: string | null
+          request_reason: string
+          requesting_employee_id: number
+          swap_type?: string
+          target_employee_id: number
+          target_session_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          deadline_date?: string | null
+          id?: number
+          original_assignment_id?: number
+          original_session_id?: number
+          priority_level?: number | null
+          rejection_reason?: string | null
+          request_date?: string | null
+          request_reason?: string
+          requesting_employee_id?: number
+          swap_type?: string
+          target_employee_id?: number
+          target_session_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_session_swaps_original_assignment_id_fkey"
+            columns: ["original_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "training_session_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_session_swaps_original_session_id_fkey"
+            columns: ["original_session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_session_swaps_requesting_employee_id_fkey"
+            columns: ["requesting_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_session_swaps_target_employee_id_fkey"
+            columns: ["target_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_session_swaps_target_session_id_fkey"
+            columns: ["target_session_id"]
+            isOneToOne: false
+            referencedRelation: "training_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_sessions: {
+        Row: {
+          authority_id: number | null
+          certificate_validity_months: number | null
+          certification_awarded: boolean | null
+          cost_per_participant: number | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          duration_hours: number | null
+          end_date: string
+          end_time: string | null
+          id: number
+          instructor_name: string | null
+          is_mandatory: boolean | null
+          location: string | null
+          materials_required: string | null
+          max_participants: number | null
+          min_participants: number | null
+          notes: string | null
+          prerequisites: string | null
+          priority_level: number | null
+          session_code: string
+          session_name: string
+          start_date: string
+          start_time: string | null
+          status: string | null
+          training_type_id: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          authority_id?: number | null
+          certificate_validity_months?: number | null
+          certification_awarded?: boolean | null
+          cost_per_participant?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_hours?: number | null
+          end_date: string
+          end_time?: string | null
+          id?: number
+          instructor_name?: string | null
+          is_mandatory?: boolean | null
+          location?: string | null
+          materials_required?: string | null
+          max_participants?: number | null
+          min_participants?: number | null
+          notes?: string | null
+          prerequisites?: string | null
+          priority_level?: number | null
+          session_code: string
+          session_name: string
+          start_date: string
+          start_time?: string | null
+          status?: string | null
+          training_type_id: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          authority_id?: number | null
+          certificate_validity_months?: number | null
+          certification_awarded?: boolean | null
+          cost_per_participant?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          duration_hours?: number | null
+          end_date?: string
+          end_time?: string | null
+          id?: number
+          instructor_name?: string | null
+          is_mandatory?: boolean | null
+          location?: string | null
+          materials_required?: string | null
+          max_participants?: number | null
+          min_participants?: number | null
+          notes?: string | null
+          prerequisites?: string | null
+          priority_level?: number | null
+          session_code?: string
+          session_name?: string
+          start_date?: string
+          start_time?: string | null
+          status?: string | null
+          training_type_id?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_sessions_authority_id_fkey"
+            columns: ["authority_id"]
+            isOneToOne: false
+            referencedRelation: "authorities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_sessions_training_type_id_fkey"
+            columns: ["training_type_id"]
+            isOneToOne: false
+            referencedRelation: "training_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_status: {
         Row: {
           code: string
