@@ -139,6 +139,9 @@ const TrainingManagementSystem = () => {
   const ganttRef = useRef(null);
   const [selectedReplacementEmployee, setSelectedReplacementEmployee] = useState<number | null>(null);
   const [substitutionStep, setSubstitutionStep] = useState<'select-original' | 'select-replacement'>('select-original');
+  const [showAllEmployees, setShowAllEmployees] = useState<boolean>(false);
+  const [employeeToReplace, setEmployeeToReplace] = useState<string>("");
+
 
 
   // Analytics calculations
