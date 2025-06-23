@@ -1351,23 +1351,28 @@ const TrainingManagementSystem = () => {
                     </p>
                   </div>
                   <div className="space-y-3">
-                    {mockEmployees
-                      .filter(emp => 
-                        !assignedEmployees[selectedSession?.id]?.includes(emp.id) && // Not already assigned
-                        emp.id !== selectedEmployeeForSwap && // Not the employee being replaced
-                        // Add qualification logic here - check if employee meets prerequisites
-                        selectedSession?.prerequisites.some(prereq => 
-                          emp.certifications.some(cert => cert.code.includes(prereq.split(' ')[0]))
+                    {(showAllEmployees 
+                      ? mockEmployees.filter(emp => 
+                          emp.id !== employeeToReplace?.id && 
+                          !selectedSession?.assignedEmployees?.some(assigned => assigned.id === emp.id)
                         )
-                      )
-                      .sort((a, b) => {
-                        // Sort by priority score and certification relevance
-                        const aScore = a.priority_score + (a.certifications.length * 5);
-                        const bScore = b.priority_score + (b.certifications.length * 5);
-                        return bScore - aScore;
-                      })
-                      .slice(0, 5) // Show top 5 candidates
-                      .map(employee => (
+                      : mockEmployees
+                          .filter(emp => 
+                            !assignedEmployees[selectedSession?.id]?.includes(emp.id) && // Not already assigned
+                            emp.id !== selectedEmployeeForSwap && // Not the employee being replaced
+                            // Add qualification logic here - check if employee meets prerequisites
+                            selectedSession?.prerequisites.some(prereq => 
+                              emp.certifications.some(cert => cert.code.includes(prereq.split(' ')[0]))
+                            )
+                          )
+                          .sort((a, b) => {
+                            // Sort by priority score and certification relevance
+                            const aScore = a.priority_score + (a.certifications.length * 5);
+                            const bScore = b.priority_score + (b.certifications.length * 5);
+                            return bScore - aScore;
+                          })
+                          .slice(0, 5) // Show top 5 candidates
+                    ).map(employee => (
                         <div
                           key={employee.id}
                           className={`border rounded-lg p-4 cursor-pointer transition-all ${
@@ -1410,6 +1415,7 @@ const TrainingManagementSystem = () => {
                   setSelectedEmployeeForSwap(null);
                   setSelectedReplacementEmployee(null);
                   setSubstitutionStep('select-original');
+                  setShowAllEmployees(false); // Add this line
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
               >
