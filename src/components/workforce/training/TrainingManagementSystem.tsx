@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Calendar, Users, AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Plus, Filter, Search, ChevronLeft, ChevronRight, Download, Upload, Settings, Bell, BarChart3, TrendingUp, Shield, Award, AlertCircle, FileText, Target, Zap, Globe, BookOpen, Activity } from 'lucide-react';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Comprehensive training sessions data
 const mockTrainingSessions = [
@@ -598,272 +599,278 @@ const TrainingManagementSystem = () => {
 
       {/* Enhanced Gantt Chart */}
       {viewMode === 'gantt' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="flex">
-            {/* Enhanced Location Labels */}
-            <div className="w-80 bg-gray-50 border-r">
-              <div className="h-20 border-b flex items-center px-4 bg-gray-100">
-                <h3 className="font-semibold text-gray-900">Training Centers</h3>
-              </div>
-              {trainingLocations.map(location => (
-                <div key={location.id} className="h-20 border-b flex items-center px-4 hover:bg-gray-100">
-                  <div className="flex items-center gap-3 w-full">
-                    <div className={`w-4 h-4 rounded ${location.color}`}></div>
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{location.name}</div>
-                      <div className="text-xs text-gray-500 flex gap-4">
-                        <span>Capacity: {location.capacity}</span>
-                        <span>Util: {location.utilization}%</span>
-                        <span>★ {location.rating}</span>
+        <div className="bg-white rounded-lg shadow overflow-hidden  h-[75vh]">
+          <ScrollArea className="h-full">
+            <div className="flex">
+              {/* Enhanced Location Labels */}
+              <div className="w-80 bg-gray-50 border-r">
+                <div className="h-20 border-b flex items-center px-4 bg-gray-100">
+                  <h3 className="font-semibold text-gray-900">Training Centers</h3>
+                </div>
+                {trainingLocations.map(location => (
+                  <div key={location.id} className="h-20 border-b flex items-center px-4 hover:bg-gray-100">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className={`w-4 h-4 rounded ${location.color}`}></div>
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{location.name}</div>
+                        <div className="text-xs text-gray-500 flex gap-4">
+                          <span>Capacity: {location.capacity}</span>
+                          <span>Util: {location.utilization}%</span>
+                          <span>★ {location.rating}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
-            {/* Enhanced Timeline and Sessions */}
-            <div className="flex-1 overflow-x-auto" ref={ganttRef}>
-              <div style={{ width: `${timeline.length * 35}px` }}>
-                {/* Enhanced Timeline Header */}
-                <div className="h-20 border-b bg-gray-100">
-                  <div className="flex">
-                    {timeline.map((day, index) => (
-                      <div
-                        key={index}
-                        className={`w-8.75 border-r text-xs text-center ${
-                          day.isWeekend ? 'bg-gray-200' : ''
-                        } ${day.isToday ? 'bg-blue-100 border-blue-300' : ''}`}
-                        style={{ width: '35px' }}
-                      >
-                        <div className="pt-1">
-                          <div className={`font-medium ${day.isToday ? 'text-blue-600' : ''}`}>
-                            {day.day}
-                          </div>
-                          <div className="text-gray-500 text-xs">
-                            {day.day === 1 ? day.date.toLocaleDateString('en-US', { month: 'short' }) : ''}
-                          </div>
-                          <div className="text-gray-400 text-xs">
-                            {day.date.toLocaleDateString('en-US', { weekday: 'narrow' })}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Enhanced Session Rows */}
-                {trainingLocations.map(location => (
-                  <div key={location.id} className="h-20 border-b relative">
-                    {/* Weekend and today highlighting */}
-                    {timeline.map((day, index) => (
-                      <div
-                        key={index}
-                        className={`absolute h-full border-r ${
-                          day.isWeekend ? 'bg-gray-100' : ''
-                        } ${day.isToday ? 'bg-blue-50 border-blue-200' : 'border-gray-100'}`}
-                        style={{ left: `${index * 35}px`, width: '35px' }}
-                      ></div>
-                    ))}
-                    
-                    {/* Enhanced Training Sessions */}
-                    {sessionsByLocation[location.id]?.map(session => {
-                      const position = getSessionPosition(session);
-                      const assignedCount = assignedEmployees[session.id]?.length || 0;
-                      const utilizationPercent = Math.round((assignedCount / session.max_participants) * 100);
-                      
-                      return (
+              {/* Enhanced Timeline and Sessions */}
+              <div className="flex-1 overflow-x-auto" ref={ganttRef}>
+                <div style={{ width: `${timeline.length * 35}px` }}>
+                  {/* Enhanced Timeline Header */}
+                  <div className="h-20 border-b bg-gray-100">
+                    <div className="flex">
+                      {timeline.map((day, index) => (
                         <div
-                          key={session.id}
-                          className={`absolute h-16 top-2 rounded-lg cursor-pointer border-2 border-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105 ${statusColors[session.status]} flex items-center px-3`}
-                          style={position}
-                          onClick={() => {
-                            setSelectedSession(session);
-                            setShowSessionModal(true);
-                          }}
-                          title={`${session.name}\nStatus: ${session.status}\nUtilization: ${utilizationPercent}%\nInstructor: ${session.instructor}\nRating: ⭐ ${session.rating}/5.0`}
+                          key={index}
+                          className={`w-8.75 border-r text-xs text-center ${
+                            day.isWeekend ? 'bg-gray-200' : ''
+                          } ${day.isToday ? 'bg-blue-100 border-blue-300' : ''}`}
+                          style={{ width: '35px' }}
                         >
-                          <div className="text-xs font-medium text-white w-full">
-                            <div className="truncate font-bold">{session.code}</div>
-                            <div className="flex justify-between items-center text-xs opacity-90">
-                              <span>{assignedCount}/{session.max_participants}</span>
-                              <span className={`px-1 py-0.5 rounded text-xs ${getPriorityColor(session.priority)} bg-opacity-80`}>
-                                {session.priority[0]}
-                              </span>
+                          <div className="pt-1">
+                            <div className={`font-medium ${day.isToday ? 'text-blue-600' : ''}`}>
+                              {day.day}
+                            </div>
+                            <div className="text-gray-500 text-xs">
+                              {day.day === 1 ? day.date.toLocaleDateString('en-US', { month: 'short' }) : ''}
+                            </div>
+                            <div className="text-gray-400 text-xs">
+                              {day.date.toLocaleDateString('en-US', { weekday: 'narrow' })}
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                ))}
+
+                  {/* Enhanced Session Rows */}
+                  {trainingLocations.map(location => (
+                    <div key={location.id} className="h-20 border-b relative">
+                      {/* Weekend and today highlighting */}
+                      {timeline.map((day, index) => (
+                        <div
+                          key={index}
+                          className={`absolute h-full border-r ${
+                            day.isWeekend ? 'bg-gray-100' : ''
+                          } ${day.isToday ? 'bg-blue-50 border-blue-200' : 'border-gray-100'}`}
+                          style={{ left: `${index * 35}px`, width: '35px' }}
+                        ></div>
+                      ))}
+                      
+                      {/* Enhanced Training Sessions */}
+                      {sessionsByLocation[location.id]?.map(session => {
+                        const position = getSessionPosition(session);
+                        const assignedCount = assignedEmployees[session.id]?.length || 0;
+                        const utilizationPercent = Math.round((assignedCount / session.max_participants) * 100);
+                        
+                        return (
+                          <div
+                            key={session.id}
+                            className={`absolute h-16 top-2 rounded-lg cursor-pointer border-2 border-white shadow-lg hover:shadow-xl transition-all transform hover:scale-105 ${statusColors[session.status]} flex items-center px-3`}
+                            style={position}
+                            onClick={() => {
+                              setSelectedSession(session);
+                              setShowSessionModal(true);
+                            }}
+                            title={`${session.name}\nStatus: ${session.status}\nUtilization: ${utilizationPercent}%\nInstructor: ${session.instructor}\nRating: ⭐ ${session.rating}/5.0`}
+                          >
+                            <div className="text-xs font-medium text-white w-full">
+                              <div className="truncate font-bold">{session.code}</div>
+                              <div className="flex justify-between items-center text-xs opacity-90">
+                                <span>{assignedCount}/{session.max_participants}</span>
+                                <span className={`px-1 py-0.5 rounded text-xs ${getPriorityColor(session.priority)} bg-opacity-80`}>
+                                  {session.priority[0]}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          </ScrollArea>
         </div>
       )}
 
       {/* Calendar View */}
       {viewMode === 'calendar' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-6">
-            <div className="grid grid-cols-7 gap-4 mb-4">
-              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
-                <div key={day} className="text-center font-semibold text-gray-700 py-2">
-                  {day}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-4">
-              {timeline.slice(0, 42).map((day, index) => (
-                <div
-                  key={index}
-                  className={`min-h-32 border rounded-lg p-2 ${
-                    day.isWeekend ? 'bg-gray-50' : 'bg-white'
-                  } ${day.isToday ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}
-                >
-                  <div className={`text-sm font-medium mb-2 ${day.isToday ? 'text-blue-600' : 'text-gray-900'}`}>
-                    {day.day}
+        <div className="bg-white rounded-lg shadow overflow-hidden h-[75vh]">
+          <ScrollArea className="h-full">
+            <div className="p-6">
+              <div className="grid grid-cols-7 gap-4 mb-4">
+                {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
+                  <div key={day} className="text-center font-semibold text-gray-700 py-2">
+                    {day}
                   </div>
-                  <div className="space-y-1">
-                    {filteredSessions
-                      .filter(session => 
-                        day.dateStr >= session.start_date && day.dateStr <= session.end_date
-                      )
-                      .map(session => {
-                        const assignedCount = assignedEmployees[session.id]?.length || 0;
-                        return (
-                          <div
-                            key={session.id}
-                            className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${statusColors[session.status]} text-white`}
-                            onClick={() => {
-                              setSelectedSession(session);
-                              setShowSessionModal(true);
-                            }}
-                            title={session.name}
-                          >
-                            <div className="truncate font-medium">{session.code}</div>
-                            <div className="text-xs opacity-90">{assignedCount}/{session.max_participants}</div>
-                          </div>
-                        );
-                      })}
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-4">
+                {timeline.slice(0, 42).map((day, index) => (
+                  <div
+                    key={index}
+                    className={`min-h-32 border rounded-lg p-2 ${
+                      day.isWeekend ? 'bg-gray-50' : 'bg-white'
+                    } ${day.isToday ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}
+                  >
+                    <div className={`text-sm font-medium mb-2 ${day.isToday ? 'text-blue-600' : 'text-gray-900'}`}>
+                      {day.day}
+                    </div>
+                    <div className="space-y-1">
+                      {filteredSessions
+                        .filter(session => 
+                          day.dateStr >= session.start_date && day.dateStr <= session.end_date
+                        )
+                        .map(session => {
+                          const assignedCount = assignedEmployees[session.id]?.length || 0;
+                          return (
+                            <div
+                              key={session.id}
+                              className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${statusColors[session.status]} text-white`}
+                              onClick={() => {
+                                setSelectedSession(session);
+                                setShowSessionModal(true);
+                              }}
+                              title={session.name}
+                            >
+                              <div className="truncate font-medium">{session.code}</div>
+                              <div className="text-xs opacity-90">{assignedCount}/{session.max_participants}</div>
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          </ScrollArea>
         </div>
       )}
 
       {/* List View */}
       {viewMode === 'list' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Session
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Authority
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dates
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Capacity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Priority
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredSessions.map(session => {
-                  const assignedCount = assignedEmployees[session.id]?.length || 0;
-                  const utilizationPercent = Math.round((assignedCount / session.max_participants) * 100);
-                  
-                  return (
-                    <tr key={session.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{session.name}</div>
-                          <div className="text-sm text-gray-500">{session.code}</div>
-                          <div className="text-xs text-gray-400">Instructor: {session.instructor}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getAuthorityColor(session.authority)}`}>
-                          {session.authority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>{session.start_date}</div>
-                        <div className="text-gray-500">to {session.end_date}</div>
-                        <div className="text-xs text-gray-400">
-                          {Math.ceil((new Date(session.end_date).getTime() - new Date(session.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {session.location}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {assignedCount}/{session.max_participants}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {utilizationPercent}% utilized
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
-                            style={{ width: `${utilizationPercent}%` }}
-                          ></div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full text-white ${statusColors[session.status]}`}>
-                          {session.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(session.priority)}`}>
-                          {session.priority}
-                        </span>
-                        <div className="text-xs text-gray-500 mt-1">
-                          ⭐ {session.rating}/5.0
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => {
-                            setSelectedSession(session);
-                            setShowSessionModal(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          Manage
-                        </button>
-                        <button className="text-gray-600 hover:text-gray-900">
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        <div className="bg-white rounded-lg shadow overflow-hidden h-[75vh]">
+          <ScrollArea className="h-full">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Session
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Authority
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Dates
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Location
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Capacity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Priority
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredSessions.map(session => {
+                    const assignedCount = assignedEmployees[session.id]?.length || 0;
+                    const utilizationPercent = Math.round((assignedCount / session.max_participants) * 100);
+                    
+                    return (
+                      <tr key={session.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{session.name}</div>
+                            <div className="text-sm text-gray-500">{session.code}</div>
+                            <div className="text-xs text-gray-400">Instructor: {session.instructor}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getAuthorityColor(session.authority)}`}>
+                            {session.authority}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div>{session.start_date}</div>
+                          <div className="text-gray-500">to {session.end_date}</div>
+                          <div className="text-xs text-gray-400">
+                            {Math.ceil((new Date(session.end_date).getTime() - new Date(session.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {session.location}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {assignedCount}/{session.max_participants}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {utilizationPercent}% utilized
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full" 
+                              style={{ width: `${utilizationPercent}%` }}
+                            ></div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full text-white ${statusColors[session.status]}`}>
+                            {session.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityColor(session.priority)}`}>
+                            {session.priority}
+                          </span>
+                          <div className="text-xs text-gray-500 mt-1">
+                            ⭐ {session.rating}/5.0
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => {
+                              setSelectedSession(session);
+                              setShowSessionModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                          >
+                            Manage
+                          </button>
+                          <button className="text-gray-600 hover:text-gray-900">
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </ScrollArea>
         </div>
       )}
 
