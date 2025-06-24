@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -356,39 +357,72 @@ const ManagerDashboard = () => {
     try {
       const currentDateString = formatDate(currentDate);
       
-      // Fetch support distribution data filtered by current date
-      const { data: supportData, error: supportError } = await supabase
-        .from('employee_supports')
-        .select(`
-          support_id,
-          support_codes (
-            support_code
-          )
-        `)
-        .eq('assignment_date', currentDateString);
+      // Find the date ID for today
+      const { data: dateData } = await supabase
+        .from('date_references')
+        .select('id')
+        .eq('actual_date', currentDateString)
+        .single();
 
-      if (supportError) throw supportError;
+      if (dateData?.id) {
+        // First, get all working employees for today (same logic as Available Employees metric)
+        const { data: workingEmployees } = await supabase
+          .from('employees')
+          .select(`
+            id,
+            roster_assignments!inner(roster_id)
+          `)
+          .eq('is_active', true)
+          .eq('roster_assignments.date_id', dateData.id)
+          .in('roster_assignments.roster_id', [3, 8, 4]); // D, B1, DO
 
-      // Manually group and count support codes
-      const supportCounts = supportData.reduce((acc: any, item: any) => {
-        const supportCode = item.support_codes?.support_code;
-        if (supportCode) {
-          acc[supportCode] = (acc[supportCode] || 0) + 1;
+        if (workingEmployees) {
+          const workingEmployeeIds = workingEmployees.map(emp => emp.id);
+
+          // Fetch support distribution data filtered by current date AND working employees only
+          const { data: supportData, error: supportError } = await supabase
+            .from('employee_supports')
+            .select(`
+              support_id,
+              support_codes (
+                support_code
+              )
+            `)
+            .eq('assignment_date', currentDateString)
+            .in('employee_id', workingEmployeeIds); // Filter by working employees only
+
+          if (supportError) throw supportError;
+
+          // Manually group and count support codes
+          const supportCounts = supportData.reduce((acc: any, item: any) => {
+            const supportCode = item.support_codes?.support_code;
+            if (supportCode) {
+              acc[supportCode] = (acc[supportCode] || 0) + 1;
+            }
+            return acc;
+          }, {});
+
+          // Transform to array and sort
+          const transformedSupport = Object.entries(supportCounts)
+            .map(([support_code, count]) => ({
+              id: support_code,
+              support_code,
+              count
+            }))
+            .sort((a: any, b: any) => b.count - a.count)
+            .slice(0, 20);
+
+          setSupportDistribution(transformedSupport);
+        } else {
+          // No working employees found, set empty data
+          setSupportDistribution([]);
         }
-        return acc;
-      }, {});
+      } else {
+        // No date reference found, set empty data
+        setSupportDistribution([]);
+      }
 
-      // Transform to array and sort
-      const transformedSupport = Object.entries(supportCounts)
-        .map(([support_code, count]) => ({
-          id: support_code,
-          support_code,
-          count
-        }))
-        .sort((a: any, b: any) => b.count - a.count)
-        .slice(0, 20);
-
-      // Fetch job title distribution (still using all active employees)
+      // Fetch job title distribution (still using all active employees as before)
       const { data: roleData, error: roleError } = await supabase
         .from('employees')
         .select(`
@@ -420,7 +454,6 @@ const ManagerDashboard = () => {
         .sort((a: any, b: any) => b.count - a.count)
         .slice(0, 20);
 
-      setSupportDistribution(transformedSupport);
       setRoleDistribution(transformedRoles);
     } catch (error) {
       console.error("Error fetching support data:", error);
