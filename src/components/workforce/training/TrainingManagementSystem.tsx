@@ -599,7 +599,7 @@ const TrainingManagementSystem = () => {
 
       {/* Enhanced Gantt Chart */}
       {viewMode === 'gantt' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden  h-[75vh]">
+        <div className="bg-white rounded-lg shadow overflow-hidden  h-[25vh]">
           <ScrollArea className="h-full">
             <div className="flex">
               {/* Enhanced Location Labels */}
@@ -708,7 +708,7 @@ const TrainingManagementSystem = () => {
 
       {/* Calendar View */}
       {viewMode === 'calendar' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden h-[75vh]">
+        <div className="bg-white rounded-lg shadow overflow-hidden h-[25vh]">
           <ScrollArea className="h-full">
             <div className="p-6">
               <div className="grid grid-cols-7 gap-4 mb-4">
@@ -762,7 +762,7 @@ const TrainingManagementSystem = () => {
 
       {/* List View */}
       {viewMode === 'list' && (
-        <div className="bg-white rounded-lg shadow overflow-hidden h-[75vh]">
+        <div className="bg-white rounded-lg shadow overflow-hidden h-[25vh]">
           <ScrollArea className="h-full">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
