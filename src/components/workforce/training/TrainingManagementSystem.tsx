@@ -685,7 +685,7 @@ const TrainingManagementSystem = () => {
                             }}
                             title={`${session.name}\nStatus: ${session.status}\nUtilization: ${utilizationPercent}%\nInstructor: ${session.instructor}\nRating: ⭐ ${session.rating}/5.0`}
                           >
-                            <div className="text-xs font-medium text-white w-full">
+                            <div className="text-xs font-medium text-gray w-full">
                               <div className="truncate font-bold">{session.code}</div>
                               <div className="flex justify-between items-center text-xs opacity-90">
                                 <span>{assignedCount}/{session.max_participants}</span>
