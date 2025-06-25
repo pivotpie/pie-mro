@@ -782,35 +782,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     onClearAll={() => clearColumnFilter('name')}
                   />
                 </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Alias</span>
-                  <ColumnFilter 
-                    column="key_name" 
-                    label="Alias" 
-                    values={getUniqueValuesForColumn('key_name')}
-                    activeValues={columnFilters['key_name'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('key_name', value)}
-                    onClearAll={() => clearColumnFilter('key_name')}
-                  />
-                </div>
-              </th>
-              <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
-                style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}>
-                <div className="flex items-center justify-between">
-                  <span>Mobile</span>
-                  <ColumnFilter 
-                    column="mobile_number" 
-                    label="Mobile" 
-                    values={getUniqueValuesForColumn('mobile_number')}
-                    activeValues={columnFilters['mobile_number'] || []}
-                    onValueSelect={(value) => handleColumnFilterSelect('mobile_number', value)}
-                    onClearAll={() => clearColumnFilter('mobile_number')}
-                  />
-                </div>
-              </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}>
                 <div className="flex items-center justify-between">
@@ -962,20 +933,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
                   >
                     {employee.name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.alias}px`, left: `${columnLeftPositions.alias}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.key_name || '-'}
-                  </td>
-                  <td 
-                    className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
-                    style={{ width: `${columnWidths.mobile}px`, left: `${columnLeftPositions.mobile}px` }}
-                    onClick={() => onEmployeeSelect && onEmployeeSelect(employee)}
-                  >
-                    {employee.mobile_number || '-'}
                   </td>
                   <td 
                     className="p-2 border-r sticky z-2 cursor-pointer dark:border-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900"
