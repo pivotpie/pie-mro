@@ -129,7 +129,7 @@ const TrainingManagementSystem = () => {
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [selectedEmployeeForSwap, setSelectedEmployeeForSwap] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1)); // June 2025
-  const [viewMode, setViewMode] = useState('gantt'); // gantt, calendar, list
+  const [viewMode, setViewMode] = useState('gantt'); // gantt, calendar, list, employee
   const [assignedEmployees, setAssignedEmployees] = useState({
     1: [1, 2, 4], 2: [3, 5, 7], 3: [6, 8, 9], 4: [1, 10], 5: [2, 3, 6], 6: [4, 7], 7: [5, 8], 8: [9, 10, 1], 9: [2], 10: [3, 4], 11: [5, 6, 7], 12: [8, 9], 13: [10, 1, 2], 14: [3], 15: [4, 5], 16: [6, 7, 8], 17: [9, 10], 18: [1, 3], 19: [2, 4, 5], 20: [6, 7]
   });
@@ -240,6 +240,29 @@ const TrainingManagementSystem = () => {
     });
     return grouped;
   }, [filteredSessions]);
+
+  // Add this after the existing filteredSessions useMemo (around line 250)
+  const employeeTrainingData = useMemo(() => {
+    return mockEmployees.map(employee => {
+      const employeeTrainings = Object.entries(assignedEmployees)
+        .filter(([sessionId, employeeIds]) => employeeIds.includes(employee.id))
+        .map(([sessionId]) => {
+          const session = mockTrainingSessions.find(s => s.id === parseInt(sessionId));
+          return session;
+        })
+        .filter(Boolean);
+  
+      return {
+        ...employee,
+        trainings: employeeTrainings,
+        upcomingTrainings: employeeTrainings.filter(t => new Date(t.start_date) > new Date()),
+        completedTrainings: employeeTrainings.filter(t => new Date(t.end_date) < new Date()),
+        expiringCertifications: employee.certifications.filter(cert => cert.days_to_expire < 90 && cert.days_to_expire > 0),
+        expiredCertifications: employee.certifications.filter(cert => cert.days_to_expire < 0)
+      };
+    });
+  }, [assignedEmployees]);
+
 
   const navigateTime = (direction) => {
     const newDate = new Date(currentDate);
@@ -483,6 +506,14 @@ const TrainingManagementSystem = () => {
                 }`}
               >
                 List View
+              </button>
+              <button
+                onClick={() => setViewMode('employee')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'employee' ? 'bg-white text-blue-600 shadow' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Employee View
               </button>
             </div>
 
@@ -874,6 +905,136 @@ const TrainingManagementSystem = () => {
         </div>
       )}
 
+      {/* Employee View */}
+        {viewMode === 'employee' && (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-6 border-b bg-gray-50">
+            <h3 className="text-lg font-semibold text-gray-900">Employee Training Overview</h3>
+            <p className="text-sm text-gray-600 mt-1">View all employees and their assigned training sessions</p>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certifications</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Upcoming Training</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {employeeTrainingData.map(employee => (
+                  <tr key={employee.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                            <span className="text-sm font-medium text-gray-700">
+                              {employee.name.split(' ').map(n => n[0]).join('')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                          <div className="text-sm text-gray-500">#{employee.e_number}</div>
+                          <div className="text-xs text-gray-400">{employee.job_title}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{employee.team}</div>
+                      <div className="text-sm text-gray-500">{employee.department}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {employee.certifications.slice(0, 3).map((cert, idx) => (
+                          <span
+                            key={idx}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(cert.status)}`}
+                          >
+                            {cert.code}
+                          </span>
+                        ))}
+                        {employee.certifications.length > 3 && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            +{employee.certifications.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {employee.upcomingTrainings.length > 0 ? (
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {employee.upcomingTrainings[0].name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(employee.upcomingTrainings[0].start_date).toLocaleDateString()}
+                          </div>
+                          {employee.upcomingTrainings.length > 1 && (
+                            <div className="text-xs text-gray-400">
+                              +{employee.upcomingTrainings.length - 1} more
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">No upcoming training</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        {employee.expiredCertifications.length > 0 && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            {employee.expiredCertifications.length} Expired
+                          </span>
+                        )}
+                        {employee.expiringCertifications.length > 0 && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                            {employee.expiringCertifications.length} Expiring
+                          </span>
+                        )}
+                        {employee.expiredCertifications.length === 0 && employee.expiringCertifications.length === 0 && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              employee.priority_score >= 90 ? 'bg-red-500' :
+                              employee.priority_score >= 70 ? 'bg-orange-500' :
+                              employee.priority_score >= 50 ? 'bg-yellow-500' : 'bg-green-500'
+                            }`}
+                            style={{ width: `${employee.priority_score}%` }}
+                          ></div>
+                        </div>
+                        <span className="ml-2 text-sm text-gray-900">{employee.priority_score}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button className="text-blue-600 hover:text-blue-900 mr-3">
+                        View Details
+                      </button>
+                      <button className="text-green-600 hover:text-green-900">
+                        Assign Training
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+  
       {/* Analytics Modal */}
       {showAnalyticsModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
