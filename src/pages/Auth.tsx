@@ -151,14 +151,6 @@ const Auth = () => {
                 </button>
               </div>
             </div>
-
-            <div className="text-sm text-gray-500">
-              <p>For testing, use these credentials:</p>
-              <ul className="list-disc pl-5 mt-1">
-                <li>Username: manager, Password: manager123</li>
-                <li>Username: admin, Password: admin123</li>
-              </ul>
-            </div>
           </CardContent>
           <CardFooter>
             <Button className="w-full bg-slate-900 hover:bg-slate-800" type="submit" disabled={isLoading}>
