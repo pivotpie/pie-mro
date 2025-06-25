@@ -768,7 +768,6 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     onClearAll={() => clearColumnFilter('e_number')}
                   />
                 </div>
-              </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.name}px`, left: `${columnLeftPositions.name}px` }}>
                 <div className="flex items-center justify-between">
@@ -782,6 +781,7 @@ export const EmployeeCalendar = React.forwardRef<HTMLDivElement, EmployeeCalenda
                     onClearAll={() => clearColumnFilter('name')}
                   />
                 </div>
+              </th>
               <th className="p-2 text-left border-r sticky top-0 z-30 dark:border-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800" 
                 style={{ width: `${columnWidths.team}px`, left: `${columnLeftPositions.team}px` }}>
                 <div className="flex items-center justify-between">
