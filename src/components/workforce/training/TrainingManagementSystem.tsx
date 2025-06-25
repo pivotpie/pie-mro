@@ -144,6 +144,9 @@ const TrainingManagementSystem = () => {
   const [employeeToReplace, setEmployeeToReplace] = useState<number | null>(null);
   const [showEmployeeDetailsModal, setShowEmployeeDetailsModal] = useState(false);
   const [selectedEmployeeForDetails, setSelectedEmployeeForDetails] = useState(null);
+  const [showAssignTrainingModal, setShowAssignTrainingModal] = useState(false);
+  const [selectedEmployeeForTraining, setSelectedEmployeeForTraining] = useState(null);
+  const [employeeQualifiedTrainings, setEmployeeQualifiedTrainings] = useState([]);
 
   // Analytics calculations
   const analytics = useMemo(() => {
@@ -265,6 +268,64 @@ const TrainingManagementSystem = () => {
     });
   }, [assignedEmployees]);
 
+  const getQualifiedTrainingsForEmployee = useMemo(() => {
+    return (employee) => {
+      if (!employee) return [];
+      
+      return mockTrainingSessions.filter(session => {
+        // Exclude sessions that are completed or cancelled
+        if (['Completed', 'Cancelled'].includes(session.status)) return false;
+        
+        // Check if employee is already assigned
+        const isAlreadyAssigned = assignedEmployees[session.id]?.includes(employee.id);
+        if (isAlreadyAssigned) return false;
+        
+        // Check if session has available capacity
+        const currentAssigned = assignedEmployees[session.id]?.length || 0;
+        if (currentAssigned >= session.max_participants) return false;
+        
+        // Match training prerequisites with employee certifications
+        const employeeCerts = employee.certifications.map(cert => cert.code.toLowerCase());
+        const sessionRequirements = session.prerequisites || [];
+        
+        // Basic qualification check - employee should have relevant certifications
+        const hasRelevantCert = employeeCerts.some(cert => 
+          session.name.toLowerCase().includes(cert) || 
+          session.category.toLowerCase().includes('basic') ||
+          cert.includes('a1') || cert.includes('b1') || cert.includes('b2') || cert.includes('c')
+        );
+        
+        return hasRelevantCert;
+      }).sort((a, b) => {
+        // Sort by priority and relevance
+        const aRelevance = getPriorityForEmployee(employee, a);
+        const bRelevance = getPriorityForEmployee(employee, b);
+        return bRelevance - aRelevance;
+      });
+    };
+  }, [assignedEmployees]);
+  
+  const getPriorityForEmployee = (employee, session) => {
+    let score = 0;
+    
+    // Higher priority for employees with expiring certifications
+    const expiringCerts = employee.certifications.filter(cert => cert.days_to_expire < 90 && cert.days_to_expire > 0);
+    const expiredCerts = employee.certifications.filter(cert => cert.days_to_expire < 0);
+    
+    score += expiringCerts.length * 20;
+    score += expiredCerts.length * 50;
+    
+    // Higher priority for high-priority sessions
+    if (session.priority === 'Critical') score += 30;
+    else if (session.priority === 'High') score += 20;
+    else if (session.priority === 'Medium') score += 10;
+    
+    // Factor in employee's base priority score
+    score += employee.priority_score * 0.5;
+    
+    return score;
+  };
+
 
   const navigateTime = (direction) => {
     const newDate = new Date(currentDate);
@@ -337,6 +398,22 @@ const TrainingManagementSystem = () => {
     
     // Optional: Show success message
     console.log(`Successfully substituted employee ${selectedEmployeeForSwap} with ${selectedReplacementEmployee}`);
+  };
+
+  const handleScheduleEmployeeForTraining = (sessionId) => {
+    if (!selectedEmployeeForTraining) return;
+    
+    setAssignedEmployees(prev => ({
+      ...prev,
+      [sessionId]: [...(prev[sessionId] || []), selectedEmployeeForTraining.id]
+    }));
+    
+    // Update qualified trainings list to reflect the change
+    const updatedQualifiedTrainings = employeeQualifiedTrainings.filter(session => session.id !== sessionId);
+    setEmployeeQualifiedTrainings(updatedQualifiedTrainings);
+    
+    // Optional: Show success message
+    console.log(`Successfully scheduled ${selectedEmployeeForTraining.name} for training: ${mockTrainingSessions.find(s => s.id === sessionId)?.name}`);
   };
 
 
@@ -1034,9 +1111,10 @@ const TrainingManagementSystem = () => {
                         <button 
                           className="text-green-600 hover:text-green-900"
                           onClick={() => {
-                            setSelectedSession(null); // Clear any existing selection
-                            setSelectedEmployeeForDetails(employee);
-                            setShowSessionModal(true);
+                            setSelectedEmployeeForTraining(employee);
+                            const qualifiedTrainings = getQualifiedTrainingsForEmployee(employee);
+                            setEmployeeQualifiedTrainings(qualifiedTrainings);
+                            setShowAssignTrainingModal(true);
                           }}
                         >
                           Assign Training
@@ -1685,6 +1763,171 @@ const TrainingManagementSystem = () => {
           </div>
         </div>
       )}
+
+      {/* Assign Training Modal */}
+      {showAssignTrainingModal && selectedEmployeeForTraining && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-[1000px] max-h-[90vh] overflow-hidden">
+            <div className="border-b p-6 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Assign Training - {selectedEmployeeForTraining.name}</h2>
+                <p className="text-gray-600 mt-1">#{selectedEmployeeForTraining.e_number} - {selectedEmployeeForTraining.job_title}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAssignTrainingModal(false);
+                  setSelectedEmployeeForTraining(null);
+                  setEmployeeQualifiedTrainings([]);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="h-8 w-8" />
+              </button>
+            </div>
+      
+            <div className="p-6">
+              {/* Employee Summary */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200 mb-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Employee Overview</h3>
+                    <p className="text-sm"><strong>Team:</strong> {selectedEmployeeForTraining.team}</p>
+                    <p className="text-sm"><strong>Department:</strong> {selectedEmployeeForTraining.department}</p>
+                    <p className="text-sm"><strong>Priority Score:</strong> {selectedEmployeeForTraining.priority_score}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Certification Status</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedEmployeeForTraining.certifications.slice(0, 3).map((cert, idx) => (
+                        <span key={idx} className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(cert.status)}`}>
+                          {cert.code} ({cert.days_to_expire}d)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+      
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Qualified Training Sessions ({employeeQualifiedTrainings.length})</h3>
+                <div className="text-sm text-gray-600">
+                  🎯 Smart recommendations based on certifications and priority
+                </div>
+              </div>
+      
+              {/* Qualified Trainings List */}
+              <div className="max-h-96 overflow-y-auto space-y-4">
+                {employeeQualifiedTrainings.length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <div className="text-gray-500 mb-2">No qualified training sessions found</div>
+                    <div className="text-sm text-gray-400">All available sessions are either full, completed, or not matching employee qualifications</div>
+                  </div>
+                ) : (
+                  employeeQualifiedTrainings.map(session => {
+                    const currentAssigned = assignedEmployees[session.id]?.length || 0;
+                    const utilization = Math.round((currentAssigned / session.max_participants) * 100);
+                    const relevanceScore = getPriorityForEmployee(selectedEmployeeForTraining, session);
+                    
+                    return (
+                      <div key={session.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold text-lg">{session.name}</h4>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAuthorityColor(session.authority)}`}>
+                                {session.authority}
+                              </span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(session.priority)}`}>
+                                {session.priority}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 mb-2">
+                              <span className="mr-4">📅 {session.start_date} to {session.end_date}</span>
+                              <span className="mr-4">📍 {session.location}</span>
+                              <span>👨‍🏫 {session.instructor}</span>
+                            </div>
+                            <div className="text-xs text-gray-500 grid grid-cols-3 gap-2">
+                              <span>🎯 Relevance Score: {relevanceScore}</span>
+                              <span>👥 Capacity: {currentAssigned}/{session.max_participants}</span>
+                              <span>⭐ Rating: {session.rating}/5</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleScheduleEmployeeForTraining(session.id)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                          >
+                            Schedule
+                          </button>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${
+                                utilization >= 90 ? 'bg-red-500' : 
+                                utilization >= 75 ? 'bg-orange-500' : 
+                                utilization >= 50 ? 'bg-yellow-500' : 'bg-green-500'
+                              }`}
+                              style={{ width: `${utilization}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gray-500">{utilization}%</span>
+                        </div>
+      
+                        {/* Prerequisites Match */}
+                        <div className="text-xs text-gray-600">
+                          <strong>Match Indicators:</strong>
+                          {selectedEmployeeForTraining.certifications.filter(cert => 
+                            session.name.toLowerCase().includes(cert.code.toLowerCase()) ||
+                            session.category.toLowerCase().includes(cert.code.toLowerCase())
+                          ).map((cert, idx) => (
+                            <span key={idx} className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded">
+                              ✓ {cert.code}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+      
+            <div className="border-t p-6 flex justify-between items-center bg-gray-50">
+              <div className="text-sm text-gray-600">
+                <span className="mr-6">📚 Training Completed: {selectedEmployeeForTraining.training_completed}</span>
+                <span className="mr-6">⏳ Training Pending: {selectedEmployeeForTraining.training_pending}</span>
+                <span>⭐ Performance: {selectedEmployeeForTraining.performance_rating}/5</span>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowAssignTrainingModal(false);
+                    setSelectedEmployeeForTraining(null);
+                    setEmployeeQualifiedTrainings([]);
+                  }}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Close
+                </button>
+                <button 
+                  onClick={() => {
+                    // Bulk schedule top 3 recommended trainings
+                    const topTrainings = employeeQualifiedTrainings.slice(0, 3);
+                    topTrainings.forEach(session => handleScheduleEmployeeForTraining(session.id));
+                  }}
+                  disabled={employeeQualifiedTrainings.length === 0}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium"
+                >
+                  Quick Schedule (Top 3)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
