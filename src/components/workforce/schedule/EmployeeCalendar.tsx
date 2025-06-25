@@ -71,7 +71,7 @@ const columnLeftPositions = {
   title: 475,
   night_shift: 545,
   fte: 625,
-  ttl: 705
+  ttl: 700
 };
 
 const calculateTotalWidth = (days: any[]) => {
