@@ -1047,23 +1047,23 @@ const TrainingManagementSystem = () => {
                       </td>
                       <td className="px-6 py-4">
                         {employee.upcomingTrainings.length > 0 ? (
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {employee.upcomingTrainings[0].name}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {new Date(employee.upcomingTrainings[0].start_date).toLocaleDateString()}
-                            </div>
-                            {employee.upcomingTrainings.length > 1 && (
-                              <div className="text-xs text-gray-400">
-                                +{employee.upcomingTrainings.length - 1} more
+                          <div className="space-y-2 max-h-32 overflow-y-auto">
+                            {employee.upcomingTrainings.map((training, index) => (
+                              <div key={index} className="border-b border-gray-100 last:border-b-0 pb-1 last:pb-0">
+                                <div className="text-sm font-medium text-gray-900 truncate max-w-48">
+                                  {training.name}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {new Date(training.start_date).toLocaleDateString()}
+                                </div>
                               </div>
-                            )}
+                            ))}
                           </div>
                         ) : (
                           <span className="text-sm text-gray-400">No upcoming training</span>
                         )}
                       </td>
+
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-col gap-1">
                           {employee.expiredCertifications.length > 0 && (
