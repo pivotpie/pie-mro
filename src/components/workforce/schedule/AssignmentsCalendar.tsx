@@ -54,8 +54,6 @@ interface Employee {
 const columnWidths = {
   id: 80,
   name: 200,
-  alias: 70,
-  mobile: 130,
   team: 100,
   core: 100,
   support: 100,
@@ -69,15 +67,13 @@ const columnWidths = {
 const columnLeftPositions = {
   id: 0,
   name: 80,
-  alias: 212,
-  mobile: 310,
-  team: 452,
-  core: 549,
-  support: 624,
-  title: 726,
-  night_shift: 816,
-  fte: 897,
-  ttl: 960
+  team: 180,
+  core: 280,
+  support: 380,
+  title: 480,
+  night_shift: 550,
+  fte: 630,
+  ttl: 710
 };
 
 const calculateTotalWidth = (days: any[]) => {
