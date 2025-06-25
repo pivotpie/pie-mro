@@ -147,8 +147,8 @@ const TableHead = React.forwardRef<
     <th
       ref={ref}
       className={cn(
-        "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-        sortable && "cursor-pointer select-none",
+        "h-12 px-4 text-left align-middle font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 [&:has([role=checkbox])]:pr-0",
+        sortable && "cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors",
         className
       )}
       onClick={() => sortable && onSortChange && onSortChange()}
