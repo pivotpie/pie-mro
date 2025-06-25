@@ -319,7 +319,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         const getAvailabilityPriority = (availability: string | undefined) => {
           if (!availability) return 0; // No availability info
           if (availability === 'Available') return 3; // Available (not on off day) - highest priority
-          if (availability === 'Available (Off Day)') return 2; // Available but on off day - medium priority
+          if (availability === 'Available (Off Day)') return -1; // Available but on off day - medium priority
           if (availability.includes('Available')) return 1; // Other available statuses - low priority
           return 0; // Not available (leave, sick, training, etc.) - lowest priority
         };
