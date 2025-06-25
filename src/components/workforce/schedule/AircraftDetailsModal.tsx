@@ -1115,14 +1115,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
                         <div className="flex-1">
                           <p className="font-medium dark:text-gray-200">{employee.name}</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{employee.role}</p>
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs">{employee.trade}</p>
-                            {employee.match_score && (
-                              <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                                {employee.match_score}% match
-                              </p>
-                            )}
-                          </div>
+
                         </div>
                         {aircraft.status === 'Scheduled' && (
                           <Button 
