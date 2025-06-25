@@ -72,7 +72,7 @@ export function SortableTable<T extends { id: string | number }>({
   }
 
   return (
-    <div className={`border rounded-lg overflow-auto max-h-[90vh] ${className || ""}`}>
+    <div className={`border rounded-lg overflow-auto max-h-[75vh] ${className || ""}`}>
       <Table>
         <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 shadow-sm">
           <TableRow>
