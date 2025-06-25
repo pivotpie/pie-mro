@@ -68,12 +68,12 @@ const columnLeftPositions = {
   id: 0,
   name: 80,
   team: 180,
-  core: 280,
-  support: 380,
-  title: 480,
-  night_shift: 550,
-  fte: 630,
-  ttl: 710
+  core: 278,
+  support: 375,
+  title: 475,
+  night_shift: 545,
+  fte: 625,
+  ttl: 705
 };
 
 const calculateTotalWidth = (days: any[]) => {
