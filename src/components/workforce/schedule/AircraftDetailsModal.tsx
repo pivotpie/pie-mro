@@ -668,22 +668,25 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       await assignEmployeesToAircraft([employee], aircraft?.registration || '');
       
       // Update aircraft status to "In Progress" if it's currently "Scheduled"
+      let statusMessage = '';
       if (aircraft && aircraft.status === 'Scheduled') {
         await updateAircraftStatus(parseInt(aircraft.id), 'In Progress');
         aircraft.status = 'In Progress';
+        statusMessage = ' Status updated to In Progress.';
+      } else if (aircraft?.status === 'In Progress') {
+        statusMessage = ' Added to current team.';
       }
       
       // Update local state
       setAssignedEmployees(prev => [...prev, employee]);
       setAvailableEmployees(prev => prev.filter(emp => emp.id !== employee.id));
       
-      toast.success(`${employee.name} assigned to ${aircraft?.registration}. Status updated to In Progress.`);
+      toast.success(`${employee.name} assigned to ${aircraft?.registration}.${statusMessage}`);
     } catch (error) {
       toast.error("Failed to assign employee. Please try again.");
       console.error("Assignment error:", error);
     }
   };
-
 
   // ADD THESE TWO NEW FUNCTIONS HERE (before handleAssignEmployee)
   const assignEmployeesToAircraft = async (employees: Employee[], aircraftRegistration: string) => {
@@ -850,11 +853,13 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       await assignEmployeesToAircraft(employeesToAssign, aircraft?.registration || '');
       
       // Update aircraft status to "In Progress" if it's currently "Scheduled"
+      let statusMessage = '';
       if (aircraft && aircraft.status === 'Scheduled') {
         await updateAircraftStatus(parseInt(aircraft.id), 'In Progress');
-        
-        // Update local aircraft object
         aircraft.status = 'In Progress';
+        statusMessage = ' Status updated to In Progress.';
+      } else if (aircraft?.status === 'In Progress') {
+        statusMessage = ' Added to current team.';
       }
       
       // Update local state
@@ -866,14 +871,12 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       setFilteredEmployees(newAvailable);
       setSelectedEmployees(new Set());
       
-      toast.success(`${employeesToAssign.length} employees assigned to ${aircraft?.registration}. Status updated to In Progress.`);
+      toast.success(`${employeesToAssign.length} employees assigned to ${aircraft?.registration}.${statusMessage}`);
     } catch (error) {
       toast.error("Failed to assign employees. Please try again.");
       console.error("Assignment error:", error);
     }
   };
-
-
 
   const handleRemoveAssignedEmployee = async (employee: Employee) => {
     try {
@@ -1117,14 +1120,14 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
                           <p className="text-sm text-gray-500 dark:text-gray-400">{employee.role}</p>
 
                         </div>
-                        {aircraft.status === 'Scheduled' && (
+                        {(aircraft.status === 'Scheduled' || aircraft.status === 'In Progress') && (
                           <Button 
                             variant="ghost" 
                             size="sm" 
                             className="text-red-500 hover:text-red-700"
                             onClick={() => handleRemoveAssignedEmployee(employee)}
                           >
-                            Remove
+                            {aircraft.status === 'In Progress' ? 'Remove from Team' : 'Remove'}
                           </Button>
                         )}
                       </div>
@@ -1164,13 +1167,13 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
                       Clear Filter
                     </Button>
                   )}
-                  {aircraft.status === 'Scheduled' && selectedEmployees.size > 0 && (
+                  {(aircraft.status === 'Scheduled' || aircraft.status === 'In Progress') && selectedEmployees.size > 0 && (
                     <Button 
                       onClick={handleBulkAssignEmployees}
                       className="flex items-center gap-2"
                     >
                       <Check className="h-4 w-4" />
-                      Assign Selected ({selectedEmployees.size})
+                      {aircraft.status === 'In Progress' ? 'Add to Team' : 'Assign Selected'} ({selectedEmployees.size})
                     </Button>
                   )}
                 </div>
