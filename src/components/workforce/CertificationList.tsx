@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Filter, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
 
 interface Certification {
   id: number;
@@ -28,9 +29,23 @@ interface CertificationListProps {
   onCertificationClick?: (certification: CertificationData) => void;
 }
 
+interface CertificationStats {
+  valid: number;
+  expiringSoon: number;
+  expired: number;
+  total: number;
+}
+
 export const CertificationList = ({ onCertificationClick }: CertificationListProps) => {
   const [selectedCertification, setSelectedCertification] = useState<Certification | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [stats, setStats] = useState<CertificationStats>({
+    valid: 0,
+    expiringSoon: 0,
+    expired: 0,
+    total: 0
+  });
+  const [loading, setLoading] = useState(true);
 
   const certifications: Certification[] = [
     {
@@ -75,6 +90,55 @@ export const CertificationList = ({ onCertificationClick }: CertificationListPro
     }
   ];
 
+  useEffect(() => {
+    const fetchCertificationStats = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('certifications')
+          .select('*');
+        
+        if (error) {
+          throw error;
+        }
+
+        // Process certifications to get stats
+        const now = new Date();
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(now.getDate() + 30);
+
+        const valid = data.filter(cert => new Date(cert.expiry_date) > thirtyDaysFromNow).length;
+        const expiringSoon = data.filter(cert => {
+          const expiryDate = new Date(cert.expiry_date);
+          return expiryDate <= thirtyDaysFromNow && expiryDate >= now;
+        }).length;
+        const expired = data.filter(cert => new Date(cert.expiry_date) < now).length;
+        
+        setStats({
+          valid,
+          expiringSoon,
+          expired,
+          total: data.length
+        });
+      } catch (error: any) {
+        toast.error(`Error loading certification stats: ${error.message}`);
+        console.error("Error fetching certification stats:", error);
+        
+        // Fallback to mock data if database fails
+        setStats({
+          valid: 15,
+          expiringSoon: 8,
+          expired: 25,
+          total: 48
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCertificationStats();
+  }, []);
+
   const handleCertificationClick = (certification: Certification) => {
     if (onCertificationClick) {
       // Convert to CertificationData format for the callback
@@ -97,6 +161,22 @@ export const CertificationList = ({ onCertificationClick }: CertificationListPro
     });
   };
 
+  // Calculate chart segments
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  
+  const validPercentage = stats.total > 0 ? stats.valid / stats.total : 0;
+  const expiringSoonPercentage = stats.total > 0 ? stats.expiringSoon / stats.total : 0;
+  const expiredPercentage = stats.total > 0 ? stats.expired / stats.total : 0;
+
+  const validDashArray = circumference * validPercentage;
+  const expiringSoonDashArray = circumference * expiringSoonPercentage;
+  const expiredDashArray = circumference * expiredPercentage;
+
+  const validOffset = 0;
+  const expiringSoonOffset = circumference - validDashArray;
+  const expiredOffset = circumference - validDashArray - expiringSoonDashArray;
+
   return (
     <Card className="shadow-sm">
       <CardContent className="p-4">
@@ -115,70 +195,101 @@ export const CertificationList = ({ onCertificationClick }: CertificationListPro
         </div>
 
         <div className="mb-6">
-          <div className="relative w-full h-40 flex items-center justify-center">
-            <div className="relative w-40 h-40">
-              <svg viewBox="0 0 100 100" className="w-full h-full">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  stroke="#f3f4f6"
-                  strokeWidth="12"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  stroke="#ef4444"
-                  strokeWidth="12"
-                  strokeDasharray="75.4"
-                  strokeDashoffset="0"
-                  transform="rotate(-90 50 50)"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  stroke="#f97316"
-                  strokeWidth="12"
-                  strokeDasharray="75.4"
-                  strokeDashoffset="25.1"
-                  transform="rotate(-90 50 50)"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  stroke="#22c55e"
-                  strokeWidth="12"
-                  strokeDasharray="75.4"
-                  strokeDashoffset="50.2"
-                  transform="rotate(-90 50 50)"
-                />
-              </svg>
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                <div className="text-3xl font-bold">48</div>
-                <div className="text-xs text-gray-500">Total</div>
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 flex justify-center space-x-6">
-              <div className="flex items-center">
-                <span className="h-3 w-3 rounded-full bg-green-500 mr-2"></span>
-                <span className="text-xs">Valid</span>
-              </div>
-              <div className="flex items-center">
-                <span className="h-3 w-3 rounded-full bg-orange-500 mr-2"></span>
-                <span className="text-xs">Expiring soon</span>
-              </div>
-              <div className="flex items-center">
-                <span className="h-3 w-3 rounded-full bg-red-500 mr-2"></span>
-                <span className="text-xs">Expired</span>
-              </div>
-            </div>
+          <div className="relative w-full h-48 flex items-center justify-center">
+            {loading ? (
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            ) : (
+              <>
+                <div className="relative w-40 h-40">
+                  <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                    {/* Background circle */}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={radius}
+                      fill="none"
+                      stroke="#f3f4f6"
+                      strokeWidth="12"
+                    />
+                    
+                    {/* Valid certifications segment (green) */}
+                    {stats.valid > 0 && (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r={radius}
+                        fill="none"
+                        stroke="#22c55e"
+                        strokeWidth="12"
+                        strokeDasharray={`${validDashArray} ${circumference - validDashArray}`}
+                        strokeDashoffset={validOffset}
+                        className="transition-all duration-500"
+                      />
+                    )}
+                    
+                    {/* Expiring soon certifications segment (orange) */}
+                    {stats.expiringSoon > 0 && (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r={radius}
+                        fill="none"
+                        stroke="#f97316"
+                        strokeWidth="12"
+                        strokeDasharray={`${expiringSoonDashArray} ${circumference - expiringSoonDashArray}`}
+                        strokeDashoffset={expiringSoonOffset}
+                        className="transition-all duration-500"
+                      />
+                    )}
+                    
+                    {/* Expired certifications segment (red) */}
+                    {stats.expired > 0 && (
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r={radius}
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="12"
+                        strokeDasharray={`${expiredDashArray} ${circumference - expiredDashArray}`}
+                        strokeDashoffset={expiredOffset}
+                        className="transition-all duration-500"
+                      />
+                    )}
+                  </svg>
+                  
+                  {/* Center text */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">{stats.total}</div>
+                      <div className="text-xs text-gray-500">Total</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Legend */}
+                <div className="absolute bottom-0 left-0 right-0 flex justify-center space-x-6">
+                  <div className="flex items-center">
+                    <span className="h-3 w-3 rounded-full bg-green-500 mr-2"></span>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      Valid ({stats.valid})
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="h-3 w-3 rounded-full bg-orange-500 mr-2"></span>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      Expiring soon ({stats.expiringSoon})
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="h-3 w-3 rounded-full bg-red-500 mr-2"></span>
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      Expired ({stats.expired})
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -237,7 +348,7 @@ export const CertificationList = ({ onCertificationClick }: CertificationListPro
         
         <div className="mt-3 text-right">
           <Button variant="link" size="sm" className="text-blue-600 hover:text-blue-800">
-            View All (48)
+            View All ({stats.total})
           </Button>
         </div>
       </CardContent>
