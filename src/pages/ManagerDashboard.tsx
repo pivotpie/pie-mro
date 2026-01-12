@@ -695,30 +695,6 @@ const ManagerDashboard = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Management shortcuts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate('/admin-workforce')}
-                    className="w-full justify-start"
-                  >
-                    Go to Workforce Management
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => toast.success("Assignment saved successfully")}
-                    className="w-full justify-start"
-                  >
-                    Save Current Assignments
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

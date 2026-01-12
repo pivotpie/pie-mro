@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
+  }
   public: {
     Tables: {
       aircraft: {
@@ -1629,103 +1634,75 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      allocate_roster_may_june_2025: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      allocate_roster_may_june_2025_fixed: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      allocate_roster_may_june_2025_shuffled: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      allocate_roster_may_june_2025_simple: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      allocate_roster_may_june_2025: { Args: never; Returns: string }
+      allocate_roster_may_june_2025_fixed: { Args: never; Returns: string }
+      allocate_roster_may_june_2025_shuffled: { Args: never; Returns: string }
+      allocate_roster_may_june_2025_simple: { Args: never; Returns: string }
       allocate_roster_may_june_2025_weekend_offs: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: string
       }
       analyze_off_day_distribution: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           day_name: string
           day_number: number
-          total_offs: number
           percentage: number
+          total_offs: number
         }[]
       }
       assign_blank_entries_to_av: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
+          action_taken: string
+          assignment_date: string
           employee_id: number
           employee_name: string
-          assignment_date: string
-          action_taken: string
         }[]
       }
-      assign_employees_to_codes_with_dates: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      assign_employees_to_codes_with_dates: { Args: never; Returns: undefined }
       authenticate_user: {
-        Args: { p_username: string; p_password: string }
+        Args: { p_password: string; p_username: string }
         Returns: {
+          authenticated: boolean
           id: number
           user_name: string
-          authenticated: boolean
         }[]
       }
-      clear_aircraft_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      create_schedule_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_all_personnel_requirements: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_attendance_may_1_to_25_2025: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      clear_aircraft_data: { Args: never; Returns: undefined }
+      create_schedule_data: { Args: never; Returns: undefined }
+      generate_all_personnel_requirements: { Args: never; Returns: undefined }
+      generate_attendance_may_1_to_25_2025: { Args: never; Returns: undefined }
       generate_detailed_assignment_report: {
-        Args: { p_start_date?: string; p_end_date?: string }
+        Args: { p_end_date?: string; p_start_date?: string }
         Returns: {
           assignment_date: string
-          employee_number: number
-          employee_name: string
-          job_title: string
           core_assignment: string
-          support_assignment: string
-          roster_status: string
+          employee_name: string
+          employee_number: number
+          job_title: string
           roster_description: string
+          roster_status: string
+          support_assignment: string
         }[]
       }
-      generate_employee_assignments: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_employee_assignments: { Args: never; Returns: string }
       generate_employee_authorizations: {
         Args: { p_number_of_records: number }
         Returns: undefined
       }
-      generate_hangar_visits: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      generate_hangar_visits: { Args: never; Returns: undefined }
       generate_may_roster_report: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           "E#": number
-          Name: string
           "May-1": string
+          "May-10": string
+          "May-11": string
+          "May-12": string
+          "May-13": string
+          "May-14": string
+          "May-15": string
           "May-2": string
           "May-3": string
           "May-4": string
@@ -1734,20 +1711,20 @@ export type Database = {
           "May-7": string
           "May-8": string
           "May-9": string
-          "May-10": string
-          "May-11": string
-          "May-12": string
-          "May-13": string
-          "May-14": string
-          "May-15": string
+          Name: string
         }[]
       }
       generate_may_roster_report_shuffled: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           "E#": number
-          Name: string
           "May-1": string
+          "May-10": string
+          "May-11": string
+          "May-12": string
+          "May-13": string
+          "May-14": string
+          "May-15": string
           "May-2": string
           "May-3": string
           "May-4": string
@@ -1756,52 +1733,31 @@ export type Database = {
           "May-7": string
           "May-8": string
           "May-9": string
-          "May-10": string
-          "May-11": string
-          "May-12": string
-          "May-13": string
-          "May-14": string
-          "May-15": string
+          Name: string
           Pattern_Summary: string
         }[]
       }
       generate_realistic_roster_may_june_2025: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: undefined
       }
       generate_registration_by_authority: {
         Args: { authority: string }
         Returns: string
       }
-      generate_roster_may_june_2025: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      generate_roster_may_june_2025: { Args: never; Returns: undefined }
       generate_roster_report_sample: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
-          "E#": number
-          Title: string
-          Name: string
-          Team: string
           Core: string
-          Support: string
-          "May-1": string
-          "May-2": string
-          "May-3": string
-          "May-4": string
-          "May-5": string
-          "May-6": string
-          "May-7": string
-          "May-8": string
-          "May-9": string
-          "May-10": string
-          "May-11": string
-          "May-12": string
-          "May-13": string
-          "May-14": string
-          "May-15": string
+          "E#": number
           "Jun-1": string
+          "Jun-10": string
+          "Jun-11": string
+          "Jun-12": string
+          "Jun-13": string
+          "Jun-14": string
+          "Jun-15": string
           "Jun-2": string
           "Jun-3": string
           "Jun-4": string
@@ -1810,25 +1766,13 @@ export type Database = {
           "Jun-7": string
           "Jun-8": string
           "Jun-9": string
-          "Jun-10": string
-          "Jun-11": string
-          "Jun-12": string
-          "Jun-13": string
-          "Jun-14": string
-          "Jun-15": string
-        }[]
-      }
-      generate_training_schedules: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_weekend_roster_report: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          "E#": number
-          Name: string
-          Off_Pattern: string
           "May-1": string
+          "May-10": string
+          "May-11": string
+          "May-12": string
+          "May-13": string
+          "May-14": string
+          "May-15": string
           "May-2": string
           "May-3": string
           "May-4": string
@@ -1837,139 +1781,134 @@ export type Database = {
           "May-7": string
           "May-8": string
           "May-9": string
+          Name: string
+          Support: string
+          Team: string
+          Title: string
+        }[]
+      }
+      generate_training_schedules: { Args: never; Returns: undefined }
+      generate_weekend_roster_report: {
+        Args: never
+        Returns: {
+          "E#": number
+          "May-1": string
           "May-10": string
           "May-11": string
           "May-12": string
           "May-13": string
           "May-14": string
           "May-15": string
+          "May-2": string
+          "May-3": string
+          "May-4": string
+          "May-5": string
+          "May-6": string
+          "May-7": string
+          "May-8": string
+          "May-9": string
+          Name: string
+          Off_Pattern: string
         }[]
       }
       get_employee_project_assignments: {
         Args: { p_date?: string }
         Returns: {
-          employee_id: number
-          employee_number: number
-          employee_name: string
-          assignment_type: string
           assignment_code: string
           assignment_date: string
+          assignment_type: string
+          employee_id: number
+          employee_name: string
+          employee_number: number
           project_details: string
         }[]
       }
       get_employee_roster: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
-          id: number
-          employee_id: number
           date: string
-          status_code: string
+          employee_id: number
+          id: number
           notes: string
+          status_code: string
         }[]
       }
       get_project_assignment_summary: {
-        Args: { p_start_date?: string; p_end_date?: string }
+        Args: { p_end_date?: string; p_start_date?: string }
         Returns: {
           assignment_date: string
-          total_working_employees: number
+          available_assignments: number
           core_assignments: number
           support_assignments: number
-          available_assignments: number
+          total_working_employees: number
           unassigned_employees: number
         }[]
       }
       migrate_certifications_to_authorizations: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: undefined
       }
-      populate_aircraft_from_schedule: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      populate_aircraft_models: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      populate_aircraft_types: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      populate_assignment_codes: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      populate_authorities_and_validity: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      populate_engine_types: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      populate_hangars: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      populate_aircraft_from_schedule: { Args: never; Returns: undefined }
+      populate_aircraft_models: { Args: never; Returns: undefined }
+      populate_aircraft_types: { Args: never; Returns: undefined }
+      populate_assignment_codes: { Args: never; Returns: undefined }
+      populate_authorities_and_validity: { Args: never; Returns: undefined }
+      populate_engine_types: { Args: never; Returns: undefined }
+      populate_hangars: { Args: never; Returns: undefined }
       populate_maintenance_visits_from_schedule: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: undefined
       }
-      populate_personnel_requirements_only: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      setup_aircraft_maintenance_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      populate_personnel_requirements_only: { Args: never; Returns: undefined }
+      setup_aircraft_maintenance_data: { Args: never; Returns: undefined }
       show_employee_pattern: {
-        Args: { emp_num: number; start_date?: string; days_to_show?: number }
+        Args: { days_to_show?: number; emp_num: number; start_date?: string }
         Returns: {
+          cycle_day: number
           date_val: string
           day_name: string
-          roster_code: string
-          cycle_day: number
           pattern_note: string
+          roster_code: string
         }[]
       }
       test_roster_allocation: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
-          employee_number: number
-          employee_name: string
-          roster_date: string
-          roster_code: string
           day_of_week: string
+          employee_name: string
+          employee_number: number
+          roster_code: string
+          roster_date: string
         }[]
       }
       update_certifications_with_new_aircraft: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: undefined
       }
       validate_roster_patterns: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
-          employee_number: number
           employee_name: string
+          employee_number: number
           issue_date: string
           issue_description: string
         }[]
       }
       validate_roster_patterns_enhanced: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
-          employee_number: number
           employee_name: string
-          week_start_date: string
+          employee_number: number
           issue_description: string
           pattern_found: string
+          week_start_date: string
         }[]
       }
       validate_roster_patterns_fixed: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
-          employee_number: number
           employee_name: string
+          employee_number: number
           issue_date: string
           issue_description: string
           pattern_found: string
@@ -1985,21 +1924,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -2017,14 +1960,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -2040,14 +1985,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -2063,14 +2010,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -2078,14 +2027,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
