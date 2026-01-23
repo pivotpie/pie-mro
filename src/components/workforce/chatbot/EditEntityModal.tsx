@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Save, X } from "lucide-react";
 
 interface EditEntityModalProps {
-  entity: ExtractedEntity | null;
+  entity?: ExtractedEntity | null;
   entities?: ExtractedEntity[];
   isOpen: boolean;
   onClose: () => void;

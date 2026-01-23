@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Send, X, Sparkles, Paperclip } from "lucide-react";
 import { useDate } from "@/contexts/DateContext";
-import { openai, GPT_CONFIG, SYSTEM_PROMPT } from "@/integrations/openai/client";
+import { SYSTEM_PROMPT } from "@/integrations/openai/client";
 import { gatherOperationalContext, formatContextForPrompt } from "@/integrations/openai/contextGathering";
 import { toast } from "sonner";
 import { UploadedDocument, ExtractedEntity, ExtractedData } from "@/types/documentUpload";
@@ -14,7 +14,7 @@ import { executeEntityAction, executeBulkActions } from "@/utils/documentActions
 import { ExtractedEntityCard } from "./chatbot/ExtractedEntityCard";
 import { BulkActionBar } from "./chatbot/BulkActionBar";
 import { EditEntityModal } from "./chatbot/EditEntityModal";
-
+import { supabase } from "@/integrations/supabase/client";
 interface Message {
   id: string;
   role: 'user' | 'assistant' | 'document';
@@ -94,76 +94,51 @@ export const AIChatbot = () => {
 
   const processQuery = async (query: string): Promise<string> => {
     try {
-      // Check if OpenAI is configured
-      if (!openai.apiKey || openai.apiKey === 'your_openai_api_key_here') {
-        return "⚠️ OpenAI API is not configured. Please add your API key to .env.local\n\nSet VITE_OPENAI_API_KEY=your_key_here and restart the dev server.";
-      }
-
       // Gather real-time operational context from database
       console.log('Gathering operational context...');
       const context = await gatherOperationalContext(currentDate);
       const contextString = formatContextForPrompt(context);
 
-      console.log('Sending query to OpenAI...');
-      console.log('Model:', GPT_CONFIG.model);
+      console.log('Sending query to OpenAI via edge function...');
 
-      // Call GPT-5-nano with system prompt, operational context, and user query
-      // Note: GPT-5-nano only supports temperature=1 (default), so we omit it
-      const completion = await openai.chat.completions.create({
-        model: GPT_CONFIG.model,
-        max_completion_tokens: GPT_CONFIG.max_completion_tokens,
-        // temperature is omitted - GPT-5-nano only supports default value (1)
-        messages: [
-          {
-            role: 'system',
-            content: SYSTEM_PROMPT
-          },
-          {
-            role: 'system',
-            content: contextString
-          },
-          {
-            role: 'user',
-            content: query
-          }
-        ]
+      // Call edge function for secure OpenAI API access
+      const { data, error } = await supabase.functions.invoke('openai-chat', {
+        body: {
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: contextString },
+            { role: 'user', content: query }
+          ],
+          model: 'gpt-4o-mini',
+          max_completion_tokens: 3000
+        }
       });
 
-      const response = completion.choices[0]?.message?.content;
-
-      if (!response) {
-        console.error('No content in response. Reasoning tokens used:', completion.usage?.completion_tokens_details?.reasoning_tokens);
-        throw new Error('No response from GPT-5-nano');
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to call AI service');
       }
 
-      console.log('GPT-5-nano response received');
+      if (data?.error) {
+        console.error('OpenAI API error:', data.error);
+        throw new Error(data.error);
+      }
+
+      const response = data?.choices?.[0]?.message?.content;
+
+      if (!response) {
+        console.error('No content in response');
+        throw new Error('No response from AI');
+      }
+
+      console.log('AI response received');
       return response;
 
     } catch (error: any) {
-      console.error('GPT query error:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('AI query error:', error);
 
-      // Check for specific OpenAI API error codes
-      if (error?.status === 401) {
-        return "⚠️ Authentication error. Your API key may be invalid or expired. Please check your OpenAI API key.";
-      }
-
-      if (error?.status === 404 || error?.error?.code === 'model_not_found') {
-        return `⚠️ Model '${GPT_CONFIG.model}' not found. This could mean:\n\n1. GPT-5-nano is not yet available for your account\n2. Try using 'gpt-4o-mini' instead\n3. Or use 'gpt-4-turbo' for better results\n\nError: ${error?.error?.message || error?.message}`;
-      }
-
-      if (error?.status === 429 || error?.error?.code === 'rate_limit_exceeded') {
-        return "⚠️ Rate limit reached. Please wait a moment and try again.";
-      }
-
-      if (error?.status === 400) {
-        return `⚠️ Bad request: ${error?.error?.message || error?.message}\n\nCheck console for details.`;
-      }
-
-      // Generic error with full details
-      const errorMsg = error?.error?.message || error?.message || 'Unknown error';
-      const errorCode = error?.error?.code || error?.code || 'No code';
-      return `⚠️ Error (${errorCode}): ${errorMsg}\n\nCheck browser console (F12) for full details.`;
+      const errorMsg = error?.message || 'Unknown error';
+      return `⚠️ Error: ${errorMsg}\n\nPlease check that the OpenAI API key is configured correctly.`;
     }
   };
 
