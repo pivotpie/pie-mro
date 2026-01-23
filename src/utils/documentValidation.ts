@@ -210,7 +210,7 @@ export async function validateEmployeeSchedule(entity: EmployeeScheduleEntity): 
       const { data: employee } = await supabase
         .from('employees')
         .select('id, name, e_number')
-        .eq('e_number', cleanEmployeeNumber)
+        .eq('e_number', parseInt(cleanEmployeeNumber, 10))
         .maybeSingle();
 
       if (employee) {
@@ -232,7 +232,7 @@ export async function validateEmployeeSchedule(entity: EmployeeScheduleEntity): 
 
       if (employee) {
         entity.employee_id = employee.id;
-        entity.employee_number = employee.e_number;
+        entity.employee_number = String(employee.e_number);
       } else {
         errors.push({
           field: 'employee_name',
@@ -246,7 +246,7 @@ export async function validateEmployeeSchedule(entity: EmployeeScheduleEntity): 
     if (entity.support_code) {
       const { data: supportCode } = await supabase
         .from('support_codes')
-        .select('id, support_code, support_description')
+        .select('id, support_code')
         .ilike('support_code', entity.support_code)
         .maybeSingle();
 
@@ -363,7 +363,7 @@ export async function validateCertificate(entity: CertificateEntity): Promise<{
       const { data: employee } = await supabase
         .from('employees')
         .select('id, name, e_number')
-        .eq('e_number', cleanEmployeeNumber)
+        .eq('e_number', parseInt(cleanEmployeeNumber, 10))
         .maybeSingle();
 
       if (employee) {
@@ -386,7 +386,7 @@ export async function validateCertificate(entity: CertificateEntity): Promise<{
 
       if (employee) {
         entity.employee_id = employee.id;
-        entity.employee_number = employee.e_number;
+        entity.employee_number = String(employee.e_number);
       } else {
         errors.push({
           field: 'employee_name',

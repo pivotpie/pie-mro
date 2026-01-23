@@ -216,7 +216,6 @@ export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: Workforc
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           className="max-w-3xl p-4 gap-0 border-0 shadow-2xl bg-transparent data-[state=open]:bg-transparent"
-          overlayClassName="bg-black/80 dark:bg-black/90"
           style={{
             backgroundColor: 'transparent',
             boxShadow: 'none'
