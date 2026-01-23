@@ -1,5 +1,5 @@
-import { openai } from '@/integrations/openai/client';
 import { CertificateEntity } from '@/types/documentUpload';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Convert image file to base64 data URL
@@ -14,14 +14,14 @@ export async function fileToDataURL(file: File): Promise<string> {
 }
 
 /**
- * Extract certificate data from image using GPT-5 Vision API
+ * Extract certificate data from image using GPT-4o Vision via edge function
  */
 export async function extractCertificateFromImage(file: File): Promise<CertificateEntity> {
   try {
     console.log('Converting image to data URL...');
     const imageDataUrl = await fileToDataURL(file);
 
-    console.log('Sending image to GPT-5 Vision API for OCR...');
+    console.log('Sending image to OpenAI Vision API via edge function...');
 
     const visionPrompt = `
 Analyze this certificate/authorization document image and extract the following information:
@@ -62,27 +62,37 @@ If a field is not visible or unclear, use null for that field.
 Return ONLY valid JSON, no other text or markdown formatting.
 `;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o', // Use GPT-4o for vision (GPT-5-nano doesn't support vision yet)
-      max_tokens: 1000,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: visionPrompt },
-            {
-              type: 'image_url',
-              image_url: {
-                url: imageDataUrl,
-                detail: 'high' // High detail for better OCR accuracy
+    const { data, error } = await supabase.functions.invoke('openai-chat', {
+      body: {
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: visionPrompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageDataUrl,
+                  detail: 'high'
+                }
               }
-            }
-          ]
-        }
-      ]
+            ]
+          }
+        ],
+        model: 'gpt-4o', // Use GPT-4o for vision capabilities
+        max_completion_tokens: 1000
+      }
     });
 
-    const response = completion.choices[0]?.message?.content?.trim() || '{}';
+    if (error) {
+      throw new Error(error.message || 'Failed to call AI service');
+    }
+
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+
+    const response = data?.choices?.[0]?.message?.content?.trim() || '{}';
 
     console.log('OCR response:', response);
 
