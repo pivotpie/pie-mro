@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
 import { DocumentType, ExtractedEntity } from '@/types/documentUpload';
-import { openai, GPT_CONFIG } from '@/integrations/openai/client';
+import { GPT_CONFIG } from '@/integrations/openai/client';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ParsedCSV {
   headers: string[];
@@ -31,6 +32,29 @@ export async function parseCSVFile(file: File): Promise<ParsedCSV> {
 }
 
 /**
+ * Call OpenAI via edge function
+ */
+async function callOpenAI(messages: { role: string; content: any }[], maxTokens: number = 500): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('openai-chat', {
+    body: {
+      messages,
+      model: GPT_CONFIG.model,
+      max_completion_tokens: maxTokens
+    }
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to call AI service');
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  return data?.choices?.[0]?.message?.content?.trim() || '';
+}
+
+/**
  * Use AI to determine document type from CSV headers
  */
 export async function detectDocumentType(headers: string[], sampleRows: any[]): Promise<DocumentType> {
@@ -55,23 +79,19 @@ Document types:
 Return ONLY the document type as one word: maintenance_visit, employee_schedule, certificate, aircraft, or unknown
 `;
 
-    const completion = await openai.chat.completions.create({
-      model: GPT_CONFIG.model,
-      max_completion_tokens: 100,
-      messages: [
-        { role: 'system', content: 'You are a data classification assistant. Return only the document type.' },
-        { role: 'user', content: prompt }
-      ]
-    });
+    const response = await callOpenAI([
+      { role: 'system', content: 'You are a data classification assistant. Return only the document type.' },
+      { role: 'user', content: prompt }
+    ], 100);
 
-    const response = completion.choices[0]?.message?.content?.trim().toLowerCase() || 'unknown';
-    console.log('AI detected document type:', response);
+    const docType = response.toLowerCase();
+    console.log('AI detected document type:', docType);
 
-    if (['maintenance_visit', 'employee_schedule', 'certificate', 'aircraft'].includes(response)) {
-      return response as DocumentType;
+    if (['maintenance_visit', 'employee_schedule', 'certificate', 'aircraft'].includes(docType)) {
+      return docType as DocumentType;
     }
 
-    console.warn('Document type not recognized:', response, '- Falling back to keyword matching');
+    console.warn('Document type not recognized:', docType, '- Falling back to keyword matching');
 
     // Fallback: Simple keyword matching
     return detectDocumentTypeByKeywords(headers);
@@ -190,16 +210,11 @@ If a column doesn't match any field, omit it. Be flexible with column names (e.g
 Return ONLY valid JSON, no other text.
 `;
 
-    const completion = await openai.chat.completions.create({
-      model: GPT_CONFIG.model,
-      max_completion_tokens: 500,
-      messages: [
-        { role: 'system', content: 'You are a data mapping assistant. Return only valid JSON.' },
-        { role: 'user', content: prompt }
-      ]
-    });
+    const response = await callOpenAI([
+      { role: 'system', content: 'You are a data mapping assistant. Return only valid JSON.' },
+      { role: 'user', content: prompt }
+    ], 500);
 
-    const response = completion.choices[0]?.message?.content?.trim() || '{}';
     console.log('AI column mapping response:', response);
 
     // Extract JSON from response (in case AI adds markdown formatting)
