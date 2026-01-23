@@ -54,8 +54,8 @@ export const EmployeeDetailPanel = ({ employee, open, onOpenChange }: EmployeeDe
 
   // Mock data for demo based on the provided images
   const certifications = [
-    { name: 'B1 License', validUntil: '2025-10-10', status: 'valid' },
-    { name: 'A350 Type Rating', validUntil: '2025-06-18', status: 'warning' },
+    { name: 'B1 License', validUntil: '2026-10-10', status: 'valid' },
+    { name: 'A350 Type Rating', validUntil: '2026-06-18', status: 'warning' },
   ];
 
   const aircraftTypes = ['A350', 'B787', 'GEnx'];
@@ -65,7 +65,7 @@ export const EmployeeDetailPanel = ({ employee, open, onOpenChange }: EmployeeDe
       aircraftCode: 'A6-FKM',
       aircraftType: 'Boeing 777-300ER',
       checkType: 'D-Check',
-      dateRange: 'May 5, 2025 - June 10, 2025',
+      dateRange: 'May 5, 2026 - June 10, 2026',
       progress: 15,
       status: 'maintenance'
     }
@@ -86,12 +86,12 @@ export const EmployeeDetailPanel = ({ employee, open, onOpenChange }: EmployeeDe
   const leaveHistory = [
     {
       type: 'Annual Leave',
-      dateRange: 'March 15 - March 25, 2025',
+      dateRange: 'March 15 - March 25, 2026',
       status: 'approved'
     },
     {
       type: 'Sick Leave',
-      dateRange: 'January 10 - January 12, 2025',
+      dateRange: 'January 10 - January 12, 2026',
       status: 'approved'
     }
   ];

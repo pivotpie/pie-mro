@@ -63,6 +63,15 @@ interface AircraftDetailsModalProps {
   aircraft: AircraftSchedule | null;
 }
 
+interface SuggestedTeam {
+  id: string;
+  name: string;
+  score: number;
+  color: string;
+  borderColor: string;
+  members: Employee[];
+}
+
 export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftDetailsModalProps) => {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -72,6 +81,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
   const [tradeRequirements, setTradeRequirements] = useState<TradeRequirement[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<number>>(new Set());
   const [hasActiveFilter, setHasActiveFilter] = useState(false);
+  const [suggestedTeams, setSuggestedTeams] = useState<SuggestedTeam[]>([]);
   
   const { currentDate, formatDate } = useDate();
 
@@ -86,6 +96,13 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
     // Apply search/filter when search query or available employees change
     applySearchFilter();
   }, [searchQuery, availableEmployees]);
+
+  useEffect(() => {
+    // Update personnel requirements when assigned employees change
+    if (assignedEmployees.length > 0 && aircraft) {
+      updatePersonnelRequirementsWithAssignments();
+    }
+  }, [assignedEmployees]);
 
   const applySearchFilter = () => {
     if (!searchQuery.trim()) {
@@ -133,6 +150,137 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
 
     setFilteredEmployees(filtered);
     setHasActiveFilter(searchTerms.length > 0);
+  };
+
+  const generateAIProposals = (employees: Employee[]) => {
+    // 1. Filter qualified employees (lower threshold to 20 to be more inclusive)
+    const qualified = employees.filter(e => (e.match_score || 0) > 20);
+
+    // 2. Sort by score
+    const sorted = [...qualified].sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+
+    // Need at least 6 employees to create meaningful teams
+    if (sorted.length < 6) {
+      // If we don't have enough qualified, use all available employees
+      const allSorted = [...employees].sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+
+      if (allSorted.length < 6) return; // Really not enough employees
+
+      // Use all available employees instead
+      const teamAlpha = allSorted.slice(0, Math.min(8, allSorted.length));
+      const teamBravo = allSorted.slice(0, Math.min(8, allSorted.length)); // Same team for demo
+      const teamCharlie = allSorted.slice(0, Math.min(8, allSorted.length)); // Same team for demo
+
+      setSuggestedTeams([
+        {
+          id: 'alpha',
+          name: 'Team Alpha (Best Available)',
+          score: 75,
+          color: 'bg-green-50 dark:bg-green-900/20',
+          borderColor: 'border-green-500',
+          members: teamAlpha
+        },
+        {
+          id: 'bravo',
+          name: 'Team Bravo (Standard)',
+          score: 70,
+          color: 'bg-blue-50 dark:bg-blue-900/20',
+          borderColor: 'border-blue-500',
+          members: teamBravo
+        },
+        {
+          id: 'charlie',
+          name: 'Team Charlie (Training)',
+          score: 65,
+          color: 'bg-amber-50 dark:bg-amber-900/20',
+          borderColor: 'border-amber-500',
+          members: teamCharlie
+        }
+      ]);
+      return;
+    }
+
+    // 3. Create buckets with enough employees
+    // Team Alpha: Best of the best (top performers)
+    const teamAlpha = sorted.slice(0, Math.min(8, sorted.length));
+
+    // Team Bravo: Next best block (mid-tier)
+    const teamBravo = sorted.slice(
+      Math.min(6, Math.floor(sorted.length / 3)),
+      Math.min(14, Math.floor(sorted.length / 3) + 8)
+    );
+
+    // Ensure Team Bravo has enough members, otherwise use duplicates from top
+    if (teamBravo.length < 6) {
+      const additionalMembers = sorted.slice(0, 8 - teamBravo.length);
+      teamBravo.push(...additionalMembers);
+    }
+
+    // Team Charlie: Balanced mix (2 Seniors + 6 Juniors/Mid-level)
+    const seniorCount = Math.min(2, sorted.length);
+    const juniorStartIndex = Math.min(10, Math.floor(sorted.length / 2));
+    const teamCharlie = [
+        ...sorted.slice(0, seniorCount),
+        ...sorted.slice(juniorStartIndex, juniorStartIndex + Math.min(6, sorted.length - juniorStartIndex))
+    ];
+
+    // Fill Team Charlie if needed
+    if (teamCharlie.length < 6) {
+      const additionalMembers = sorted.slice(0, 8 - teamCharlie.length);
+      teamCharlie.push(...additionalMembers.filter(m => !teamCharlie.find(tm => tm.id === m.id)));
+    }
+
+    // Calculate dynamic scores based on average match scores
+    const calcTeamScore = (team: Employee[]) => {
+      const avgScore = team.reduce((sum, emp) => sum + (emp.match_score || 0), 0) / team.length;
+      return Math.min(98, Math.max(60, Math.round(avgScore)));
+    };
+
+    setSuggestedTeams([
+      {
+        id: 'alpha',
+        name: 'Team Alpha (High Perf.)',
+        score: calcTeamScore(teamAlpha),
+        color: 'bg-green-50 dark:bg-green-900/20',
+        borderColor: 'border-green-500',
+        members: teamAlpha
+      },
+      {
+        id: 'bravo',
+        name: 'Team Bravo (Standard)',
+        score: calcTeamScore(teamBravo),
+        color: 'bg-blue-50 dark:bg-blue-900/20',
+        borderColor: 'border-blue-500',
+        members: teamBravo
+      },
+      {
+        id: 'charlie',
+        name: 'Team Charlie (Training)',
+        score: calcTeamScore(teamCharlie),
+        color: 'bg-amber-50 dark:bg-amber-900/20',
+        borderColor: 'border-amber-500',
+        members: teamCharlie
+      }
+    ]);
+  };
+
+  const handleSelectTeam = async (team: SuggestedTeam) => {
+    try {
+      await assignEmployeesToAircraft(team.members, aircraft?.registration || '');
+      
+      // Update aircraft status logic...
+      if (aircraft && aircraft.status === 'Scheduled') {
+        await updateAircraftStatus(parseInt(aircraft.id), 'In Progress');
+        aircraft.status = 'In Progress';
+      }
+      
+      setAssignedEmployees(prev => [...prev, ...team.members]);
+      setAvailableEmployees(prev => prev.filter(emp => !team.members.find(m => m.id === emp.id)));
+      setSuggestedTeams([]); // Clear suggestions after selection
+      toast.success(`${team.name} assigned successfully!`);
+    } catch (error) {
+      toast.error("Failed to assign team");
+    }
   };
 
   const fetchEmployeeData = async () => {
@@ -348,8 +496,17 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
           .slice(0, 8); // Take top 8 matches
       }
 
+      const availablePool = availableEmps.filter(emp => !assigned.find(a => a.id === emp.id));
       setAssignedEmployees(assigned);
-      setAvailableEmployees(availableEmps.filter(emp => !assigned.find(a => a.id === emp.id)));
+      setAvailableEmployees(availablePool);
+      
+      // Generate AI proposals for any status except Completed and In Progress
+      if (aircraft.status !== 'Completed' && aircraft.status !== 'In Progress') {
+        generateAIProposals(availablePool);
+      } else {
+        setSuggestedTeams([]);
+      }
+
     } catch (error) {
       console.error("Error fetching employee data:", error);
       toast.error("Failed to load employee data");
@@ -602,64 +759,77 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
 
   const generateMockRequirements = (requirements: Record<string, TradeRequirement>) => {
     if (!aircraft) return;
-    
-    const trades = ['Engineer', 'Technician', 'Certifying Controller'];
+
+    const trades = ['B1 Tech', 'B2 Tech', 'STRUC & COMP', 'CABIN', 'General'];
     const startDate = new Date(aircraft.start);
     const endDate = new Date(aircraft.end);
     const dayDiff = differenceInDays(endDate, startDate);
-    
+
     trades.forEach(trade => {
       const dates = [];
       let totalDay = 0;
       let totalNight = 0;
-      
+
       for (let i = 0; i <= Math.min(dayDiff, 6); i++) {
         const currentDate = new Date(startDate);
         currentDate.setDate(startDate.getDate() + i);
-        
-        const dayCount = trade === 'Engineer' ? 1 : 
-                         trade === 'Technician' ? 2 : 
-                         trade === 'Certifying Controller' ? 1 : 0;
-                         
+
+        const dayCount = trade === 'B1 Tech' ? 3 :
+                         trade === 'B2 Tech' ? 2 :
+                         trade === 'STRUC & COMP' ? 1 :
+                         trade === 'CABIN' ? 1 :
+                         trade === 'General' ? 1 : 0;
+
         const nightCount = 0; // Mock data shows 0 night shift
-        
+
         totalDay += dayCount;
         totalNight += nightCount;
-        
-        // Calculate assigned numbers based on aircraft status
-        let assignedDay = 0;
-        if (aircraft.status === 'Completed') {
-          assignedDay = dayCount; // Fully assigned for completed visits
-        } else if (aircraft.status === 'In Progress') {
-          assignedDay = Math.floor(dayCount * 0.8); // 80% assigned for in-progress
-        } else if (aircraft.status === 'Scheduled' && (aircraft.registration === 'G-FVWF' || aircraft.registration.includes('GCAA'))) {
-          assignedDay = 0; // No assignment for scheduled G-FVWF
-        } else {
-          assignedDay = 0; // No assignment for other scheduled visits
-        }
-        
+
         dates.push({
           date: format(currentDate, 'dd-MMM'),
           day_count: dayCount,
           night_count: nightCount,
-          assigned_day: assignedDay,
+          assigned_day: 0, // Will be calculated from actual assignments
           assigned_night: 0
         });
       }
-      
-      const totalAssignedDay = aircraft.status === 'Completed' ? totalDay :
-                              aircraft.status === 'In Progress' ? Math.floor(totalDay * 0.8) :
-                              0;
-      
+
       requirements[trade] = {
         trade,
         day_count: totalDay,
         night_count: totalNight,
-        assigned_day: totalAssignedDay,
+        assigned_day: 0, // Will be calculated from actual assignments
         assigned_night: 0,
         dates
       };
     });
+  };
+
+  const updatePersonnelRequirementsWithAssignments = () => {
+    if (!aircraft || tradeRequirements.length === 0) return;
+
+    // Create a copy of current requirements
+    const updatedRequirements = tradeRequirements.map(req => {
+      // Count assigned employees for this trade
+      const assignedForTrade = assignedEmployees.filter(emp => emp.trade === req.trade);
+      const assignedCount = assignedForTrade.length;
+
+      // Update dates with assigned counts
+      const updatedDates = req.dates.map(dateReq => ({
+        ...dateReq,
+        assigned_day: Math.min(assignedCount, dateReq.day_count), // Don't exceed required count
+        assigned_night: 0
+      }));
+
+      return {
+        ...req,
+        assigned_day: assignedCount,
+        assigned_night: 0,
+        dates: updatedDates
+      };
+    });
+
+    setTradeRequirements(updatedRequirements);
   };
 
   const handleAssignEmployee = async (employee: Employee) => {
@@ -995,7 +1165,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[90vw] w-[90vw] h-[80vh] max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-[90vw] w-[90vw] h-[90vh] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Aircraft Details - {aircraft.registration}</DialogTitle>
         </DialogHeader>
@@ -1144,6 +1314,45 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
 
             {/* Right Column (70%) - Available Employees Table */}
             <div className="lg:col-span-7 space-y-4">
+              
+              {/* NEW SECTION: AI Suggested Teams */}
+              {suggestedTeams.length > 0 && aircraft.status !== 'Completed' && aircraft.status !== 'In Progress' && (
+                <div className="mb-6 space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <span className="text-purple-600">✨ AI Suggested Teams</span>
+                    <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full dark:bg-gray-800 dark:text-gray-400">Beta</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {suggestedTeams.map(team => (
+                      <div key={team.id} className={`border-l-4 ${team.borderColor} ${team.color} p-4 rounded-r-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold text-gray-800 dark:text-gray-200">{team.name}</h4>
+                          <span className="bg-white dark:bg-gray-800 text-sm font-bold px-2 py-1 rounded shadow-sm border dark:border-gray-700">{team.score}% Match</span>
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                          {team.members.length} Members • {team.members.filter(m => m.trade?.includes('B1')).length} B1 • {team.members.filter(m => m.trade?.includes('B2')).length} B2
+                        </div>
+                        <div className="flex -space-x-2 overflow-hidden mb-4 pl-1">
+                          {team.members.slice(0, 5).map(m => (
+                            <div key={m.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-gray-800 bg-gray-200 flex items-center justify-center text-xs font-bold" title={m.name}>
+                              {m.avatar}
+                            </div>
+                          ))}
+                          {team.members.length > 5 && (
+                            <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-gray-800 bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs">
+                              +{team.members.length - 5}
+                            </div>
+                          )}
+                        </div>
+                        <Button size="sm" className="w-full bg-white hover:bg-gray-50 text-gray-900 border border-gray-200 shadow-sm dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-700" onClick={() => handleSelectTeam(team)}>
+                          Select Team
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <h3 className="text-lg font-semibold">Available Employees</h3>
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                 {/* Enhanced Search Bar */}

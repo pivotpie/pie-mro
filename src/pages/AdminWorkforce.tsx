@@ -15,7 +15,7 @@ import { AircraftScheduleSection } from "@/components/workforce/AircraftSchedule
 import { supabase } from "@/integrations/supabase/client";
 import { AircraftDetailsModal } from "@/components/workforce/schedule/AircraftDetailsModal";
 import { useRefresh } from '@/contexts/RefreshContext';
-
+import { AIChatbot } from "@/components/workforce/AIChatbot";
 
 interface CertificationData {
   id: number;
@@ -35,9 +35,11 @@ const AdminWorkforce = () => {
   
   const [showCertificationPanel, setShowCertificationPanel] = useState(false);
   const [selectedCertification, setSelectedCertification] = useState<CertificationData | null>(null);
-  
+
   const [showAircraftModal, setShowAircraftModal] = useState(false);
   const [selectedAircraft, setSelectedAircraft] = useState<any>(null);
+
+  const [initialShortcutId, setInitialShortcutId] = useState<string | undefined>();
   
 
   useEffect(() => {
@@ -66,23 +68,50 @@ const AdminWorkforce = () => {
     toast.success("Logged out successfully");
   };
   
-  const handleItemSelect = async (type: 'employee' | 'aircraft' | 'certification', item: any) => {
+  const handleItemSelect = async (type: 'employee' | 'aircraft' | 'certification' | 'training', item: any) => {
     switch (type) {
       case 'employee':
         setSelectedEmployee(item);
         setShowEmployeePanel(true);
         setShowCertificationPanel(false);
         break;
-        
+
       case 'aircraft':
-        setSelectedAircraft(item);
+        // Transform search result into format expected by AircraftDetailsModal
+        const aircraftData = item.originalData || item;
+        const maintenance = item.metadata?.maintenance;
+
+        const formattedAircraft = {
+          id: aircraftData.id?.toString() || '',
+          aircraft: aircraftData.aircraft_name || aircraftData.registration || '',
+          aircraft_id: aircraftData.id,
+          hangar_id: 0, // Not available from search
+          start: maintenance?.start ? new Date(maintenance.start) : new Date(),
+          end: maintenance?.end ? new Date(maintenance.end) : new Date(),
+          team: null,
+          status: maintenance?.status || 'Unknown',
+          registration: aircraftData.registration || '',
+          customer: aircraftData.customer || '',
+          color: '',
+          borderColor: '',
+          visit_number: maintenance?.visitNumber || '',
+          check_type: maintenance?.type || ''
+        };
+
+        setSelectedAircraft(formattedAircraft);
         setShowAircraftModal(true);
         break;
-        
+
       case 'certification':
         setSelectedCertification(item);
         setShowCertificationPanel(true);
         setShowEmployeePanel(false);
+        break;
+
+      case 'training':
+        // Open the Training Management shortcut
+        setInitialShortcutId('training-management');
+        toast.success(`Opening Training Management for: ${item.session_name}`);
         break;
     }
   };
@@ -132,7 +161,7 @@ const AdminWorkforce = () => {
               {/* Management Shortcuts and Certification Lists */}
               <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-1">
-                  <ManagementShortcuts />
+                  <ManagementShortcuts initialShortcutId={initialShortcutId} />
                 </div>
                 <div className="lg:col-span-2">
                   <CertificationList onCertificationClick={handleCertificationClick} />
@@ -203,7 +232,10 @@ const AdminWorkforce = () => {
         onOpenChange={handleAircraftModalClose}  // Changed from setShowAircraftModal
         aircraft={selectedAircraft}
       />
-      
+
+      {/* AI Chatbot - Positioned below FAB */}
+      <AIChatbot />
+
       {/* Floating Action Menu for Quick Actions - Now includes Set Date */}
       <FloatingActionMenu />
 

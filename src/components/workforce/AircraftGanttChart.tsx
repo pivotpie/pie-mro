@@ -185,30 +185,30 @@ export const AircraftGanttChart = ({ scrollLeft, startDate, endDate }: AircraftG
             schedules: hangarSchedules
           });
         });
-        
-        // Enhanced mock data based on the reference image
-        const mockData = generateEnhancedMockData(processedHangars);
-        
+
+        // Mock data disabled - using real database data only
+        // const mockData = generateEnhancedMockData(processedHangars);
+
         // Merge existing data with mock data
-        mockData.forEach(mockHangarData => {
-          const existingHangarData = schedulesByHangar.find(h => h.hangarId === mockHangarData.hangarId);
-          if (existingHangarData) {
-            // Add mock schedules that don't overlap with existing ones
-            mockHangarData.schedules.forEach(mockSchedule => {
-              // Check if there's an existing schedule with significant overlap
-              const hasOverlap = existingHangarData.schedules.some(existingSchedule => {
-                return (mockSchedule.start <= existingSchedule.end && mockSchedule.end >= existingSchedule.start);
-              });
-              
-              if (!hasOverlap) {
-                existingHangarData.schedules.push(mockSchedule);
-              }
-            });
-          } else {
-            schedulesByHangar.push(mockHangarData);
-          }
-        });
-        
+        // mockData.forEach(mockHangarData => {
+        //   const existingHangarData = schedulesByHangar.find(h => h.hangarId === mockHangarData.hangarId);
+        //   if (existingHangarData) {
+        //     // Add mock schedules that don't overlap with existing ones
+        //     mockHangarData.schedules.forEach(mockSchedule => {
+        //       // Check if there's an existing schedule with significant overlap
+        //       const hasOverlap = existingHangarData.schedules.some(existingSchedule => {
+        //         return (mockSchedule.start <= existingSchedule.end && mockSchedule.end >= existingSchedule.start);
+        //       });
+        //
+        //       if (!hasOverlap) {
+        //         existingHangarData.schedules.push(mockSchedule);
+        //       }
+        //     });
+        //   } else {
+        //     schedulesByHangar.push(mockHangarData);
+        //   }
+        // });
+
         setHangars(processedHangars);
         setAircraftSchedules(schedulesByHangar);
         console.log('Processed aircraft schedules:', schedulesByHangar);

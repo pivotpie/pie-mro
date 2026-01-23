@@ -1,11 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Users, UserCog, UsersRound, CalendarClock, 
-  ClipboardCheck, FileText, ArrowUpRight, UserPlus, Calendar, AlertCircle, 
+import {
+  Users, UserCog, UsersRound, CalendarClock,
+  ClipboardCheck, FileText, ArrowUpRight, UserPlus, Calendar, AlertCircle,
   Briefcase, FileSpreadsheet, Download, Upload
 } from "lucide-react";
 import { EmployeeAuthorizationList } from "./certification/EmployeeAuthorizationList";
@@ -18,7 +18,11 @@ interface ShortcutItem {
   color: string;
 }
 
-export const ManagementShortcuts = () => {
+interface ManagementShortcutsProps {
+  initialShortcutId?: string;
+}
+
+export const ManagementShortcuts = ({ initialShortcutId }: ManagementShortcutsProps = {}) => {
   const [activeShortcut, setActiveShortcut] = useState<ShortcutItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -32,6 +36,16 @@ export const ManagementShortcuts = () => {
     { id: "weekly-off", label: "Weekly Offs", icon: Calendar, color: "bg-yellow-100 text-yellow-600" },
     { id: "aircraft-management", label: "Aircraft Management", icon: Briefcase, color: "bg-cyan-100 text-cyan-600" },
   ];
+
+  useEffect(() => {
+    if (initialShortcutId) {
+      const shortcut = shortcuts.find(s => s.id === initialShortcutId);
+      if (shortcut) {
+        setActiveShortcut(shortcut);
+        setDialogOpen(true);
+      }
+    }
+  }, [initialShortcutId]);
 
   const handleShortcutClick = (shortcut: ShortcutItem) => {
     setActiveShortcut(shortcut);

@@ -338,19 +338,23 @@ export const FloatingActionMenu = () => {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-24 right-6 z-40">
         <div className="flex flex-col items-end space-y-3">
           {/* Menu Items */}
           {isOpen && (
-            <div className="flex flex-col space-y-2 mb-2">
+            <div className="flex flex-col space-y-3 mb-3 animate-in slide-in-from-bottom-5">
               {actionItems.map((item, index) => (
-                <div key={index} className="flex items-center space-x-3">
-                  <span className="bg-gray-800 text-white px-3 py-1 rounded-lg text-sm whitespace-nowrap">
+                <div
+                  key={index}
+                  className="flex items-center space-x-3 animate-in slide-in-from-right-5"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <span className="bg-gray-900 dark:bg-gray-800 text-white px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shadow-lg border border-gray-700">
                     {item.label}
                   </span>
                   <Button
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-12 h-12 p-0"
+                    className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white rounded-full w-12 h-12 p-0 shadow-xl transition-all duration-300 hover:scale-110"
                     onClick={item.action}
                   >
                     <item.icon className="h-5 w-5" />
@@ -360,13 +364,13 @@ export const FloatingActionMenu = () => {
             </div>
           )}
 
-          {/* Main FAB */}
+          {/* Main FAB - Enhanced Design */}
           <Button
             size="lg"
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 p-0 shadow-lg"
+            className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 text-white rounded-full w-16 h-16 p-0 shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-blue-500/50 border-2 border-blue-400/20"
             onClick={() => setIsOpen(!isOpen)}
           >
-            <Plus className={`h-6 w-6 transition-transform ${isOpen ? 'rotate-45' : ''}`} />
+            <Plus className={`h-7 w-7 transition-transform duration-300 ${isOpen ? 'rotate-45' : ''}`} />
           </Button>
         </div>
       </div>

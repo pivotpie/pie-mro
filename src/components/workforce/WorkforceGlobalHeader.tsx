@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Bell, Moon, Search, Settings, Sun, User, X, Home, Calendar } from "lucide-react";
+import { Bell, Moon, Search, Settings, Sun, User, Home, Calendar, Command as CommandIcon, Award, BookOpen, Loader2 } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -11,14 +10,18 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTheme } from "next-themes";
-import { supabase } from "@/integrations/supabase/client";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { Link, useLocation } from "react-router-dom";
 import { SetDateModal } from "./SetDateModal";
 import { useDate } from "@/contexts/DateContext";
 import { format } from "date-fns";
+import { useOmniSearch, SearchResult } from "@/hooks/use-omni-search";
 
 interface WorkforceGlobalHeaderProps {
   user: {
@@ -27,21 +30,30 @@ interface WorkforceGlobalHeaderProps {
     employee: any;
   };
   onLogout: () => void;
-  onItemSelect?: (type: 'employee' | 'aircraft' | 'certification', item: any) => void;
+  onItemSelect?: (type: 'employee' | 'aircraft' | 'certification' | 'training', item: any) => void;
 }
 
 export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: WorkforceGlobalHeaderProps) => {
   const { theme, setTheme } = useTheme();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const { results, isLoading } = useOmniSearch(query);
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const { currentDate, isManuallySet } = useDate();
   const location = useLocation();
-  const navigate = useNavigate();
   const isOnDashboard = location.pathname === "/dashboard" || location.pathname === "/manager-dashboard";
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      // Support both CMD/CTRL+K (standard) and CMD/CTRL+G for search
+      if ((e.key === "k" || e.key === "g") && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((open) => !open);
+      }
+    }
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
 
   const getInitials = (name: string) => {
     if (!name) return "U";
@@ -56,147 +68,22 @@ export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: Workforc
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
-  const handleSearch = async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    
-    setIsSearching(true);
-    
-    try {
-      // Search employees - Fixed query to not include trades relation
-      const { data: employees, error: employeesError } = await supabase
-        .from('employees')
-        .select(`
-          *,
-          job_titles (job_description),
-          teams (team_name)
-        `)
-        .or(`name.ilike.%${query}%,e_number.eq.${!isNaN(Number(query)) ? query : 0}`)
-        .limit(5);
-        
-      if (employeesError) throw employeesError;
-      
-      // Search aircraft
-      const { data: aircraft, error: aircraftError } = await supabase
-        .from('aircraft')
-        .select(`
-          *,
-          aircraft_types (type_name)
-        `)
-        .or(`aircraft_name.ilike.%${query}%, registration.ilike.%${query}%, customer.ilike.%${query}%`)
-        .limit(5);
-        
-      if (aircraftError) throw aircraftError;
-      
-      // Search certifications
-      const { data: certifications, error: certificationsError } = await supabase
-        .from('certification_codes')
-        .select('*')
-        .or(`certification_code.ilike.%${query}%, certification_description.ilike.%${query}%`)
-        .limit(5);
-        
-      if (certificationsError) throw certificationsError;
-      
-      // Format results
-      const formattedResults = [
-        ...employees.map((employee) => ({
-          id: `employee_${employee.id}`,
-          type: 'employee',
-          name: employee.name,
-          subtitle: employee.job_titles?.job_description || 'Unknown Position',
-          metadata: {
-            employeeId: employee.e_number,
-            team: employee.teams?.team_name,
-          },
-          rawData: employee,
-        })),
-        ...aircraft.map((ac) => ({
-          id: `aircraft_${ac.id}`,
-          type: 'aircraft',  
-          name: ac.aircraft_name,
-          subtitle: ac.registration || 'Unregistered',
-          metadata: {
-            customer: ac.customer,
-            type: ac.aircraft_types?.type_name,
-          },
-          rawData: ac,
-        })),
-        ...certifications.map((cert) => ({
-          id: `cert_${cert.id}`,
-          type: 'certification',
-          name: cert.certification_code,
-          subtitle: cert.certification_description,
-          metadata: {},
-          rawData: cert,
-        }))
-      ];
-      
-      setSearchResults(formattedResults);
-      
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setIsSearching(false);
+  const handleSelect = (item: SearchResult) => {
+    setOpen(false);
+    setQuery(""); // Clear query on selection
+    if (onItemSelect) {
+      // For aircraft, pass the entire item so we have access to metadata
+      // For other types, pass originalData as before
+      onItemSelect(item.type, item.type === 'aircraft' ? item : item.originalData);
     }
   };
 
-  const handleItemClick = (item: any) => {
-    if (!onItemSelect) {
-      console.log("No item select handler defined");
-      return;
-    }
-
-    // Close the dialog
-    setIsSearchOpen(false);
-    
-    // Process the selection based on the item type
-    switch (item.type) {
-      case 'employee':
-        onItemSelect('employee', item.rawData);
-        break;
-      case 'aircraft':
-        onItemSelect('aircraft', item.rawData);
-        break;
-      case 'certification':
-        onItemSelect('certification', item.rawData);
-        break;
-      default:
-        console.warn("Unknown item type:", item.type);
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      setQuery(""); // Clear query when closing
     }
   };
-
-  const toggleSelected = (item: any) => {
-    if (selectedItems.some(selected => selected.id === item.id)) {
-      setSelectedItems(selectedItems.filter(selected => selected.id !== item.id));
-    } else {
-      setSelectedItems([...selectedItems, item]);
-    }
-  };
-
-  const clearFilter = () => {
-    setSearchQuery("");
-    setSearchResults([]);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSearch(searchQuery);
-  };
-
-  // Add keyboard shortcut listener for Ctrl+G
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-        e.preventDefault();
-        setIsSearchOpen(true);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm w-full">
@@ -215,16 +102,16 @@ export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: Workforc
         <div className="flex-grow max-w-2xl mx-4">
           <Button 
             variant="outline" 
-            className="w-full flex justify-between items-center h-10 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
-            onClick={() => setIsSearchOpen(true)}
+            className="w-full flex justify-between items-center h-10 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
+            onClick={() => setOpen(true)}
           >
-            <span className="flex items-center text-gray-500">
+            <span className="flex items-center">
               <Search className="h-4 w-4 mr-2" />
-              Universal search...
+              Search employees, aircraft, certifications...
             </span>
-            <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
-              Ctrl+G
-            </span>
+            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+              <span className="text-xs">⌘</span>K
+            </kbd>
           </Button>
         </div>
         
@@ -325,140 +212,309 @@ export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: Workforc
         </div>
       </div>
 
-      {/* Search Dialog */}
-      <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Universal Search</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="mt-2">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by employee name, aircraft registration, or certification"
-                className="w-full p-3 pr-20 border rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-700 focus:outline-none"
-                autoFocus
-              />
-              {searchQuery && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-12 top-1/2 -translate-y-1/2 h-8 w-8"
-                  onClick={clearFilter}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
-                disabled={isSearching}
-              >
-                {isSearching ? (
-                  <div className="h-4 w-4 border-2 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
-                ) : (
-                  <Search className="h-5 w-5" />
-                )}
-              </Button>
+      {/* Omni-Search Dialog */}
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent
+          className="max-w-3xl p-4 gap-0 border-0 shadow-2xl bg-transparent data-[state=open]:bg-transparent"
+          overlayClassName="bg-black/80 dark:bg-black/90"
+          style={{
+            backgroundColor: 'transparent',
+            boxShadow: 'none'
+          }}
+        >
+          <div className="w-full mx-auto">
+            {/* Search Bar - Centered, 50% width of dialog */}
+            <div className="w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg mb-4">
+              <div className="flex items-center px-4 py-3">
+                <Search className="mr-3 h-5 w-5 shrink-0 text-gray-400" />
+                <Input
+                  placeholder="Search employees, aircraft, certifications, training..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
+                  autoFocus
+                />
+              </div>
             </div>
-          </form>
 
-          <div className="mt-4">
-            {/* Selected Items Section */}
-            {selectedItems.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">Selected Items</h3>
-                <div className="space-y-1">
-                  {selectedItems.map(item => (
-                    <div 
-                      key={`selected-${item.id}`}
-                      className="flex items-center justify-between p-2 rounded bg-blue-50 border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800"
-                    >
-                      <div className="flex items-center">
-                        <div className={`h-2 w-2 rounded-full mr-2 ${
-                          item.type === 'employee' ? 'bg-green-500' :
-                          item.type === 'aircraft' ? 'bg-amber-500' :
-                          'bg-purple-500'
-                        }`} />
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{item.subtitle}</span>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 hover:text-red-500"
-                        onClick={() => toggleSelected(item)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Results */}
+            <ScrollArea className="max-h-[500px]">
+              <div className="space-y-2">
+                {isLoading && (
+                  <div className="flex items-center justify-center py-12 bg-white dark:bg-gray-800 rounded-lg">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                  </div>
+                )}
 
-            {/* Search Results */}
-            {isSearching ? (
-              <div className="h-40 flex items-center justify-center">
-                <div className="h-8 w-8 border-4 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
-              </div>
-            ) : searchResults.length > 0 ? (
-              <div>
-                <h3 className="text-sm font-medium mb-2">Search Results</h3>
-                <div className="border dark:border-gray-700 rounded-lg divide-y dark:divide-gray-700 max-h-[300px] overflow-y-auto">
-                  {searchResults
-                    .filter(item => !selectedItems.some(selected => selected.id === item.id))
-                    .map(item => (
-                      <div 
-                        key={item.id}
-                        className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                        onClick={() => handleItemClick(item)}
-                      >
-                        <div>
-                          <div className="flex items-center">
-                            <div className={`h-2 w-2 rounded-full mr-2 ${
-                              item.type === 'employee' ? 'bg-green-500' :
-                              item.type === 'aircraft' ? 'bg-amber-500' :
-                              'bg-purple-500'
-                            }`} />
-                            <span className="font-medium">{item.name}</span>
-                            <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded ml-2">
-                              {item.type}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400 ml-4 mt-1">
-                            {item.subtitle}
-                            {item.type === 'employee' && item.metadata.team && (
-                              <span className="ml-2">• Team: {item.metadata.team}</span>
-                            )}
-                            {item.type === 'aircraft' && item.metadata.customer && (
-                              <span className="ml-2">• {item.metadata.customer}</span>
-                            )}
-                          </div>
+                {!isLoading && results.length === 0 && query.length >= 2 && (
+                  <div className="py-12 text-center bg-white dark:bg-gray-800 rounded-lg">
+                    <div className="text-gray-500 dark:text-gray-400">No results found for "{query}"</div>
+                    <div className="text-sm text-gray-400 dark:text-gray-500 mt-1">Try different keywords</div>
+                  </div>
+                )}
+
+                {!isLoading && query.length < 2 && (
+                  <div className="py-12 text-center bg-white dark:bg-gray-800 rounded-lg">
+                    <div className="text-gray-500 dark:text-gray-400">Type at least 2 characters to search</div>
+                    <div className="text-sm text-gray-400 dark:text-gray-500 mt-1">Search for employees, aircraft, certifications, or training</div>
+                  </div>
+                )}
+
+                {!isLoading && results.length > 0 && (
+                  <div className="space-y-4">
+                    {/* Group: Employees */}
+                    {results.some(r => r.type === 'employee') && (
+                      <div>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Employees</div>
+                        <div className="space-y-2">
+                          {results.filter(r => r.type === 'employee').map(item => (
+                            <div
+                              key={item.id}
+                              onClick={() => handleSelect(item)}
+                              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow hover:shadow-md cursor-pointer transition-all border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                                  <User className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  {/* Row 1: Name with Roster Status Badge */}
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <div className="font-semibold text-base text-gray-900 dark:text-gray-100">
+                                      {item.title}
+                                    </div>
+                                    {item.metadata?.currentAssignment?.type && (
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                        item.metadata.currentAssignment.type === 'On Duty' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-300 dark:border-green-700' :
+                                        item.metadata.currentAssignment.type === 'Half Day' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border border-blue-300 dark:border-blue-700' :
+                                        item.metadata.currentAssignment.type === 'Off Duty' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-700' :
+                                        item.metadata.currentAssignment.type === 'Annual Leave' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-300 dark:border-red-700' :
+                                        item.metadata.currentAssignment.type === 'Sick Leave' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 border border-orange-300 dark:border-orange-700' :
+                                        item.metadata.currentAssignment.type === 'Training' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border border-blue-300 dark:border-blue-700' :
+                                        item.metadata.currentAssignment.type === 'Over Time' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border border-purple-300 dark:border-purple-700' :
+                                        item.metadata.currentAssignment.type === 'Evening Shift' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-700' :
+                                        item.metadata.currentAssignment.type === 'Special Shift' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700' :
+                                        item.metadata.currentAssignment.type === 'UnAssigned' ? 'bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-400 dark:border-gray-600' :
+                                        'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-700'
+                                      }`}>
+                                        {item.metadata.currentAssignment.type}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Row 2: Trade/Job Role, Certifications */}
+                                  <div className="flex flex-wrap items-center gap-2 mb-2 text-sm">
+                                    <span className="text-gray-700 dark:text-gray-300">{item.metadata?.jobTitle}</span>
+                                    {item.metadata?.certifications && item.metadata.certifications.length > 0 && (
+                                      <>
+                                        <span className="text-gray-400">•</span>
+                                        <div className="flex gap-1 flex-wrap">
+                                          {item.metadata.certifications.map((cert, idx) => (
+                                            <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                              {cert}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Row 3: Core, Support */}
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                    {item.metadata?.cores && item.metadata.cores.length > 0 && (
+                                      <>
+                                        <span className="text-gray-500 dark:text-gray-400">Core:</span>
+                                        <span className="font-medium text-blue-600 dark:text-blue-400">{item.metadata.cores.join(', ')}</span>
+                                      </>
+                                    )}
+                                    {item.metadata?.supports && item.metadata.supports.length > 0 && (
+                                      <>
+                                        {item.metadata?.cores && item.metadata.cores.length > 0 && <span className="text-gray-400">•</span>}
+                                        <span className="text-gray-500 dark:text-gray-400">Support:</span>
+                                        <span className="font-medium text-purple-600 dark:text-purple-400">{item.metadata.supports.join(', ')}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                </div>
+                    )}
+
+                    {/* Group: Aircraft */}
+                    {results.some(r => r.type === 'aircraft') && (
+                      <div>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Aircraft</div>
+                        <div className="space-y-2">
+                          {results.filter(r => r.type === 'aircraft').map(item => (
+                            <div
+                              key={item.id}
+                              onClick={() => handleSelect(item)}
+                              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow hover:shadow-md cursor-pointer transition-all border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center flex-shrink-0">
+                                  <CommandIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  {/* Row 1: Registration */}
+                                  <div className="font-semibold text-base text-gray-900 dark:text-gray-100 mb-1">
+                                    {item.title}
+                                  </div>
+
+                                  {/* Row 2: Schedule Status and Maintenance Dates */}
+                                  {item.metadata?.maintenance ? (
+                                    <div className="space-y-1">
+                                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                          item.metadata.maintenance.status === 'Scheduled' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                          item.metadata.maintenance.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                                          item.metadata.maintenance.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                                          'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                                        }`}>
+                                          {item.metadata.maintenance.status}
+                                        </span>
+                                        <span className="text-gray-700 dark:text-gray-300 font-medium">{item.metadata.maintenance.type}</span>
+                                        <span className="text-gray-400">•</span>
+                                        <span className="text-gray-600 dark:text-gray-400 text-xs">
+                                          {item.metadata.maintenance.visitNumber}
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                                        📅 {new Date(item.metadata.maintenance.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} - {new Date(item.metadata.maintenance.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                                      No current maintenance
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Group: Certifications */}
+                    {results.some(r => r.type === 'certification') && (
+                      <div>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Certifications</div>
+                        <div className="space-y-2">
+                          {results.filter(r => r.type === 'certification').map(item => (
+                            <div
+                              key={item.id}
+                              onClick={() => handleSelect(item)}
+                              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow hover:shadow-md cursor-pointer transition-all border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center flex-shrink-0">
+                                  <Award className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  {/* Row 1: Certification Code */}
+                                  <div className="font-semibold text-base text-gray-900 dark:text-gray-100 mb-1">
+                                    {item.title}
+                                  </div>
+
+                                  {/* Description */}
+                                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                    {item.subtitle}
+                                  </div>
+
+                                  {/* Row 2: Authorities */}
+                                  {item.metadata?.authorities && item.metadata.authorities.length > 0 ? (
+                                    <div className="flex flex-wrap items-center gap-2 mb-2 text-sm">
+                                      <span className="text-gray-600 dark:text-gray-400 text-xs">Authorities:</span>
+                                      {item.metadata.authorities.map((auth, idx) => (
+                                        <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                          {auth}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">No authorities data</div>
+                                  )}
+
+                                  {/* Row 3: Top Employees with current certifications */}
+                                  {item.metadata?.topEmployees && item.metadata.topEmployees.length > 0 ? (
+                                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                                      <span className="text-gray-500 dark:text-gray-400">Currently Certified:</span>
+                                      {' '}
+                                      {item.metadata.topEmployees.map((emp, idx) => (
+                                        <span key={emp.id} className="font-medium">
+                                          {emp.name}
+                                          {idx < item.metadata.topEmployees.length - 1 && ', '}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">No currently certified employees</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Group: Training */}
+                    {results.some(r => r.type === 'training') && (
+                      <div>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Training Sessions</div>
+                        <div className="space-y-2">
+                          {results.filter(r => r.type === 'training').map(item => (
+                            <div
+                              key={item.id}
+                              onClick={() => handleSelect(item)}
+                              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow hover:shadow-md cursor-pointer transition-all border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900 flex items-center justify-center flex-shrink-0">
+                                  <BookOpen className="h-5 w-5 text-teal-600 dark:text-teal-300" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold text-base text-gray-900 dark:text-gray-100 mb-1">
+                                    {item.title}
+                                  </div>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                                    {item.subtitle}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            ) : searchQuery ? (
-              <div className="h-40 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                No results found
-              </div>
-            ) : null}
+            </ScrollArea>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Date Modal */}
-      <SetDateModal 
-        isOpen={isDateModalOpen} 
-        onClose={() => setIsDateModalOpen(false)} 
+      <SetDateModal
+        isOpen={isDateModalOpen}
+        onClose={() => setIsDateModalOpen(false)}
       />
+
+      {/* Custom styling for darker backdrop */}
+      {open && (
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            [data-radix-portal] [data-radix-dialog-overlay] {
+              background-color: rgba(0, 0, 0, 0.85) !important;
+            }
+          `
+        }} />
+      )}
     </header>
   );
 };
