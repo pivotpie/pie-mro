@@ -967,16 +967,19 @@ export type Database = {
       roster_codes: {
         Row: {
           description: string | null
+          frontend_name: string | null
           id: number
           roster_code: string
         }
         Insert: {
           description?: string | null
+          frontend_name?: string | null
           id?: number
           roster_code: string
         }
         Update: {
           description?: string | null
+          frontend_name?: string | null
           id?: number
           roster_code?: string
         }
@@ -1009,6 +1012,42 @@ export type Database = {
         Update: {
           id?: number
           team_name?: string
+        }
+        Relationships: []
+      }
+      temp_cert_import: {
+        Row: {
+          aircraft_type: string | null
+          authority: string | null
+          certification_code: string | null
+          employee_name: string | null
+          engine_type: string | null
+          expiry_date: string | null
+          issued_date: string | null
+          title: string | null
+          validity: string | null
+        }
+        Insert: {
+          aircraft_type?: string | null
+          authority?: string | null
+          certification_code?: string | null
+          employee_name?: string | null
+          engine_type?: string | null
+          expiry_date?: string | null
+          issued_date?: string | null
+          title?: string | null
+          validity?: string | null
+        }
+        Update: {
+          aircraft_type?: string | null
+          authority?: string | null
+          certification_code?: string | null
+          employee_name?: string | null
+          engine_type?: string | null
+          expiry_date?: string | null
+          issued_date?: string | null
+          title?: string | null
+          validity?: string | null
         }
         Relationships: []
       }
@@ -1842,6 +1881,15 @@ export type Database = {
           support_assignments: number
           total_working_employees: number
           unassigned_employees: number
+        }[]
+      }
+      import_csv_certifications: {
+        Args: never
+        Returns: {
+          errors: number
+          inserted: number
+          processed: number
+          skipped: number
         }[]
       }
       migrate_certifications_to_authorizations: {
