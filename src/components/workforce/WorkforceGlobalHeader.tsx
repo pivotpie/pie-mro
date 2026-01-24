@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import etihadLogo from '@/assets/etihad-logo.png';
 import { Button } from "@/components/ui/button";
 import { Bell, Moon, Search, Settings, Sun, User, Home, Calendar, Command as CommandIcon, Award, BookOpen, Loader2 } from "lucide-react";
 import { 
@@ -96,6 +97,11 @@ export const WorkforceGlobalHeader = ({ user, onLogout, onItemSelect }: Workforc
             className="h-8 w-auto mr-2" 
           />
           <span className="text-xl font-semibold">Pie-MRO</span>
+          <img 
+            src={etihadLogo} 
+            alt="Etihad Logo" 
+            className="h-6 w-auto ml-3" 
+          />
         </div>
         
         {/* Center Search Button */}
