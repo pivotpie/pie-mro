@@ -175,7 +175,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         {
           id: 'alpha',
           name: 'Team Alpha (Best Available)',
-          score: 75,
+          score: 80,
           color: 'bg-green-50 dark:bg-green-900/20',
           borderColor: 'border-green-500',
           members: teamAlpha
@@ -183,7 +183,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         {
           id: 'bravo',
           name: 'Team Bravo (Standard)',
-          score: 70,
+          score: 65,
           color: 'bg-blue-50 dark:bg-blue-900/20',
           borderColor: 'border-blue-500',
           members: teamBravo
@@ -191,7 +191,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
         {
           id: 'charlie',
           name: 'Team Charlie (Training)',
-          score: 65,
+          score: 50,
           color: 'bg-amber-50 dark:bg-amber-900/20',
           borderColor: 'border-amber-500',
           members: teamCharlie
@@ -230,17 +230,11 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       teamCharlie.push(...additionalMembers.filter(m => !teamCharlie.find(tm => tm.id === m.id)));
     }
 
-    // Calculate dynamic scores based on average match scores
-    const calcTeamScore = (team: Employee[]) => {
-      const avgScore = team.reduce((sum, emp) => sum + (emp.match_score || 0), 0) / team.length;
-      return Math.min(98, Math.max(60, Math.round(avgScore)));
-    };
-
     setSuggestedTeams([
       {
         id: 'alpha',
         name: 'Team Alpha (High Perf.)',
-        score: calcTeamScore(teamAlpha),
+        score: 80,
         color: 'bg-green-50 dark:bg-green-900/20',
         borderColor: 'border-green-500',
         members: teamAlpha
@@ -248,7 +242,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       {
         id: 'bravo',
         name: 'Team Bravo (Standard)',
-        score: calcTeamScore(teamBravo),
+        score: 65,
         color: 'bg-blue-50 dark:bg-blue-900/20',
         borderColor: 'border-blue-500',
         members: teamBravo
@@ -256,7 +250,7 @@ export const AircraftDetailsModal = ({ open, onOpenChange, aircraft }: AircraftD
       {
         id: 'charlie',
         name: 'Team Charlie (Training)',
-        score: calcTeamScore(teamCharlie),
+        score: 50,
         color: 'bg-amber-50 dark:bg-amber-900/20',
         borderColor: 'border-amber-500',
         members: teamCharlie
